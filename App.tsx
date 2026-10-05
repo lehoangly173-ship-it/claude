@@ -11,7 +11,7 @@ import { Reception } from './src/roles/reception';
 import { alerts, hhmm, metrics, staffById, useApp } from './src/store';
 import { C } from './src/theme';
 import { Avatar, Btn, Card, Row, Txt } from './src/ui';
-import { loadAccount, signInWithGoogle, toLoginEmail } from './src/auth';
+import { loadAccount, mountGoogleButton, signInWithGoogle, toLoginEmail } from './src/auth';
 import { supabase } from './src/supabase';
 
 export default function App() {
@@ -89,6 +89,7 @@ function Login({ denied }: { denied: string | null }) {
       msg={err ?? info} msgErr={!!err} denied={denied}
       onSubmit={submit}
       onGoogle={async () => { setBusy(true); setErr(null); if (denied) await supabase.auth.signOut(); setErr(await signInWithGoogle()); setBusy(false); }}
+      onGoogleResult={(e) => setErr(e)}
       onToggleSignup={() => { setSignup(!signup); setErr(null); setInfo(null); }}
       onDemo={ALLOW_DEMO ? () => setDemo(true) : undefined}
     />
@@ -136,7 +137,7 @@ const ART_W = 1024, ART_H = 1536;
 function LoginArt(p: {
   id: string; setId: (v: string) => void; pw: string; setPw: (v: string) => void; show: boolean; setShow: (v: boolean) => void;
   busy: boolean; signup: boolean; msg: string | null; msgErr: boolean; denied: string | null;
-  onSubmit: () => void; onGoogle: () => void; onToggleSignup: () => void; onDemo?: () => void;
+  onSubmit: () => void; onGoogle: () => void; onGoogleResult: (err: string | null) => void; onToggleSignup: () => void; onDemo?: () => void;
 }) {
   const [box, setBox] = useState({ w: 0, h: 0 });
   const k = Math.max(box.w / ART_W, box.h / ART_H);
@@ -171,7 +172,13 @@ function LoginArt(p: {
               </View>
             </View>
           ) : null}
-          <Pressable onPress={p.onGoogle} disabled={p.busy} style={[at(249, 1126, 775, 1207), { borderRadius: 999 }]} />
+          {Platform.OS === 'web' ? (
+            <View style={[at(249, 1126, 775, 1207), { alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderRadius: 999 }]}>
+              <GoogleWebButton width={(775 - 249) * k} onResult={p.onGoogleResult} />
+            </View>
+          ) : (
+            <Pressable onPress={p.onGoogle} disabled={p.busy} style={[at(249, 1126, 775, 1207), { borderRadius: 999 }]} />
+          )}
           <Pressable onPress={p.onToggleSignup} style={at(520, 1236, 690, 1278)} />
           {p.signup ? (
             <View pointerEvents="none" style={[at(330, 1236, 700, 1278), { alignItems: 'center', justifyContent: 'center', backgroundColor: '#F2F1E9' }]}>
@@ -191,6 +198,14 @@ function LoginArt(p: {
     </View>
     </View>
   );
+}
+
+// Nút Google thật của Google, để gần như trong suốt nằm đúng chỗ nút trong ảnh thiết kế.
+function GoogleWebButton({ width, onResult }: { width: number; onResult: (err: string | null) => void }) {
+  const ref = React.useRef<any>(null);
+  const w = Math.round(width);
+  useEffect(() => { if (ref.current && w > 0) mountGoogleButton(ref.current as HTMLElement, onResult); }, [w]);
+  return <View ref={ref} style={{ width: w, minHeight: 44, opacity: 0.011, transform: [{ scaleY: 1.6 }] } as any} />;
 }
 
 function Shell({ role, staffId }: { role: Role; staffId: string }) {
