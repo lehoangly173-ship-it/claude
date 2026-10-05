@@ -2,10 +2,12 @@ import React, { useState } from 'react';
 import { View } from 'react-native';
 import { CEO_PRIORITIES, MONTH_BASE } from '../data';
 import { CustomerSheet } from '../shared';
-import { alerts, ceo, maskPhone, money, useApp, vnd } from '../store';
+import { alerts, ceo, money, phoneFor, useApp, vnd } from '../store';
 import { C } from '../theme';
 import { AlertList, Avatar, Bar, Card, Grid, Pill, Row, Screen, Section, Stat, Title, Txt } from '../ui';
 import { MePanel, Nav } from './common';
+import { StaffAdmin } from './admin';
+import { Seg } from '../ui';
 
 function Bars({ rows, color = C.green, fmt = (v: number) => String(v) }: { rows: { name: string; value: number; extra?: string }[]; color?: string; fmt?: (v: number) => string }) {
   const max = Math.max(1, ...rows.map((r) => r.value));
@@ -24,15 +26,33 @@ function Bars({ rows, color = C.green, fmt = (v: number) => String(v) }: { rows:
   );
 }
 
+// Tóm tắt kinh doanh — dùng cho Leader được cấp quyền "Báo cáo"
+export function BizSnapshot() {
+  const s = useApp();
+  const d = ceo(s);
+  return (
+    <Section title="Báo cáo nhanh">
+      <Grid>
+        <Stat label="Tiền đã thu hôm nay" value={money(d.m.revenuePaid)} sub={`Doanh thu dịch vụ ${money(d.m.serviceRevenue)}`} t="green" />
+        <Stat label="Doanh thu tháng" value={money(d.monthRevenue)} sub={`${d.targetPct}% mục tiêu`} t="gold" />
+        <Stat label="Khách hôm nay" value={d.custToday} sub={`${d.newToday} khách mới`} t="blue" />
+        <Stat label="Công suất giường" value={`${d.utilization}%`} sub={`${d.m.ktvBusy}/${d.m.ktvInShift} KTV bận`} t="amber" />
+      </Grid>
+    </Section>
+  );
+}
+
 export function Ceo({ nav }: { nav: Nav }) {
   const s = useApp();
   const d = ceo(s);
   const [profile, setProfile] = useState<string | null>(null);
+  const pendingN = nav.pendingN ?? 0;
 
   if (nav.tab === 0) {
     const biz = [
-      ...alerts(s).filter((a) => a.level === 'red'),
+      ...alerts(s).filter((a) => a.level === 'red').map((a) => ({ ...a, go: undefined })),
       ...d.vipAtRisk.map((c) => ({ id: 'v' + c.id, level: 'amber' as const, title: `VIP ${c.name} ${c.lastVisitDaysAgo} ngày chưa quay lại`, sub: 'Nguy cơ mất khách — giao CSKH' })),
+      ...(pendingN ? [{ id: 'req', level: 'amber' as const, title: `${pendingN} người xin tham gia app`, sub: 'Bấm để duyệt và cấp quyền', go: 'staff' }] : []),
       ...(d.m.unpaid.length ? [{ id: 'up', level: 'amber' as const, title: `${d.m.unpaid.length} hóa đơn chưa thu`, sub: `${vnd(d.m.revenuePending)} đang treo` }] : []),
     ];
     return (
@@ -46,7 +66,7 @@ export function Ceo({ nav }: { nav: Nav }) {
           <Stat label="VIP active" value={d.vipActive} sub={`${d.vipAtRisk.length} VIP có nguy cơ rời`} t="purple" />
           <Stat label="Công suất giường" value={`${d.utilization}%`} sub={`${d.m.bedsUsed}/${d.m.bedsTotal} giường · ${d.m.ktvBusy}/${d.m.ktvInShift} KTV bận`} t="amber" />
         </Grid>
-        <Section title="Cảnh báo quan trọng"><AlertList items={biz} /></Section>
+        <Section title="Cảnh báo quan trọng"><AlertList items={biz} onGo={(g) => { if (g === 'staff') { nav.setSub('staff'); nav.setTab(2); } }} /></Section>
         <Section title="3 ưu tiên tuần này">
           <Card style={{ gap: 8 }}>
             {CEO_PRIORITIES.map((p, i) => (
@@ -95,19 +115,23 @@ export function Ceo({ nav }: { nav: Nav }) {
   }
 
   if (nav.tab === 2) {
+    const sub = nav.sub === 'customers' ? 'customers' : 'staff';
     return (
       <Screen>
-        <Title kicker="Khách hàng" title="Tệp khách" sub={`${s.customers.length} hồ sơ · số điện thoại được ẩn`} />
+        <Title kicker="CEO" title={sub === 'staff' ? 'Nhân sự & phân quyền' : 'Tệp khách'} sub={sub === 'staff' ? 'Duyệt người xin tham gia, cấp vai trò và tính năng cho từng tài khoản' : `${s.customers.length} hồ sơ`} />
+        <Seg value={sub} onChange={(v) => nav.setSub(v)} options={[{ v: 'staff', label: 'Nhân sự', badge: pendingN }, { v: 'customers', label: 'Khách hàng' }]} />
+        {sub === 'staff' ? (s.session?.demo ? <Card><Txt size={13} color={C.sub}>Bản demo không kết nối tài khoản thật. Đăng nhập bằng Google để duyệt nhân sự.</Txt></Card> : <StaffAdmin />) : (<>
         <Section title="Theo hạng khách"><Bars rows={d.tierCount} color={C.purple} /></Section>
         <Section title="Theo kênh đến (giữ kênh đầu tiên)"><Bars rows={d.bySource} color={C.blue} /></Section>
         <Section title="VIP có nguy cơ rời">
           {d.vipAtRisk.map((c) => (
             <Card key={c.id} onPress={() => setProfile(c.id)} style={{ gap: 4 }} accent={C.red}>
               <Txt weight="800">{c.name}</Txt>
-              <Txt size={12} color={C.sub}>{maskPhone(c.phone)} · {c.lastVisitDaysAgo} ngày chưa quay lại · còn {c.packageLeft} buổi gói</Txt>
+              <Txt size={12} color={C.sub}>{phoneFor(s, c.phone)} · {c.lastVisitDaysAgo} ngày chưa quay lại · còn {c.packageLeft} buổi gói</Txt>
             </Card>
           ))}
         </Section>
+        </>)}
         <CustomerSheet id={profile} role="ceo" onClose={() => setProfile(null)} />
       </Screen>
     );

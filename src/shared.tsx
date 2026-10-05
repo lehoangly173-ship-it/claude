@@ -2,8 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { BEDS, Booking, CLEAN_STEPS, Role, SERVICES, SHIFTS, Source } from './data';
 import {
-  bedStatus, canSeePhone, cust, digits, endOf, freeBeds, hhmm, ktvStatus, ktvs, maskPhone, staffById,
-  suggestBed, suggestKtv, svc, tourCount, useApp, vnd,
+  bedStatus, canSeePhone, cust, digits, endOf, freeBeds, hhmm, ktvStatus, ktvs, maskPhone, staffById, suggestBed, suggestKtv, svc, tourCount, useApp, vnd, phoneFor, can,
 } from './store';
 import { C, tone } from './theme';
 import { Avatar, Btn, Card, Check, Choice, Empty, Field, Pill, Row, Section, Seg, Sheet, Txt } from './ui';
@@ -115,8 +114,8 @@ export function NewBookingSheet({ visible, onClose }: { visible: boolean; onClos
     const t = q.trim().toLowerCase();
     if (!t) return [];
     const d = digits(t);
-    return s.customers.filter((c) => (c.name + c.id).toLowerCase().includes(t) || (d.length >= 3 && digits(c.phone).includes(d))).slice(0, 5);
-  }, [q, s.customers]);
+    return s.customers.filter((c) => (c.name + c.id).toLowerCase().includes(t) || (canSeePhone(s) && d.length >= 3 && digits(c.phone).includes(d))).slice(0, 5);
+  }, [q, s.customers, s.session]);
   const isNew = !!q.trim() && (!matches.length || forceNew);
   const slots = useMemo(() => {
     const first = Math.ceil((s.now + 1) / 15) * 15;
@@ -142,7 +141,7 @@ export function NewBookingSheet({ visible, onClose }: { visible: boolean; onClos
       {pc ? (
         <Card style={{ gap: 4 }}>
           <Row style={{ justifyContent: 'space-between' }}><Txt weight="800">{pc.name}</Txt><Pill label={pc.tier} t={tierTone(pc.tier)} /></Row>
-          <Txt size={12} color={C.sub}>{pc.phone} · {pc.visits} lần · còn {pc.packageLeft} buổi gói</Txt>
+          <Txt size={12} color={C.sub}>{phoneFor(s, pc.phone)} · {pc.visits} lần · còn {pc.packageLeft} buổi gói</Txt>
           <Btn small kind="ghost" label="Đổi khách" onPress={() => setPicked(undefined)} />
         </Card>
       ) : (
@@ -150,7 +149,7 @@ export function NewBookingSheet({ visible, onClose }: { visible: boolean; onClos
           <Field label="Tên khách hoặc số điện thoại" value={q} onChangeText={(t) => { setQ(t); setForceNew(false); }} placeholder="VD: Nguyễn Thị Mai" />
           {!forceNew && matches.map((c) => (
             <Pressable key={c.id} onPress={() => setPicked(c.id)}>
-              <Card style={{ paddingVertical: 10 }}><Txt weight="700">{c.name} <Txt size={12} color={C.sub}>· {c.phone} · {c.tier}</Txt></Txt></Card>
+              <Card style={{ paddingVertical: 10 }}><Txt weight="700">{c.name} <Txt size={12} color={C.sub}>· {phoneFor(s, c.phone)} · {c.tier}</Txt></Txt></Card>
             </Pressable>
           ))}
           {matches.length && !forceNew ? <Btn small kind="ghost" label={`Không phải — tạo khách mới “${q.trim()}”`} onPress={() => setForceNew(true)} /> : null}
@@ -190,7 +189,7 @@ export function CustomerSheet({ id, role, onClose }: { id: string | null; role: 
         <Pill label={`Nguồn: ${c.source}`} t="blue" big />
       </Row>
       <Card style={{ gap: 0 }}>
-        <F k="Số điện thoại" v={canSeePhone(role) ? c.phone : `${maskPhone(c.phone)} (chỉ Lễ tân xem)`} />
+        <F k="Số điện thoại" v={canSeePhone(s) ? c.phone : `${maskPhone(c.phone)} (cần quyền xem số điện thoại)`} />
         <F k="Sinh nhật" v={c.birthday.split('-').reverse().join('/')} />
         <F k="Số lần đến" v={`${c.visits} lần · lần cuối ${c.lastVisitDaysAgo === 0 ? 'hôm nay' : c.lastVisitDaysAgo + ' ngày trước'}`} />
         <F k="Gói còn lại" v={`${c.packageLeft} buổi`} />

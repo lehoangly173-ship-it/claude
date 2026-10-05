@@ -1,3 +1,4 @@
+import { DEFAULT_PERMS, Perm } from './perms';
 import { create } from 'zustand';
 import {
   AREA_TASKS, AreaTask, BEDS, BOOKINGS, Booking, CareLog, CLEAN_STEPS, CONTENT_TASKS, ContentTask,
@@ -8,7 +9,7 @@ import type { Tone } from './theme';
 // ===================== STATE =====================
 export type State = {
   now: number;
-  session: { role: Role; staffId: string } | null;
+  session: { role: Role; staffId: string; perms: Perm[]; name?: string; demo?: boolean } | null;
   bookings: Booking[];
   customers: Customer[];
   checkins: Record<string, number>;
@@ -45,7 +46,9 @@ export const endOf = (b: Booking) => b.endedAt ?? (b.startedAt ?? b.start) + svc
 export const isActive = (b: Booking) => b.status !== 'cancelled';
 export const SOON = 30; // phút — ngưỡng "sắp xong" dùng chung mọi màn hình
 export const digits = (t: string) => t.replace(/\D/g, '');
-export const canSeePhone = (role?: Role) => role === 'reception';
+export const can = (s: { session: State['session'] } | null | undefined, p: Perm) => !!s?.session?.perms.includes(p);
+export const canSeePhone = (s: { session: State['session'] }) => can(s, 'customer_phone');
+export const phoneFor = (s: { session: State['session'] }, phone: string) => (canSeePhone(s) ? phone : maskPhone(phone));
 
 type Badge = { key: string; label: string; tone: Tone; until?: number };
 
@@ -235,7 +238,7 @@ type NewBooking = {
 };
 
 type Actions = {
-  login: (role: Role, staffId: string) => void;
+  login: (role: Role, staffId: string, perms?: Perm[], name?: string) => void;
   logout: () => void;
   tick: (mins: number) => void;
   say: (t: string | null) => void;
@@ -260,7 +263,7 @@ export const useApp = create<State & Actions>((set, get) => {
   const patchB = (id: string, p: Partial<Booking>) => set((s) => ({ bookings: s.bookings.map((b) => (b.id === id ? { ...b, ...p } : b)) }));
   return {
     ...initialState(),
-    login: (role, staffId) => set({ session: { role, staffId } }),
+    login: (role, staffId, perms, name) => set({ session: { role, staffId, perms: perms ?? DEFAULT_PERMS[role], name, demo: !perms } }),
     logout: () => set({ session: null }),
     tick: (mins) => set((s) => ({ now: Math.min(s.now + mins, 20 * 60) })),
     say: (t) => set({ toast: t }),

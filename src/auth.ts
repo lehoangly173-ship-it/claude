@@ -2,11 +2,11 @@ import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { Platform } from 'react-native';
 import { Role } from './data';
+import { Perm } from './perms';
 import { supabase } from './supabase';
 
 WebBrowser.maybeCompleteAuthSession();
 
-export type Account = { email: string; role: Role; staffId: string };
 
 export async function signInWithGoogle(): Promise<string | null> {
   try {
@@ -43,14 +43,42 @@ export async function signInWithGoogle(): Promise<string | null> {
   }
 }
 
-// Tìm vai trò của email trong danh sách nhân viên được cấp quyền.
-export async function loadAccount(): Promise<{ email: string | null; account: Account | null }> {
+export type MemberStatus = 'pending' | 'active' | 'rejected' | 'disabled';
+export type Member = {
+  user_id: string; email: string; full_name: string; status: MemberStatus;
+  requested_role: Role | null; note: string | null; role: Role | null; staff_id: string | null;
+  permissions: Perm[]; is_owner: boolean; requested_at: string; decided_at: string | null;
+};
+
+// Đọc hồ sơ thành viên của người đang đăng nhập. Chủ spa đăng nhập lần đầu sẽ tự thành CEO.
+export async function loadMember(): Promise<{ email: string | null; name: string; member: Member | null; error?: string }> {
   const { data } = await supabase.auth.getSession();
-  const email = data.session?.user.email ?? null;
-  if (!email) return { email: null, account: null };
-  const { data: row } = await supabase.from('staff_accounts').select('email, role, staff_id').maybeSingle();
-  if (!row) return { email, account: null };
-  return { email, account: { email, role: row.role as Role, staffId: row.staff_id } };
+  const user = data.session?.user;
+  if (!user) return { email: null, name: '', member: null };
+  const email = user.email ?? null;
+  const name = (user.user_metadata?.full_name as string) || (user.user_metadata?.name as string) || '';
+  const { data: row, error } = await supabase.from('members').select('*').eq('user_id', user.id).maybeSingle();
+  if (error) return { email, name, member: null, error: error.message };
+  if (row) return { email, name, member: row as Member };
+  const { data: owner } = await supabase.rpc('claim_owner');
+  return { email, name, member: owner && (owner as Member).user_id ? (owner as Member) : null };
+}
+
+export async function requestAccess(fullName: string, role: Role, note: string) {
+  const { data, error } = await supabase.rpc('request_access', { p_full_name: fullName, p_role: role, p_note: note });
+  return { member: (data as Member) ?? null, error: error?.message ?? null };
+}
+
+export async function listMembers() {
+  const { data, error } = await supabase.from('members').select('*').order('requested_at', { ascending: false });
+  return { members: (data as Member[]) ?? [], error: error?.message ?? null };
+}
+
+export async function setMember(userId: string, status: 'active' | 'rejected' | 'disabled', role: Role | null, perms: Perm[], staffId: string | null) {
+  const { data, error } = await supabase.rpc('ceo_set_member', {
+    p_user: userId, p_status: status, p_role: role, p_permissions: perms, p_staff_id: staffId,
+  });
+  return { member: (data as Member) ?? null, error: error?.message ?? null };
 }
 
 // Số điện thoại được đổi thành email nội bộ (không cần gửi SMS). Email thật giữ nguyên.

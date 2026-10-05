@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { View } from 'react-native';
 import { CAMPAIGNS, LEADS, Source } from '../data';
 import { CustomerSheet } from '../shared';
-import { careList, maskPhone, staffById, useApp } from '../store';
+import { can, careList, maskPhone, phoneFor, staffById, useApp } from '../store';
 import { C } from '../theme';
 import { Bar, Btn, Card, Check, Empty, Grid, Pill, Row, Screen, Section, Stat, Title, Txt } from '../ui';
-import { MePanel, Nav } from './common';
+import { MePanel, Nav, NoAccess } from './common';
+import { BizSnapshot } from './ceo';
 
 export function Marketing({ nav }: { nav: Nav }) {
   const s = useApp();
@@ -21,7 +22,7 @@ export function Marketing({ nav }: { nav: Nav }) {
       {(limit ? care.slice(0, limit) : care).map((x) => (
         <Card key={x.customer.id + x.kind} style={{ gap: 6 }}>
           <Row style={{ justifyContent: 'space-between' }}><Txt weight="800">{x.customer.name}</Txt><Pill label={x.reason} t={x.tone} /></Row>
-          <Txt size={12} color={C.sub}>{maskPhone(x.customer.phone)} · {x.customer.tier} · {x.customer.source}</Txt>
+          <Txt size={12} color={C.sub}>{phoneFor(s, x.customer.phone)} · {x.customer.tier} · {x.customer.source}</Txt>
           <Row><Btn small kind="ghost" label="Hồ sơ" onPress={() => setProfile(x.customer.id)} style={{ flex: 1 }} /><Btn small label="✓ Đã nhắn" onPress={() => s.logCare(x.customer.id, x.kind)} style={{ flex: 1 }} /></Row>
         </Card>
       ))}
@@ -34,21 +35,24 @@ export function Marketing({ nav }: { nav: Nav }) {
       <Screen>
         <Title kicker="Hôm nay" title="Marketing · CSKH" sub="Mục tiêu: 2 ảnh + 2 video mỗi ngày (chung với lễ tân)" />
         <Grid>
-          <Stat label="Nội dung hôm nay" value={`${contentDone}/4`} sub={`${photos.filter((p) => p.done).length}/2 ảnh · ${videos.filter((v) => v.done).length}/2 video`} t="purple" />
-          <Stat label="Cần CSKH" value={care.length} sub="Sinh nhật · hỏi thăm · lâu chưa quay lại" t="amber" />
+          {can(s, 'content') ? <Stat label="Nội dung hôm nay" value={`${contentDone}/4`} sub={`${photos.filter((p) => p.done).length}/2 ảnh · ${videos.filter((v) => v.done).length}/2 video`} t="purple" /> : null}
+          {can(s, 'care') ? <Stat label="Cần CSKH" value={care.length} sub="Sinh nhật · hỏi thăm · lâu chưa quay lại" t="amber" /> : null}
         </Grid>
-        <Section title="Nội dung cần làm">
+        {can(s, 'content') ? <Section title="Nội dung cần làm">
           <Card>
             <Bar pct={(contentDone / 4) * 100} color={C.purple} />
             {s.contentTasks.map((c) => <Check key={c.id} on={c.done} label={`${c.kind}: ${c.title}`} sub={`${c.channel} · ${staffById(c.ownerId)?.name}`} onPress={() => s.toggleContent(c.id)} />)}
           </Card>
-        </Section>
-        <Section title="CSKH ưu tiên"><CareCards limit={3} /></Section>
+        </Section> : null}
+        {can(s, 'care') ? <Section title="CSKH ưu tiên"><CareCards limit={3} /></Section> : null}
+        {!can(s, 'content') && !can(s, 'care') ? <NoAccess what="Nội dung / CSKH" /> : null}
         {sheet}
       </Screen>
     );
   }
 
+  if (nav.tab === 1 && !can(s, 'content')) return <Screen><Title kicker="Marketing" title="Nội dung" /><NoAccess what="Nội dung & kênh" /></Screen>;
+  if (nav.tab === 2 && !can(s, 'customers') && !can(s, 'care')) return <Screen><Title kicker="Marketing" title="Khách hàng" /><NoAccess what="Hồ sơ khách hàng" /></Screen>;
   if (nav.tab === 1) {
     return (
       <Screen>
@@ -84,7 +88,7 @@ export function Marketing({ nav }: { nav: Nav }) {
     return (
       <Screen>
         <Title kicker="Khách hàng" title="Phễu theo kênh" sub="Hỏi → Thành khách → Đã đến → Mua gói" />
-        {rows.map((r) => (
+        {can(s, 'customers') ? rows.map((r) => (
           <Card key={r.src} style={{ gap: 6 }}>
             <Row style={{ justifyContent: 'space-between' }}><Txt weight="800">{r.src}</Txt><Txt size={12} color={C.sub}>{r.leads} lượt hỏi</Txt></Row>
             <Bar pct={(r.leads / max) * 100} color={C.blue} />
@@ -95,12 +99,12 @@ export function Marketing({ nav }: { nav: Nav }) {
               <Pill label={`Chuyển đổi ${r.leads ? Math.round((r.custs / r.leads) * 100) : 0}%`} t="purple" />
             </Row>
           </Card>
-        ))}
-        <Section title={`Danh sách CSKH (${care.length})`}><CareCards /></Section>
+        )) : null}
+        {can(s, 'care') ? <Section title={`Danh sách CSKH (${care.length})`}><CareCards /></Section> : null}
         {sheet}
       </Screen>
     );
   }
 
-  return <Screen><MePanel staffId={nav.staffId} role="marketing" /></Screen>;
+  return <Screen><MePanel staffId={nav.staffId} role="marketing" extra={can(s, 'reports') ? <BizSnapshot /> : null} /></Screen>;
 }

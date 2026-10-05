@@ -1,5 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Image, Platform, Pressable, ScrollView, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { Role, STAFF } from './src/data';
@@ -8,10 +8,12 @@ import { Nav, ROLE_LABEL, TABS } from './src/roles/common';
 import { Ktv } from './src/roles/ktv';
 import { Marketing } from './src/roles/marketing';
 import { Reception } from './src/roles/reception';
-import { alerts, hhmm, metrics, staffById, useApp } from './src/store';
+import { alerts, can, hhmm, metrics, staffById, useApp } from './src/store';
+import { usePendingCount } from './src/roles/admin';
 import { C } from './src/theme';
-import { Avatar, Btn, Card, Row, Txt } from './src/ui';
-import { loadAccount, mountGoogleButton, signInWithGoogle, toLoginEmail } from './src/auth';
+import { Avatar, Btn, Card, Choice, Field, Pill, Row, Txt } from './src/ui';
+import { loadMember, Member, mountGoogleButton, requestAccess, signInWithGoogle, toLoginEmail } from './src/auth';
+import { ROLE_OPTIONS } from './src/perms';
 import { supabase } from './src/supabase';
 
 export default function App() {
@@ -24,29 +26,129 @@ export default function App() {
 
 const ALLOW_DEMO = true; // nút "xem thử" không cần đăng nhập — tắt khi chạy thật
 
+type Gate = 'loading' | 'out' | 'request' | 'pending' | 'rejected' | 'disabled' | 'error';
+
 function Root() {
   const session = useApp((s) => s.session);
   const login = useApp((s) => s.login);
-  const [state, setState] = useState<'loading' | 'out' | 'denied'>('loading');
-  const [email, setEmail] = useState<string | null>(null);
+  const [gate, setGate] = useState<Gate>('loading');
+  const [info, setInfo] = useState<{ email: string | null; name: string; member: Member | null; error?: string }>({ email: null, name: '', member: null });
+
+  const sync = useCallback(async () => {
+    const r = await loadMember();
+    setInfo(r);
+    const live = useApp.getState().session;
+    if (live?.demo) return; // đang xem bản demo: không đụng tới
+    if (!r.email) { if (live) useApp.getState().logout(); setGate('out'); return; }
+    if (r.error) { setGate('error'); return; }
+    const m = r.member;
+    if (!m) { setGate('request'); return; }
+    if (m.status === 'active' && m.role) {
+      const staffId = m.role === 'ceo' ? (m.staff_id && staffById(m.staff_id) ? m.staff_id : 'quyen') : m.staff_id && staffById(m.staff_id) ? m.staff_id : null;
+      if (!staffId) { if (live) useApp.getState().logout(); setGate('pending'); return; } // chưa gắn hồ sơ: chờ CEO gắn
+      const same = live && live.role === m.role && live.staffId === staffId && live.perms.join() === m.permissions.join();
+      if (!same) login(m.role, staffId, m.permissions, m.full_name || m.email);
+      return;
+    }
+    if (live) useApp.getState().logout();
+    setGate(m.status === 'active' ? 'pending' : m.status);
+  }, [login]);
 
   useEffect(() => {
-    let alive = true;
-    const sync = async () => {
-      const r = await loadAccount();
-      if (!alive) return;
-      setEmail(r.email);
-      if (r.account) login(r.account.role, r.account.staffId);
-      else setState(r.email ? 'denied' : 'out');
-    };
     sync();
     const { data } = supabase.auth.onAuthStateChange((ev) => { if (ev === 'SIGNED_IN' || ev === 'SIGNED_OUT') sync(); });
-    return () => { alive = false; data.subscription.unsubscribe(); };
-  }, []);
+    return () => data.subscription.unsubscribe();
+  }, [sync]);
+
+  // Đang dùng app: mỗi 60 giây cập nhật quyền (CEO đổi quyền/khóa thì áp dụng ngay)
+  useEffect(() => {
+    if (!session || session.demo) return;
+    const t = setInterval(sync, 60000);
+    return () => clearInterval(t);
+  }, [session?.demo, !!session, sync]);
+
+  // Đang chờ duyệt: tự kiểm tra lại mỗi 15 giây để vào app ngay khi CEO duyệt
+  useEffect(() => {
+    if (gate !== 'pending' || session) return;
+    const t = setInterval(sync, 15000);
+    return () => clearInterval(t);
+  }, [gate, session, sync]);
 
   if (session) return <><StatusBar style="light" /><Shell role={session.role} staffId={session.staffId} key={session.staffId} /></>;
-  if (state === 'loading') return <SafeAreaView style={{ flex: 1, backgroundColor: C.forest, alignItems: 'center', justifyContent: 'center' }}><Txt color="#fff">Đang tải…</Txt></SafeAreaView>;
-  return <><StatusBar style="dark" /><Login denied={state === 'denied' ? email : null} /></>;
+  if (gate === 'loading') return <SafeAreaView style={{ flex: 1, backgroundColor: '#F4F1E8', alignItems: 'center', justifyContent: 'center' }}><Txt color={C.sub}>Đang tải…</Txt></SafeAreaView>;
+  if (gate === 'out') return <><StatusBar style="dark" /><Login denied={null} /></>;
+  return <><StatusBar style="dark" /><JoinGate gate={gate} info={info} onDone={sync} /></>;
+}
+
+// Màn hình sau khi đăng nhập nhưng chưa có quyền: gửi yêu cầu / chờ duyệt / bị từ chối / bị khóa
+function JoinGate({ gate, info, onDone }: { gate: Gate; info: { email: string | null; name: string; member: Member | null; error?: string }; onDone: () => void }) {
+  const [name, setName] = useState(info.member?.full_name || info.name || '');
+  const [role, setRole] = useState<Role>((info.member?.requested_role as Role) ?? 'ktv');
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [again, setAgain] = useState(false);
+  const GREEN = '#17703F';
+  const send = async () => {
+    if (!name.trim()) { setErr('Hãy nhập họ tên'); return; }
+    setBusy(true); setErr(null);
+    const r = await requestAccess(name.trim(), role, note.trim());
+    setBusy(false);
+    if (r.error) setErr(r.error); else { setAgain(false); onDone(); }
+  };
+  const form = gate === 'request' || ((gate === 'rejected') && again);
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#F4F1E8' }}>
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 22, gap: 14, maxWidth: 480, width: '100%', alignSelf: 'center', flexGrow: 1, justifyContent: 'center' }}>
+        <View style={{ alignItems: 'center', gap: 4 }}>
+          <Image source={require('./assets/icon.png')} style={{ width: 96, height: 96, borderRadius: 24 }} />
+          <Txt size={13} color={C.sub}>{info.email}</Txt>
+        </View>
+        {form ? (
+          <>
+            <View style={{ alignItems: 'center', gap: 4 }}>
+              <Txt size={22} weight="800" color={GREEN}>Yêu cầu tham gia Home Spa</Txt>
+              <Txt size={13} color={C.sub} style={{ textAlign: 'center' }}>CEO sẽ nhận yêu cầu, duyệt và cấp quyền cho bạn.</Txt>
+            </View>
+            <Field label="Họ và tên" value={name} onChangeText={setName} placeholder="VD: Nguyễn Thị Lan" />
+            <Choice label="Bạn làm vị trí" value={role} onChange={setRole}
+              options={ROLE_OPTIONS.filter((o) => o.v !== 'ceo').map((o) => ({ v: o.v, label: o.label, sub: o.desc }))} />
+            <Field label="Lời nhắn cho CEO (không bắt buộc)" value={note} onChangeText={setNote} placeholder="VD: Em là KTV ca 2, vào làm từ 1/10" />
+            {err ? <Txt color={C.red} size={13}>{err}</Txt> : null}
+            <Btn label={busy ? 'Đang gửi…' : 'Gửi yêu cầu tham gia'} disabled={busy} onPress={send} />
+          </>
+        ) : gate === 'pending' ? (
+          <Card style={{ gap: 8, alignItems: 'center', paddingVertical: 24 }}>
+            <Txt size={34}>⏳</Txt>
+            <Txt size={18} weight="800" color={GREEN}>Đã gửi yêu cầu</Txt>
+            <Txt size={13} color={C.sub} style={{ textAlign: 'center' }}>Chờ CEO duyệt. Khi được duyệt, app sẽ tự mở — bạn không cần làm gì thêm.</Txt>
+            {info.member?.requested_role ? <Pill big t="gold" label={`Xin làm: ${ROLE_LABEL[info.member.requested_role as Role]}`} /> : null}
+            <Btn small kind="ghost" label="↻ Kiểm tra lại" onPress={onDone} />
+          </Card>
+        ) : gate === 'rejected' ? (
+          <Card style={{ gap: 8, alignItems: 'center', paddingVertical: 24 }}>
+            <Txt size={34}>✋</Txt>
+            <Txt size={18} weight="800">Yêu cầu chưa được chấp nhận</Txt>
+            <Txt size={13} color={C.sub} style={{ textAlign: 'center' }}>Nếu có nhầm lẫn, hãy liên hệ quản lý rồi gửi lại yêu cầu.</Txt>
+            <Btn small label="Gửi lại yêu cầu" onPress={() => setAgain(true)} />
+          </Card>
+        ) : gate === 'disabled' ? (
+          <Card style={{ gap: 8, alignItems: 'center', paddingVertical: 24 }}>
+            <Txt size={34}>🔒</Txt>
+            <Txt size={18} weight="800">Tài khoản đã bị khóa</Txt>
+            <Txt size={13} color={C.sub} style={{ textAlign: 'center' }}>Liên hệ CEO để được mở lại.</Txt>
+          </Card>
+        ) : (
+          <Card accent={C.red} style={{ gap: 6 }}>
+            <Txt weight="800">Không tải được tài khoản</Txt>
+            <Txt size={13} color={C.sub}>{info.error}</Txt>
+            <Btn small label="Thử lại" onPress={onDone} />
+          </Card>
+        )}
+        <Pressable onPress={() => supabase.auth.signOut()}><Txt color={C.sub} weight="700" style={{ textAlign: 'center' }}>Đăng xuất / dùng tài khoản khác</Txt></Pressable>
+      </ScrollView>
+    </SafeAreaView>
+  );
 }
 
 function Login({ denied }: { denied: string | null }) {
@@ -62,6 +164,7 @@ function Login({ denied }: { denied: string | null }) {
   const [signup, setSignup] = useState(false);
   const roles: { r: Role; d: string; icon: string }[] = [
     { r: 'reception', d: 'Điều phối, chia tour, sơ đồ giường, thu ngân', icon: '🛎' },
+    { r: 'leader', d: 'Quản lý ca: điều phối + báo cáo', icon: '🧭' },
     { r: 'ktv', d: 'Việc tiếp theo, tour hôm nay, checklist', icon: '💆' },
     { r: 'ceo', d: 'Sức khỏe kinh doanh, cảnh báo, ưu tiên', icon: '📈' },
     { r: 'marketing', d: 'Nội dung mỗi ngày, phễu kênh, CSKH', icon: '📣' },
@@ -217,7 +320,10 @@ function Shell({ role, staffId }: { role: Role; staffId: string }) {
   const nav: Nav = { tab, setTab, sub, setSub, staffId };
   const me = staffById(staffId)!;
   const m = metrics(s);
-  const badges = role === 'reception' ? [alerts(s).length, m.waiting.length + m.unpaid.length, 0, 0] : [0, 0, 0, 0];
+  const pendingN = usePendingCount(can(s, 'staff_admin') && !s.session?.demo);
+  nav.pendingN = pendingN;
+  const badges = role === 'reception' || role === 'leader' ? [alerts(s).length, m.waiting.length + m.unpaid.length, 0, pendingN]
+    : role === 'ceo' ? [0, 0, pendingN, 0] : [0, 0, 0, 0];
 
   useEffect(() => {
     if (!s.toast) return;
@@ -233,7 +339,7 @@ function Shell({ role, staffId }: { role: Role; staffId: string }) {
         </View>
         <View style={{ flex: 1 }}>
           <Txt weight="800" color="#fff">HOME SPA</Txt>
-          <Txt size={11} color="#B9CBBE">{ROLE_LABEL[role]} · {me.name}</Txt>
+          <Txt size={11} color="#B9CBBE">{ROLE_LABEL[role]} · {s.session?.name ?? me.name}{s.session?.demo ? ' · demo' : ''}</Txt>
         </View>
         <View style={{ backgroundColor: C.red, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
           <Txt size={13} weight="800" color="#fff">{hhmm(s.now)}</Txt>
@@ -244,7 +350,7 @@ function Shell({ role, staffId }: { role: Role; staffId: string }) {
       </Row>
       <View style={{ flex: 1, backgroundColor: C.bg }}>
         <View style={{ flex: 1, width: '100%', maxWidth: 720, alignSelf: 'center' }}>
-          {role === 'reception' ? <Reception nav={nav} /> : role === 'ktv' ? <Ktv nav={nav} /> : role === 'ceo' ? <Ceo nav={nav} /> : <Marketing nav={nav} />}
+          {role === 'reception' || role === 'leader' ? <Reception nav={nav} /> : role === 'ktv' ? <Ktv nav={nav} /> : role === 'ceo' ? <Ceo nav={nav} /> : <Marketing nav={nav} />}
         </View>
         {s.toast ? (
           <View pointerEvents="none" style={{ position: 'absolute', bottom: 14, left: 0, right: 0, alignItems: 'center' }}>

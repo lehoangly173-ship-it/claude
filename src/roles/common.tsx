@@ -2,27 +2,34 @@ import { supabase } from '../supabase';
 import React from 'react';
 import { View } from 'react-native';
 import { Role, SHIFTS } from '../data';
+import { PERM_INFO } from '../perms';
 import { hhmm, staffById, useApp } from '../store';
 import { C } from '../theme';
 import { Avatar, Bar, Btn, Card, Pill, Row, Section, Title, Txt } from '../ui';
 
-export type Nav = { tab: number; setTab: (t: number) => void; sub: string; setSub: (s: string) => void; staffId: string };
+export type Nav = { tab: number; setTab: (t: number) => void; sub: string; setSub: (s: string) => void; staffId: string; pendingN?: number };
 
-export const ROLE_LABEL: Record<Role, string> = { reception: 'Lễ tân', ktv: 'Kỹ thuật viên', ceo: 'CEO', marketing: 'Marketing · CSKH' };
+export const ROLE_LABEL: Record<Role, string> = { reception: 'Lễ tân', ktv: 'Kỹ thuật viên', ceo: 'CEO', marketing: 'Marketing · CSKH', leader: 'Leader · Quản lý ca' };
 
+const RECEPTION_TABS = [{ label: 'Hôm nay', icon: '◉' }, { label: 'Điều phối', icon: '▦' }, { label: 'Khách hàng', icon: '☺' }, { label: 'Của tôi', icon: '◎' }];
 export const TABS: Record<Role, { label: string; icon: string }[]> = {
-  reception: [{ label: 'Hôm nay', icon: '◉' }, { label: 'Điều phối', icon: '▦' }, { label: 'Khách hàng', icon: '☺' }, { label: 'Của tôi', icon: '◎' }],
+  reception: RECEPTION_TABS,
+  leader: RECEPTION_TABS,
   ktv: [{ label: 'Hôm nay', icon: '◉' }, { label: 'Công việc', icon: '✓' }, { label: 'Khách hàng', icon: '☺' }, { label: 'Của tôi', icon: '◎' }],
-  ceo: [{ label: 'Hôm nay', icon: '◉' }, { label: 'Kinh doanh', icon: '▤' }, { label: 'Khách hàng', icon: '☺' }, { label: 'Của tôi', icon: '◎' }],
+  ceo: [{ label: 'Hôm nay', icon: '◉' }, { label: 'Kinh doanh', icon: '▤' }, { label: 'Nhân sự', icon: '☺' }, { label: 'Của tôi', icon: '◎' }],
   marketing: [{ label: 'Hôm nay', icon: '◉' }, { label: 'Nội dung', icon: '▶' }, { label: 'Khách hàng', icon: '☺' }, { label: 'Của tôi', icon: '◎' }],
 };
 
-const PERMS: Record<Role, string[]> = {
-  reception: ['Xem & sửa lịch hẹn, chia tour, thu ngân', 'Là vai trò DUY NHẤT thấy số điện thoại khách', 'Không xem lợi nhuận, lương'],
-  ktv: ['Xem việc, tour và khách của mình', 'Không thấy số điện thoại khách', 'Chỉ xem thu nhập — không sửa được'],
-  ceo: ['Xem toàn bộ số liệu kinh doanh', 'Chỉ can thiệp khi vượt hạn mức', 'Số điện thoại khách vẫn ẩn'],
-  marketing: ['Xem phễu kênh, CSKH, nội dung', 'Không thấy số điện thoại khách', 'Nội dung cần duyệt trước khi đăng'],
-};
+// Màn hình dùng khi tài khoản không được cấp tính năng đó
+export function NoAccess({ what }: { what: string }) {
+  return (
+    <Card style={{ gap: 6, alignItems: 'center', paddingVertical: 28 }}>
+      <Txt size={28}>🔒</Txt>
+      <Txt weight="800">Chưa được cấp quyền</Txt>
+      <Txt size={13} color={C.sub} style={{ textAlign: 'center' }}>Bạn chưa có quyền “{what}”. Nhờ CEO bật quyền này trong mục Nhân sự.</Txt>
+    </Card>
+  );
+}
 
 export function MePanel({ staffId, role, extra }: { staffId: string; role: Role; extra?: React.ReactNode }) {
   const s = useApp();
@@ -51,15 +58,20 @@ export function MePanel({ staffId, role, extra }: { staffId: string; role: Role;
           </Card>
         </Section>
       ) : null}
-      <Section title="Quyền của tôi">
-        <Card style={{ gap: 4 }}>{PERMS[role].map((p) => <Txt key={p} size={13}>• {p}</Txt>)}</Card>
+      <Section title="Quyền của tôi (do CEO cấp)">
+        <Card style={{ gap: 4 }}>
+          {PERM_INFO.map((p) => {
+            const on = !!s.session?.perms.includes(p.key);
+            return <Txt key={p.key} size={13} color={on ? C.ink : C.faint}>{on ? '✓' : '—'}  {p.label}</Txt>;
+          })}
+        </Card>
       </Section>
-      <Section title="Bản demo">
+      <Section title="Tài khoản">
         <Card style={{ gap: 8 }}>
-          <Txt size={13} color={C.sub}>Đồng hồ demo bắt đầu 10:15. Bấm “+15p” trên thanh trên cùng để tua giờ và xem số liệu thay đổi.</Txt>
+          <Txt size={13} color={C.sub}>Số liệu lịch hẹn, khách, doanh thu hiện vẫn là dữ liệu mẫu. Đồng hồ demo bắt đầu 10:15 — bấm “+15p” để tua giờ.</Txt>
           <Row>
             <Btn kind="soft" small label="Đặt lại dữ liệu mẫu" onPress={s.reset} style={{ flex: 1 }} />
-            <Btn kind="danger" small label="Đăng xuất / đổi vai" onPress={() => { void supabase.auth.signOut(); s.logout(); }} style={{ flex: 1 }} />
+            <Btn kind="danger" small label="Đăng xuất" onPress={() => { void supabase.auth.signOut(); s.logout(); }} style={{ flex: 1 }} />
           </Row>
         </Card>
       </Section>

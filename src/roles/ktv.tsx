@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import { View } from 'react-native';
 import { CLEAN_STEPS, SHIFTS } from '../data';
 import { CustomerSheet, statusLabel, statusTone } from '../shared';
-import { cust, endOf, hhmm, ktvStatus, staffById, svc, tourCount, useApp, vnd } from '../store';
+import { can, cust, endOf, hhmm, ktvStatus, staffById, svc, tourCount, useApp, vnd } from '../store';
 import { C } from '../theme';
 import { Btn, Card, Check, Empty, Grid, Pill, Row, Screen, Section, Stat, Title, Txt } from '../ui';
-import { MePanel, Nav } from './common';
+import { MePanel, Nav, NoAccess } from './common';
 
 export function Ktv({ nav }: { nav: Nav }) {
   const s = useApp();
@@ -95,6 +95,7 @@ export function Ktv({ nav }: { nav: Nav }) {
     );
   }
 
+  if (nav.tab === 1 && !can(s, 'area_tasks')) return <Screen><Title kicker="Công việc" title="Khu vực chung" /><NoAccess what="Việc khu vực chung" /></Screen>;
   if (nav.tab === 1) {
     const tasks = [...s.areaTasks].sort((a, b) => Number(b.assigneeId === me.id) - Number(a.assigneeId === me.id));
     const label = { todo: 'Bắt đầu', doing: 'Hoàn thành', done: 'Mở lại' };

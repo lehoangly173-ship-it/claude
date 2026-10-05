@@ -1,5 +1,5 @@
 // ===== Kiểu dữ liệu dùng chung cho cả 4 vai trò =====
-export type Role = 'reception' | 'ktv' | 'ceo' | 'marketing';
+export type Role = 'reception' | 'ktv' | 'ceo' | 'marketing' | 'leader';
 
 export type Shift = { id: 'ca1' | 'ca2'; name: string; start: number; end: number };
 export const SHIFTS: Record<'ca1' | 'ca2', Shift> = {
@@ -94,6 +94,7 @@ const COLORS = ['#4A9B6E', '#B07A4F', '#7556C9', '#3477C5', '#C8473B', '#3E8E7E'
 export const STAFF: Staff[] = [
   { id: 'lam', name: 'Lam', role: 'reception', shift: 'ca1', order: 0, color: '#4A9B6E', training: tr(4) },
   { id: 'quyen', name: 'Dr Quyền', role: 'ceo', shift: 'ca1', order: 0, color: '#8A6410', training: [] },
+  { id: 'tuan', name: 'Tuấn', role: 'leader', shift: 'ca1', order: 0, color: '#2F6FA8', training: tr(3) },
   { id: 'vy', name: 'Vy', role: 'marketing', shift: 'ca1', order: 0, color: '#7556C9', training: tr(2) },
   ...['Hiền', 'Lan', 'Triều', 'Mai', 'Phương', 'Hoa'].map((n, i) => ({
     id: n.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(),
