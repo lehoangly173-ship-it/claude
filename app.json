@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "Home Spa",
+    "slug": "homespa",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": { "supportsTablet": true },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": { "favicon": "./assets/favicon.png" },
+    "runtimeVersion": { "policy": "sdkVersion" },
+    "scheme": "homespa",
+    "extra": { "eas": { "projectId": "16f65a26-63a8-4b23-8d5f-3e610e2aa3cc" } },
+    "owner": "hayquen",
+    "updates": { "url": "https://u.expo.dev/16f65a26-63a8-4b23-8d5f-3e610e2aa3cc" }
+  }
+}
