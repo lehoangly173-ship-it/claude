@@ -124,4 +124,4 @@ delete from public.members where email like '%@homespa.test';
 delete from auth.users where email like '%@homespa.test';
 delete from public.app_owners where email like '%@homespa.test';
 select set_config('request.jwt.claims', '', false);
-select n, case when ok then '✓' else '✗ LỖI' end as kq, name, detail from t_res order by n;
+select count(*) filter (where not ok) as loi, count(*) as tong, string_agg(n || (case when ok then ' OK ' else ' FAIL ' end) || name || ' [' || coalesce(detail,'') || ']', ' || ' order by n) as chi_tiet from t_res;
