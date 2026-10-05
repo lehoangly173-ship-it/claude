@@ -1,0 +1,17 @@
+name: Publish Home Spa
+
+on:
+  push:
+    branches: ['home-spa']
+
+jobs:
+  update:
+    name: Publish to Expo Go (preview)
+    type: update
+    params:
+      branch: preview
+  web:
+    name: Deploy web
+    type: deploy
+    params:
+      prod: true
