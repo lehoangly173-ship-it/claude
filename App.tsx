@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
-import { Image, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Image, Platform, Pressable, ScrollView, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { Role, STAFF } from './src/data';
 import { Ceo } from './src/roles/ceo';
@@ -139,7 +139,9 @@ function LoginArt(p: {
   busy: boolean; signup: boolean; msg: string | null; msgErr: boolean; denied: string | null;
   onSubmit: () => void; onGoogle: () => void; onGoogleResult: (err: string | null) => void; onToggleSignup: () => void; onDemo?: () => void;
 }) {
-  const [box, setBox] = useState({ w: 0, h: 0 });
+  const win = useWindowDimensions();
+  const [box, setBox] = useState({ w: Math.min(win.width, 520), h: win.height });
+  useEffect(() => { setBox({ w: Math.min(win.width, 520), h: win.height }); }, [win.width, win.height]);
   const k = Math.max(box.w / ART_W, box.h / ART_H);
   const ox = (box.w - ART_W * k) / 2, oy = (box.h - ART_H * k) / 2;
   const at = (x1: number, y1: number, x2: number, y2: number) => ({ position: 'absolute' as const, left: ox + x1 * k, top: oy + y1 * k, width: (x2 - x1) * k, height: (y2 - y1) * k });
@@ -147,7 +149,7 @@ function LoginArt(p: {
   const field = { flex: 1, fontSize: fs, color: '#25302A', padding: 0, margin: 0, backgroundColor: 'transparent', outlineStyle: 'none' } as any;
   return (
     <View style={{ flex: 1, backgroundColor: '#E9EFE6', alignItems: 'center' }}>
-    <View style={{ flex: 1, width: '100%', maxWidth: 520, backgroundColor: '#F4F1E8', overflow: 'hidden' }} onLayout={(e) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
+    <View style={{ flex: 1, width: '100%', maxWidth: 520, backgroundColor: '#F4F1E8', overflow: 'hidden' }} onLayout={(e) => { const l = e.nativeEvent.layout; if (l.width && l.height) setBox({ w: l.width, h: l.height }); }}>
       {box.w ? (
         <>
           <Image source={require('./assets/login-bg.jpg')} style={{ position: 'absolute', left: ox, top: oy, width: ART_W * k, height: ART_H * k }} />
