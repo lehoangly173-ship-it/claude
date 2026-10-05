@@ -3,8 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 import { Platform } from 'react-native';
 
 // Khóa "publishable" là khóa công khai, được phép nằm trong app (quyền được giới hạn bằng RLS).
-const URL = 'https://zpplbnzyizrxyhrlergt.supabase.co';
-const KEY = 'sb_publishable_NV8SVb2p93E1keWdMgxkaQ_5qw4qYsn';
+const URL = 'https://llqhqpccqvbyckkkwumm.supabase.co';
+const KEY = 'sb_publishable_syhvUjaVo6bgFfqmZyC51Q_S4eJGBnr';
 
 export const supabase = createClient(URL, KEY, {
   auth: {
