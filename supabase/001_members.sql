@@ -23,10 +23,12 @@ create table if not exists public.members (
   is_owner boolean not null default false,
   requested_at timestamptz not null default now(),
   decided_at timestamptz,
-  decided_by uuid references auth.users(id),
+  decided_by uuid references auth.users(id) on delete set null,
   updated_at timestamptz not null default now()
 );
 alter table public.members enable row level security;
+alter table public.members drop constraint if exists members_decided_by_fkey;
+alter table public.members add constraint members_decided_by_fkey foreign key (decided_by) references auth.users(id) on delete set null;
 
 -- Danh sách tính năng hợp lệ (dùng để kiểm tra đầu vào)
 create or replace function public.valid_permissions() returns text[]

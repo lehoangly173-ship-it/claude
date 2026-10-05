@@ -3,6 +3,8 @@ create temp table t_res (n serial, name text, ok boolean, detail text);
 grant all on t_res to authenticated;
 grant all on sequence t_res_n_seq to authenticated;
 insert into public.app_owners values ('owner.test@homespa.test') on conflict do nothing;
+delete from public.members where email like '%@homespa.test';
+delete from auth.users where email like '%@homespa.test';
 insert into auth.users (id, email, email_confirmed_at, aud, role, instance_id) values
   ('00000000-0000-0000-0000-0000000000a1','owner.test@homespa.test', now(),'authenticated','authenticated','00000000-0000-0000-0000-000000000000'),
   ('00000000-0000-0000-0000-0000000000a2','ktv.test@homespa.test',   now(),'authenticated','authenticated','00000000-0000-0000-0000-000000000000'),
@@ -118,6 +120,7 @@ end $$;
 reset role;
 
 -- Dọn dữ liệu thử
+delete from public.members where email like '%@homespa.test';
 delete from auth.users where email like '%@homespa.test';
 delete from public.app_owners where email like '%@homespa.test';
 select set_config('request.jwt.claims', '', false);
