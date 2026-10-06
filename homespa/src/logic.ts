@@ -38,6 +38,7 @@ export function ktvConflict(s: State, ktvId: string, start: number, end: number,
   if (!k?.shift) return 'Không phải KTV'
   const sh = SHIFTS[k.shift]
   if (start < sh.start || end > sh.end) return `Ngoài giờ ${sh.label}`
+  if (Object.values(s.cleaning).includes(ktvId) && start < s.now + CLEAN_MIN) return `KTV ${k.name} đang dọn giường — nhận khách từ ${hhmm(s.now + CLEAN_MIN)}`
   const hit = s.appts.find(a => a.id !== ignore && a.ktvId === ktvId && LIVE.includes(a.status) && overlap(start, end, a.start, a.end + CLEAN_MIN))
   if (hit) return `KTV ${k.name} đã có khách ${hhmm(hit.start)}–${hhmm(hit.end)}`
   return null

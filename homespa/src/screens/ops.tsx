@@ -1,8 +1,8 @@
 // Màn vận hành: Tổng quan, Lịch điều phối, Hàng chờ chia tour, Sơ đồ giường, Thông báo
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useStore } from '../store'
 import * as D from '../data'
-import { overview, alerts, ktvState, bedState, cust, suggestKtv, earliestFor, freeBedFor, ktvConflict, bedConflict, inShift, Alert } from '../logic'
+import { overview, alerts, ktvState, bedState, cust, suggestKtv, earliestFor, freeBedFor, ktvConflict, bedConflict, custConflict, inShift, Alert, CLEAN_MIN } from '../logic'
 import { Icon, Pill, Stat, PageHeader, Seg, Modal, Empty, Sec, Av } from '../ui'
 
 const STATUS_LABEL: Record<D.ApptStatus, [string, any]> = {
@@ -58,44 +58,121 @@ function AlertRow({ a }: { a: Alert }) {
 }
 
 // ─────────────────────────── LỊCH ĐIỀU PHỐI ───────────────────────────
-const H0 = 8, H1 = 20, HW = 92
+// Ô lịch: rộng đúng bằng thời lượng; kéo ngang để đổi giờ (bước 15 phút), thả ra mới lưu,
+// hệ thống kiểm tra trùng KTV / giường / khách / giờ ca trước khi ghi.
+const H0 = 8, H1 = 20, HW = 92, SNAP = 15
 const x = (m: number) => ((m - H0 * 60) / 60) * HW
+const w = (a: number, b: number) => x(b) - x(a)
 type NewDraft = { ktvId?: string; start?: number; bedId?: string }
+type Drag = { kind: 'appt' | 'pot'; id: string; ktvId: string; bedId?: string; serviceId?: string; customerId?: string; orig: number; dur: number; min: number; max: number; x0: number; cur: number; moved: boolean }
+type Pot = { key: string; ktvId: string; winStart: number; winEnd: number; maxStart: number }
+
 export function ScheduleScreen({ openNew }: { openNew?: boolean }) {
-  const { s, go, user } = useStore()
+  const { s, go, user, moveAppt, say } = useStore()
   const [view, setView] = useState<'ktv' | 'bed' | 'list'>(() => (window.innerWidth < 860 ? 'list' : 'ktv'))
   const [sel, setSel] = useState<string | null>(null)
   const [draft, setDraft] = useState<NewDraft | null>(openNew ? {} : null)
+  const [drag, setDrag] = useState<Drag | null>(null)
+  const [potPos, setPotPos] = useState<Record<string, number>>({})
   const canEdit = user.role === 'reception'
   const appts = s.appts.filter(a => a.status !== 'cancelled')
-  // Hẹn tiềm năng: khung trống ≥ 60 phút sau giờ hiện tại (đã tính 10' dọn giường)
-  const potentials = useMemo(() => D.ktvs().flatMap(k => {
-    const out: { ktvId: string; start: number }[] = []; let t = s.now
-    for (let i = 0; i < 6; i++) { const e = earliestFor(s, k.id, 60, t); if (e == null) break; out.push({ ktvId: k.id, start: e }); t = e + 120 }
-    return out.slice(0, 2)
-  }), [s])
-  const rows = view === 'ktv' ? D.ktvs().map(k => ({ id: k.id, title: k.name, sub: D.SHIFTS[k.shift!].label, off: D.SHIFTS[k.shift!], list: appts.filter(a => a.ktvId === k.id), pot: potentials.filter(p => p.ktvId === k.id) }))
-    : D.BEDS.map(b => ({ id: b.id, title: b.id, sub: `Tầng ${b.floor} · ${b.zone === 'wash' ? 'gội' : 'trị liệu'}`, off: null as any, list: appts.filter(a => a.bedId === b.id), pot: [] as { ktvId: string; start: number }[] }))
+  const ganttRef = useRef<HTMLDivElement>(null)
+  // mở lịch là cuộn tới giờ hiện tại
+  useEffect(() => { if (ganttRef.current) ganttRef.current.scrollLeft = Math.max(0, x(s.now) - 60) }, [view])
+  const nowSnap = Math.ceil(s.now / SNAP) * SNAP
+
+  // Khoảng trống thật của từng KTV (đã trừ 10' dọn giường trước & sau), chỉ hiện khoảng ≥ 60 phút
+  const pots = useMemo(() => D.ktvs().flatMap(k => {
+    const out: Pot[] = []; const sh = D.SHIFTS[k.shift!]; let t = nowSnap
+    for (let i = 0; i < 8; i++) {
+      const e = earliestFor(s, k.id, 60, t); if (e == null) break
+      const next = s.appts.filter(a => a.ktvId === k.id && ['booked', 'checked_in', 'in_service'].includes(a.status) && a.start >= e).sort((p, q) => p.start - q.start)[0]
+      const winEnd = next ? next.start : sh.end
+      const maxStart = (next ? next.start - CLEAN_MIN : sh.end) - 60
+      if (maxStart >= e) out.push({ key: `${k.id}-${e}`, ktvId: k.id, winStart: e, winEnd, maxStart })
+      if (!next) break
+      t = next.end
+    }
+    return out
+  }), [s, nowSnap])
+
+  // kiểm tra vị trí đang kéo — trả lỗi để tô đỏ & không cho thả
+  const dragCheck = (d: Drag): { err: string | null; bed?: string } => {
+    if (d.kind === 'pot') return { err: null }
+    const end = d.cur + d.dur
+    const e = ktvConflict(s, d.ktvId, d.cur, end, d.id) || custConflict(s, d.customerId!, d.cur, end, d.id)
+    if (e) return { err: e }
+    if (!bedConflict(s, d.bedId!, d.cur, end, d.id)) return { err: null, bed: d.bedId }
+    if (view === 'bed') return { err: bedConflict(s, d.bedId!, d.cur, end, d.id) }
+    const alt = D.BEDS.find(b => b.zone === D.bedZoneFor(d.serviceId!) && !bedConflict(s, b.id, d.cur, end, d.id))
+    return alt ? { err: null, bed: alt.id } : { err: 'Không còn giường trống giờ này' }
+  }
+  const startDrag = (e: React.PointerEvent, d: Omit<Drag, 'x0' | 'cur' | 'moved'>) => {
+    if (!canEdit) return
+    ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+    setDrag({ ...d, x0: e.clientX, cur: d.orig, moved: false })
+  }
+  const onMove = (e: React.PointerEvent) => {
+    if (!drag) return
+    const dx = e.clientX - drag.x0
+    const cur = Math.max(drag.min, Math.min(drag.max, drag.orig + Math.round((dx / HW) * 60 / SNAP) * SNAP))
+    if (cur !== drag.cur || (!drag.moved && Math.abs(dx) > 5)) setDrag({ ...drag, cur, moved: drag.moved || Math.abs(dx) > 5 })
+  }
+  const endDrag = () => {
+    if (!drag) return
+    const d = drag; setDrag(null)
+    if (!d.moved || d.cur === d.orig) { // chạm = mở chi tiết
+      if (d.kind === 'appt') setSel(d.id); else setDraft({ ktvId: d.ktvId, start: d.cur })
+      return
+    }
+    if (d.kind === 'pot') { setPotPos(p => ({ ...p, [d.id]: d.cur })); return }
+    const c = dragCheck(d)
+    if (c.err) { say('⚠ ' + c.err); return }
+    const err = moveAppt(d.id, d.cur, d.ktvId, c.bed!)
+    if (err) say('⚠ ' + err)
+    else if (c.bed !== d.bedId) say(`Đã dời sang ${D.hhmm(d.cur)} · đổi giường ${d.bedId} → ${c.bed}`)
+  }
+
+  const rows = view === 'ktv' ? D.ktvs().map(k => ({ id: k.id, title: k.name, sub: D.SHIFTS[k.shift!].label, off: D.SHIFTS[k.shift!] as { start: number; end: number } | null, list: appts.filter(a => a.ktvId === k.id), pot: pots.filter(p => p.ktvId === k.id) }))
+    : D.BEDS.map(b => ({ id: b.id, title: b.id, sub: `Tầng ${b.floor} · ${b.zone === 'wash' ? 'gội' : 'trị liệu'}`, off: null, list: appts.filter(a => a.bedId === b.id), pot: [] as Pot[] }))
+  const check = drag?.moved ? dragCheck(drag) : null
   return <>
     <PageHeader eyebrow="Điều phối hôm nay" title="Lịch điều phối" sub={`${D.dateLabel()} · Ca 1: 08:00–18:00 · Ca 2: 10:00–20:00`}
       right={<><Seg value={view} onChange={setView} items={[{ k: 'ktv', label: 'Theo KTV' }, { k: 'bed', label: 'Theo giường' }, { k: 'list', label: 'Danh sách' }]} />{canEdit && <button className="btn pri" onClick={() => setDraft({})}><Icon n="plus" />Tạo lịch</button>}</>} />
-    <div className="row small muted"><Pill tone="green" dot>Đang làm</Pill><Pill tone="yellow" dot>Sắp xong / chờ thu</Pill><Pill tone="brown" dot>Đã thanh toán</Pill><Pill tone="purple" dot>Lịch hẹn</Pill>{view === 'ktv' && canEdit && <span>· Ô viền vàng = giờ trống ≥ 60 phút, bấm để đặt nhanh</span>}</div>
+    <div className="row small muted"><Pill tone="green" dot>Đang làm</Pill><Pill tone="yellow" dot>Sắp xong / chờ thu</Pill><Pill tone="brown" dot>Đã thanh toán</Pill><Pill tone="purple" dot>Lịch hẹn</Pill></div>
+    {view !== 'list' && canEdit && <div className="tiny muted">Độ dài ô = đúng thời lượng dịch vụ. <b>Kéo ngang</b> ô lịch hẹn để đổi giờ (bước 15 phút) · ô viền vàng = khung 60 phút trong khoảng trống, kéo để chọn giờ rồi chạm để đặt lịch. Ô đang làm / đã xong không kéo được.</div>}
     {view === 'list' ? <div className="card list">
       {[...appts].sort((a, b) => a.start - b.start).map(a => <button key={a.id} className="item" onClick={() => setSel(a.id)}>
         <div className="num strong tcol" style={{ width: 92 }}>{D.hhmm(a.start)}–{D.hhmm(a.end)}</div>
         <div className="body"><div className="t">{cust(s, a.customerId).name}{a.requested && <span className="muted tiny"> · khách yêu cầu KTV</span>}</div><div className="d">{D.svc(a.serviceId).name} · KTV {D.staffName(a.ktvId)} · {a.bedId}</div></div><ApptPill a={a} now={s.now} /></button>)}
-    </div> : <div className="card gantt"><div className="g-inner">
-      <div className="g-row head"><div className="g-name eyebrow">{view === 'ktv' ? 'Kỹ thuật viên' : 'Giường'}</div><div className="g-track">{Array.from({ length: H1 - H0 + 1 }, (_, i) => <span key={i} className="g-hl" style={{ left: i * HW }}>{String(H0 + i).padStart(2, '0')}:00</span>)}</div></div>
+    </div> : <div className="card gantt" ref={ganttRef}><div className="g-inner" style={{ ['--hw' as any]: HW + 'px' }}>
+      <div className="g-row head"><div className="g-name eyebrow">{view === 'ktv' ? 'KTV' : 'Giường'}</div><div className="g-track">{Array.from({ length: H1 - H0 + 1 }, (_, i) => <span key={i} className="g-hl" style={{ left: i * HW }}>{String(H0 + i).padStart(2, '0')}:00</span>)}</div></div>
       {rows.map(r => <div key={r.id} className="g-row">
-        <div className="g-name"><b>{r.title}</b><span className="tiny muted">{r.sub}</span>{view === 'ktv' && (() => { const st = ktvState(s, r.id); return <Pill tone={st.tone} dot>{st.label}</Pill> })()}</div>
+        <div className="g-name"><b>{r.title}</b><span className="tiny muted hide-m">{r.sub}</span>{view === 'ktv' && (() => { const st = ktvState(s, r.id); return <Pill tone={st.tone} dot>{st.label}</Pill> })()}</div>
         <div className="g-track">
           {r.off && <><div className="g-off" style={{ left: 0, width: x(r.off.start) }} /><div className="g-off" style={{ left: x(r.off.end), right: 0 }} /></>}
           {Array.from({ length: H1 - H0 + 1 }, (_, i) => <div key={i} className="g-hour" style={{ left: i * HW }} />)}
+          {Array.from({ length: (H1 - H0) * 2 }, (_, i) => <div key={'h' + i} className="g-half" style={{ left: i * HW / 2 + HW / 2 }} />)}
           <div className="g-now" style={{ left: x(s.now) }} />
-          {canEdit && r.pot.map(p => <button key={p.start} className="g-blk pot" style={{ left: x(p.start), width: HW - 4 }} onClick={() => setDraft({ ktvId: p.ktvId, start: p.start })}>Trống {D.hhmm(p.start)}<br />+ Đặt lịch</button>)}
-          {r.list.map(a => { const tone = a.status === 'paid' ? 'brown' : a.status === 'done' || (a.status === 'in_service' && s.now >= a.end - 15) ? 'yellow' : a.status === 'in_service' ? 'green' : a.status === 'no_show' ? 'red' : 'purple'
-            return <button key={a.id} className={`g-blk t-${tone}`} style={{ left: x(a.start), width: Math.max(x(a.end) - x(a.start) - 2, 34) }} onClick={() => setSel(a.id)} title={`${cust(s, a.customerId).name} ${D.hhmm(a.start)}–${D.hhmm(a.end)}`}>
-              <b>{cust(s, a.customerId).name}</b>{D.hhmm(a.start)}–{D.hhmm(a.end)} · {view === 'ktv' ? a.bedId : D.staffName(a.ktvId)}</button> })}
+          {canEdit && r.pot.map(p => { const isD = drag?.kind === 'pot' && drag.id === p.key; const st = isD ? drag!.cur : Math.min(Math.max(potPos[p.key] ?? p.winStart, p.winStart), p.maxStart)
+            return <div key={p.key}>
+              <div className="g-free" style={{ left: x(p.winStart), width: w(p.winStart, p.winEnd) }} title={`Trống ${D.hhmm(p.winStart)}–${D.hhmm(p.winEnd)}`} />
+              <button className={`g-blk pot${isD ? ' dragging' : ''}`} style={{ left: x(st), width: w(st, st + 60) - 2 }}
+                onPointerDown={e => startDrag(e, { kind: 'pot', id: p.key, ktvId: p.ktvId, orig: st, dur: 60, min: p.winStart, max: p.maxStart })} onPointerMove={onMove} onPointerUp={endDrag} onPointerCancel={() => setDrag(null)}>
+                <b>{D.hhmm(st)}–{D.hhmm(st + 60)}</b>+ Đặt lịch</button></div> })}
+          {r.list.map(a => {
+            const tone = a.status === 'paid' ? 'brown' : a.status === 'done' || (a.status === 'in_service' && s.now >= a.end - 15) ? 'yellow' : a.status === 'in_service' ? 'green' : a.status === 'no_show' ? 'red' : 'purple'
+            const movable = canEdit && (a.status === 'booked' || a.status === 'checked_in')
+            const isD = drag?.kind === 'appt' && drag.id === a.id && drag.moved
+            const st = isD ? drag!.cur : a.start, en = st + (a.end - a.start)
+            const sh = D.SHIFTS[(s.staff.find(k => k.id === a.ktvId)?.shift ?? 1) as 1 | 2]
+            return <button key={a.id} className={`g-blk t-${tone}${movable ? ' movable' : ''}${isD ? ' dragging' : ''}${isD && check?.err ? ' bad' : ''}`} style={{ left: x(st), width: Math.max(w(st, en) - 2, 30) }}
+              title={`${cust(s, a.customerId).name} ${D.hhmm(st)}–${D.hhmm(en)}`}
+              onPointerDown={movable ? e => startDrag(e, { kind: 'appt', id: a.id, ktvId: a.ktvId, bedId: a.bedId, serviceId: a.serviceId, customerId: a.customerId, orig: a.start, dur: a.end - a.start, min: Math.max(sh.start, nowSnap), max: sh.end - (a.end - a.start) }) : undefined}
+              onPointerMove={movable ? onMove : undefined} onPointerUp={movable ? endDrag : undefined} onPointerCancel={movable ? () => setDrag(null) : undefined}
+              onClick={movable ? undefined : () => setSel(a.id)}>
+              <b>{cust(s, a.customerId).name}</b>{D.hhmm(st)}–{D.hhmm(en)} · {view === 'ktv' ? (isD && check?.bed ? check.bed : a.bedId) : D.staffName(a.ktvId)}
+              {isD && check?.err && <span className="g-err">{check.err}</span>}</button> })}
         </div></div>)}
     </div></div>}
     {sel && <ApptModal id={sel} onClose={() => setSel(null)} />}
