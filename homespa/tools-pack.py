@@ -1,0 +1,10 @@
+# Đóng gói dist/index.html thành trang artifact (không có thẻ html/head/body riêng)
+import re
+h = open('dist/index.html', encoding='utf-8').read()
+title = re.search(r'<title>.*?</title>', h, re.S).group(0)
+links = ''.join(re.findall(r'<link rel="(?:preconnect|stylesheet)"[^>]*>', h))
+metas = ''.join(re.findall(r'<meta name="(?:theme-color|apple-mobile-web-app-capable)"[^>]*>', h))
+styles = ''.join(re.findall(r'<style[^>]*>.*?</style>', h, re.S))
+scripts = ''.join(re.findall(r'<script type="module"[^>]*>.*?</script>', h, re.S))
+open('dist/artifact.html', 'w', encoding='utf-8').write(title + metas + links + styles + '<div id="root"></div>' + scripts)
+print(len(scripts), len(styles))
