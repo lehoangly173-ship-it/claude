@@ -2,7 +2,7 @@
 
 Nguồn: https://gjpg5za5o267.jp.larksuite.com/wiki/PlJUwY0w9iXihGkfqWLjkne5p7b
 
-Tài liệu gốc có nhiều bản nháp nối tiếp nhau. Dưới đây giữ **bản cuối**: 13 nút mẹ xếp vào 4 nút chính, cộng phần Quỹ và các nguyên tắc chung. Chỗ ghi `[BẢNG …]` là bảng tính nhúng trong tài liệu, **chưa chép được** vì chỉ đọc được qua ảnh chụp.
+Tài liệu gốc có nhiều bản nháp nối tiếp nhau. Dưới đây giữ **bản cuối**: 13 nút mẹ xếp vào 4 nút chính, cộng phần Quỹ và các nguyên tắc chung. **Toàn bộ bảng đã được chép sang `ceo-tables.md`** (đọc từ ảnh chụp Lark); các chỗ `[BẢNG …]` dưới đây xem ở file đó.
 
 ## Nguyên tắc chung cho CEO
 - Luồng xem: Chỉ số tổng hợp → Mức tăng/giảm → Dữ liệu liên quan → Nguyên nhân đã kiểm chứng → Giải pháp → Người phụ trách → Kết quả.
