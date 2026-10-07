@@ -78,11 +78,12 @@ export const pkgLeftLabel = (p: Package) => (p.type === 'session' ? `${pkgLeft(p
 export const pkgUsable = (p: Package, serviceId: string) => p.group === 'Tất cả' || p.group === svc(serviceId).group
 
 // ── Khách hàng ──
-export type CareEntry = { at: string; by: string; text: string }
+export type CareEntry = { at: string; by: string; text: string; kind?: 'Nhắn tin' | 'Gọi điện'; ok?: boolean; replied?: boolean; came?: boolean }
 export type Customer = {
   id: string; code: string; name: string; phone: string; group: 'VN' | 'NN'; dob?: string
   source: string; firstVisit: string; visits: number; lastVisitDays: number; totalPaid: number
   vip?: boolean; health?: string; preference?: string; packages: Package[]; care: CareEntry[]
+  address?: string; budget?: number; referredBy?: string; qrCare?: boolean
 }
 
 // ── Lịch phục vụ: vòng đời 1 lượt khách ──
@@ -129,13 +130,13 @@ export type Initiative = {
 }
 
 export type Approval = {
-  id: string; kind: 'Đổi giá / ưu đãi' | 'Ngân sách' | 'Báo cáo tuần' | 'Sửa / xóa hóa đơn' | 'Tham gia app' | 'Chuyển vượt quyền' | 'Xác nhận kết quả'
+  id: string; kind: 'Đổi giá / ưu đãi' | 'Ngân sách' | 'Báo cáo tuần' | 'Sửa / xóa hóa đơn' | 'Tham gia app' | 'Chuyển vượt quyền' | 'Xác nhận kết quả' | 'Nghỉ phép / đổi ca'
   fromId: string; title: string; detail: string; status: 'Chờ duyệt' | 'Đã duyệt' | 'Từ chối'; refId?: string; deadline?: string; note?: string; budgetDelta?: number
 }
 
 export type WeeklyReport = { id: string; week: string; fromId: string; answers: string[]; sentAt: string; status: 'Đã gửi' | 'Đã xem' }
 
-export type Notif = { id: string; cat: 'Lịch hẹn' | 'Điều phối' | 'KTV' | 'Thu ngân' | 'Leader' | 'Hệ thống'; text: string; detail: string; min: number; roles: Role[]; nav?: string; readBy: string[] }
+export type Notif = { id: string; cat: 'Lịch hẹn' | 'Điều phối' | 'KTV' | 'Thu ngân' | 'Leader' | 'Hệ thống' | 'Dọn dẹp' | 'Điểm uy tín'; text: string; detail: string; min: number; roles: Role[]; nav?: string; readBy: string[]; to?: string[] }
 
 export type JoinRequest = { id: string; email: string; name: string; wantedRole: Role; status: 'Chờ duyệt' | 'Đã duyệt' | 'Từ chối' }
 
@@ -220,7 +221,7 @@ export const SEED_INVOICES: Invoice[] = [
 
 export const SEED_TASKS: Task[] = [
   { id: 't1', title: 'Gọi lại khách Lê Thị Mộng — 63 ngày chưa quay lại', detail: 'Hết buổi gói 20, từng phàn nàn chờ lâu cuối tuần. Mục tiêu: hiểu lý do, mời tái tục.', category: 'Khách hàng', priority: 'cao', ownerId: 'thao', createdBy: 'system', createdMin: 480, status: 'open', customerId: 'c305', sourceKey: 'risk-c305' },
-  { id: 't2', title: 'Xử lý phản hồi: chờ 25 phút trước giờ hẹn', detail: 'Khách Vũ Thị Kim chấm 2/5, nhóm "Thời gian chờ". Lặp lại lần 3 trong tháng.', category: 'Khách hàng', priority: 'cao', ownerId: 'thao', createdBy: 'Vân', createdMin: 500, status: 'doing', startedMin: 520, customerId: 'c412', earlyReport: true, feedbackId: 'f1' },
+  { id: 't2', title: 'Xử lý phản hồi: chờ 25 phút trước giờ hẹn', detail: 'Khách Vũ Thị Kim chấm 2/5, nhóm "Thời gian chờ". Lặp lại lần 3 trong tháng.', category: 'Khách hàng', priority: 'cao', ownerId: 'thao', createdBy: 'van', createdMin: 500, status: 'doing', startedMin: 520, customerId: 'c412', earlyReport: true, feedbackId: 'f1' },
   { id: 't3', title: 'Kiểm tra lịch trống cuối tuần — khách chờ lâu giờ cao điểm', detail: 'So giờ khách đến với giờ bắt đầu dịch vụ thứ 7–CN, đề xuất chỉnh khung lịch.', category: 'Vận hành', priority: 'vừa', ownerId: 'thao', createdBy: 'thao', createdMin: 470, status: 'open' },
   { id: 't4', title: 'Kèm KTV Bảo kỹ thuật lực mạnh', detail: '2 phản hồi "lực yếu" trong 14 ngày.', category: 'Nhân sự', priority: 'vừa', ownerId: 'thao', createdBy: 'thao', createdMin: 460, status: 'open' },
   { id: 't5', title: 'Chuẩn bị quà sinh nhật khách Nguyễn Thị Lan', detail: 'Sinh nhật tháng 3 — chuẩn bị thiệp & voucher theo chương trình sinh nhật.', category: 'Chương trình', priority: 'thấp', ownerId: 'lam', createdBy: 'thao', createdMin: 450, status: 'done', doneMin: 560, customerId: 'c125', result: 'Đã gói quà, đặt tại quầy' },
@@ -253,6 +254,8 @@ export const SEED_APPROVALS: Approval[] = [
   { id: 'ap2', kind: 'Tham gia app', fromId: 'system', title: 'Tài khoản mới xin vào app: ktv.dung@gmail.com', detail: 'Đăng nhập Google, xin vai trò Kỹ thuật viên', status: 'Chờ duyệt', refId: 'j1' },
 ]
 
+export const SEED_APPROVAL_LEAVE: Approval = { id: 'ap3', kind: 'Nghỉ phép / đổi ca', fromId: 'hien', title: `Nghỉ phép ${daysAhead(3)} — Hiền`, detail: 'Việc gia đình', status: 'Chờ duyệt', refId: 'lv1' }
+
 export const SEED_JOIN: JoinRequest[] = [{ id: 'j1', email: 'ktv.dung@gmail.com', name: 'Dung', wantedRole: 'ktv', status: 'Chờ duyệt' }]
 
 // SỐ LIỆU MẪU các kỳ trước (khi nối Supabase sẽ tính từ bảng lịch hẹn / hóa đơn).
@@ -277,3 +280,78 @@ export const SOPS = [
   { id: 'sop-tour', title: 'Quy trình chia tour', steps: ['Ưu tiên KTV khách yêu cầu đích danh', 'Không có yêu cầu → KTV đầu hàng xoay tour đang rảnh', 'Kiểm tra giường cùng khu vực còn trống', 'Giao xong, KTV xuống cuối hàng'] },
   { id: 'sop-tt', title: 'Quy trình tái tục gói', steps: ['Gói còn ≤ 2 buổi hoặc sắp hết hạn → nhắc khách', 'Tư vấn theo tiến triển thực tế', 'Ưu đãi trong khung đã duyệt; ngoài khung → xin chị duyệt', 'Thu tiền tại Thu ngân, chọn "Tái tục"'] },
 ]
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LUỒNG HẰNG NGÀY (theo sơ đồ "NÚT MẸ 1: HÔM NAY" của KTV & Lễ tân)
+// ─────────────────────────────────────────────────────────────────────────────
+// 12 khu vực dọn dẹp: 1–6 ca sáng (08h–18h), 7–12 ca chiều (10h–20h).
+// 7–10 là 4 lần giặt khăn, chỉ báo cáo được sau mốc giờ.
+export type Zone = { no: number; shift: 1 | 2; name: string; after?: number; std: string[] }
+export const ZONES: Zone[] = [
+  { no: 1, shift: 1, name: 'Tầng 1 + giường gội', std: ['Lau sàn, quầy lễ tân', 'Giường gội: thay khăn, lau bồn', 'Sắp xếp dép, kệ đồ khách'] },
+  { no: 2, shift: 1, name: 'Phòng 2 giường tầng 2 + kệ gội', std: ['Thay ga, gối, khăn giường', 'Lau kệ gội, bổ sung dầu gội', 'Kiểm tra máy xông, đèn'] },
+  { no: 3, shift: 1, name: 'Phòng CNC + kệ gỗ phía trước', std: ['Lau máy, sắp dây gọn', 'Lau kệ gỗ, xếp sản phẩm trưng bày', 'Kiểm tra mùi phòng'] },
+  { no: 4, shift: 1, name: 'Tầng 3 + phòng nghỉ nhân viên', std: ['Dọn giường tầng 3', 'Phòng nghỉ: rác, bàn, tủ đồ', 'Đóng cửa sổ, tắt điện thừa'] },
+  { no: 5, shift: 1, name: 'Khu ngâm chân + khăn nóng', std: ['Thay nước, vệ sinh bồn ngâm', 'Tủ khăn nóng đủ khăn, đúng nhiệt', 'Lau khay, sàn khu ngâm'] },
+  { no: 6, shift: 1, name: 'Bàn đá + nhà vệ sinh', std: ['Lau bàn đá', 'Nhà vệ sinh: sàn, bồn, giấy, xà phòng', 'Thay túi rác'] },
+  { no: 7, shift: 2, name: 'Giặt khăn lần 1', after: 10 * 60, std: ['Gom khăn bẩn các tầng', 'Giặt – sấy đúng chương trình', 'Gấp & trả khăn về tủ'] },
+  { no: 8, shift: 2, name: 'Giặt khăn lần 2', after: 12 * 60, std: ['Gom khăn bẩn các tầng', 'Giặt – sấy đúng chương trình', 'Gấp & trả khăn về tủ'] },
+  { no: 9, shift: 2, name: 'Giặt khăn lần 3', after: 15 * 60, std: ['Gom khăn bẩn các tầng', 'Giặt – sấy đúng chương trình', 'Gấp & trả khăn về tủ'] },
+  { no: 10, shift: 2, name: 'Giặt khăn lần 4', after: 17 * 60, std: ['Gom khăn bẩn các tầng', 'Giặt – sấy đúng chương trình', 'Gấp & trả khăn về tủ'] },
+  { no: 11, shift: 2, name: 'Rác + hỗ trợ giặt', std: ['Đổ rác các tầng, thay túi', 'Hỗ trợ gấp khăn', 'Lau thùng rác'] },
+  { no: 12, shift: 2, name: 'Khu giặt sấy + cây cối', std: ['Vệ sinh lồng giặt, lưới lọc máy sấy', 'Tưới & lau lá cây', 'Sắp xếp khu giặt gọn'] },
+]
+export const ZONE_POINTS = 2 // điểm uy tín cộng khi khu vực được kiểm tra "Đạt"
+// Phân khu mặc định (CEO chỉnh trong Cài đặt): mỗi khu một người phụ trách hôm nay
+export const SEED_ZONE_OWNER: Record<number, string> = { 1: 'lam', 2: 'mai', 3: 'hien', 4: 'lan', 5: 'phuong', 6: 'trieu', 7: 'bao', 8: 'ngoc', 9: 'bao', 10: 'ngoc', 11: 'thu', 12: 'van' }
+
+export const PRODUCTS = ['Dầu massage', 'Cao hổ', 'Sữa chua đắp', 'Dầu gội thảo dược', 'Khăn dùng 1 lần'] as const
+
+// Lịch chia ca 4 tuần: S = sáng 08–18 · C = chiều 10–20 · OFF = nghỉ đã duyệt.
+// Quy luật mẫu (CEO cài đặt): mỗi người giữ ca gốc, nghỉ 1 ngày/tuần lệch nhau.
+export type RosterCell = 'S' | 'C' | 'OFF'
+export function rosterCell(st: Staff, dayOffset: number): RosterCell {
+  if (!st.shift) return 'S'
+  const idx = STAFF.findIndex(x => x.id === st.id)
+  const dow = (TODAY.getDay() + dayOffset) % 7
+  if (dayOffset !== 0 && (idx + dow) % 7 === 3) return 'OFF'
+  return st.shift === 1 ? 'S' : 'C'
+}
+export const dayLabel = (off: number) => { const d = new Date(TODAY); d.setDate(d.getDate() + off); return d.toLocaleDateString('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit' }) }
+
+export const ANNOUNCEMENTS = [
+  { id: 'an1', tag: 'Đào tạo', title: 'Thứ 6 17:00 — ôn kỹ thuật cổ vai gáy (bắt buộc KTV ca 1)', by: 'Leader Thảo' },
+  { id: 'an2', tag: 'Quy định', title: 'Ảnh bill phải chụp rõ tên khách và giờ — thiếu ảnh không tính tour', by: 'Chị Quyên' },
+  { id: 'an3', tag: 'Khách', title: 'Khách Nguyễn Thị Lan thích trà gừng, lực vừa — KTV Mai phụ trách', by: 'Lễ tân Lam' },
+]
+
+// Hỏi đáp Mộc — các nhóm theo sơ đồ của từng vai trò
+export const MOC_GROUPS: Record<Role, { t: string; q: string }[]> = {
+  ktv: [
+    { t: 'SOP – quy trình – nội quy', q: 'Quy trình dọn giường sau khi phục vụ' }, { t: 'Công việc trong ngày', q: 'Hôm nay tôi làm ca nào, tour thứ mấy?' },
+    { t: 'Nhắc việc chủ động', q: 'Tôi còn việc gì chưa xong?' }, { t: 'Đào tạo KTV', q: 'Tôi nên học gì tiếp theo?' },
+    { t: 'Phát triển cá nhân', q: 'Tháng này tôi tiến bộ ở đâu?' }, { t: 'KPI – điểm uy tín', q: 'Tại sao điểm uy tín của tôi thay đổi?' },
+    { t: 'Xử lý tình huống với khách', q: 'Quy trình xử lý khiếu nại' }, { t: 'Yêu cầu cá nhân', q: 'Xin nghỉ hoặc đổi ca thế nào?' },
+    { t: 'Văn hóa – quy chuẩn Home', q: 'Quy chuẩn giao tiếp với khách của Home' }, { t: 'Quyền hạn & bảo mật', q: 'Tôi được xem và làm những gì?' },
+  ],
+  reception: [
+    { t: 'SOP – quy trình – nội quy', q: 'Quy trình chia tour' }, { t: 'Công việc hôm nay – nhắc việc', q: 'Tôi còn việc gì chưa xong?' },
+    { t: 'Đặt lịch – đón khách – điều phối', q: 'Khách đặt lịch nhiều nhưng đến ít, cần kiểm tra gì?' }, { t: 'Hồ sơ khách – nguồn khách', q: 'Khách nào lâu chưa quay lại?' },
+    { t: 'Thu ngân – hóa đơn – liệu trình', q: 'Khách nào còn thiếu tiền gói?' }, { t: 'CSKH – tái tục – giới thiệu', q: 'Quy trình tái tục gói' },
+    { t: 'Xử lý tình huống với khách', q: 'Quy trình xử lý khiếu nại' }, { t: 'Bàn giao ca – báo cáo – sự cố', q: 'Chốt ca cần kiểm tra gì?' },
+    { t: 'Đào tạo – KPI – phát triển', q: 'Tại sao điểm uy tín của tôi thay đổi?' }, { t: 'Yêu cầu cá nhân – quyền hạn', q: 'Tôi được xem và làm những gì?' },
+  ],
+  leader: [], ceo: [], marketing: [],
+}
+
+export type CleanReport = { id: string; zone: number; staffId: string; photo: string; checks: boolean[]; at: number; status: 'Chờ kiểm tra' | 'Đạt' | 'Chưa đạt'; checker?: string; note?: string; points?: number }
+export type BillPhoto = { id: string; staffId: string; shift: 1 | 2; photo: string; at: number; note?: string }
+export type BillCheck = { by: string; at: number; matched: number; issues: string[] }
+export type Review = { id: string; staffId: string; platform: 'Google' | 'Facebook'; customerId?: string; photo: string; at: number; status: 'Chờ đối soát' | 'Đã xác nhận' | 'Không khớp'; checker?: string }
+export type ProductLog = { id: string; product: string; qty: number; ktvId: string; recId: string; photo: string; at: number; ktvOk: boolean; recOk: boolean }
+export type Leave = { id: string; staffId: string; kind: 'Nghỉ phép' | 'Đổi ca'; date: string; detail: string; status: 'Chờ duyệt' | 'Đã duyệt' | 'Từ chối'; at: number }
+export type ShiftClose = { id: string; staffId: string; at: number; expected: Record<PayMethod, number>; counted: Record<PayMethod, number>; note: string; books: boolean[] }
+export type PointEntry = { id: string; staffId: string; delta: number; reason: string; by: string; at: number; status: 'Chờ duyệt' | 'Đã duyệt' | 'Từ chối'; source: 'Dọn dẹp' | 'Lễ tân ghi nhận' | 'Leader' | 'Review' }
+export type OpsCheck = { id: string; item: string; by: string; at: number; ok: boolean; note: string }
+export const OPS_ITEMS = ['Kiểm tra vệ sinh lao công', 'Kiểm tra không gian trải nghiệm', 'Vật tư – tồn kho – đề xuất mua', 'Thiết bị – bảo dưỡng – sửa chữa', 'Sinh nhật nhân sự – quà tháng – hoạt động chung', 'Ghi nhận điểm uy tín', 'Bàn giao ca – việc còn tồn'] as const
+export const BOOK_CHECKS = ['Không còn hóa đơn nháp / chưa thu', 'Bill Money nhóm đã đối soát', 'Lịch hẹn ngày mai đã nhắn xác nhận', 'Sản phẩm xuất trong ca đã xác nhận 2 bên', 'Việc tồn đã ghi bàn giao ca sau']

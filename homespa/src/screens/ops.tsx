@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useStore } from '../store'
 import * as D from '../data'
 import { overview, alerts, ktvState, bedState, cust, suggestKtv, earliestFor, freeBedFor, ktvConflict, bedConflict, custConflict, inShift, Alert, CLEAN_MIN } from '../logic'
+import { canSee } from '../logic'
 import { Icon, Pill, Stat, PageHeader, Seg, Modal, Empty, Sec, Av } from '../ui'
 
 const STATUS_LABEL: Record<D.ApptStatus, [string, any]> = {
@@ -338,7 +339,7 @@ export function BedsScreen() {
 // ─────────────────────────── THÔNG BÁO ───────────────────────────
 export function NotifScreen() {
   const { s, user, me, markRead, markAllRead, go } = useStore()
-  const mine = s.notifs.filter(n => n.roles.includes(user.role))
+  const mine = s.notifs.filter(n => canSee(n, user.role, me.id))
   const cats = ['Tất cả', ...Array.from(new Set(mine.map(n => n.cat)))] as string[]
   const [f, setF] = useState('Tất cả')
   const shown = f === 'Tất cả' ? mine : mine.filter(n => n.cat === f)

@@ -2,7 +2,7 @@
 // nên một thay đổi (chia tour, thu tiền, xong việc) cập nhật mọi nơi cùng lúc.
 import { createContext, useContext, useState, ReactNode } from 'react'
 import * as D from './data'
-import { State, ktvConflict, bedConflict, custConflict, cust, CLEAN_MIN } from './logic'
+import { State, ktvConflict, bedConflict, custConflict, cust, CLEAN_MIN, canSee } from './logic'
 
 export type User = { role: D.Role; staffId: string }
 const DEFAULT_USER: Record<D.Role, string> = { reception: 'lam', ktv: 'mai', leader: 'thao', ceo: 'quyen', marketing: 'khoa' }
@@ -15,14 +15,33 @@ const initial = (): State => ({
   invoices: clone(D.SEED_INVOICES), cleaning: { 'TL-02': 'lan' },
   rotation: { 1: ['mai', 'hien', 'lan', 'phuong', 'trieu'], 2: ['bao', 'ngoc', 'thu'] },
   tasks: clone(D.SEED_TASKS), feedback: clone(D.SEED_FEEDBACK), programs: clone(D.SEED_PROGRAMS),
-  initiatives: clone(D.SEED_INITIATIVES), approvals: clone(D.SEED_APPROVALS), reports: [],
+  initiatives: clone(D.SEED_INITIATIVES), approvals: [...clone(D.SEED_APPROVALS), clone(D.SEED_APPROVAL_LEAVE)], reports: [],
   notifs: [
-    { id: 'n1', cat: 'Lịch hẹn', text: 'Nguyễn Thị Lan đặt lịch 10:30 với KTV Mai', detail: 'Massage trị liệu 90 phút · khách yêu cầu đích danh', min: 560, roles: ['reception', 'ktv'], nav: 'schedule', readBy: [] },
+    { id: 'n1', cat: 'Lịch hẹn', text: 'Nguyễn Thị Lan đặt lịch 10:30 với KTV Mai', detail: 'Massage trị liệu 90 phút · khách yêu cầu đích danh', min: 560, roles: ['reception'], nav: 'schedule', readBy: [] },
+    { id: 'n0', cat: 'Lịch hẹn', text: 'Bạn có khách 10:30 — Nguyễn Thị Lan (yêu cầu bạn)', detail: 'Massage trị liệu 90 phút · đau cổ vai gáy', min: 560, roles: ['ktv'], to: ['mai'], nav: 'mywork', readBy: [] },
     { id: 'n2', cat: 'Thu ngân', text: 'Trần Văn Minh xong dịch vụ, chờ thanh toán', detail: 'Massage trị liệu 90 phút · 570.000đ', min: 600, roles: ['reception'], nav: 'cashier', readBy: [] },
     { id: 'n3', cat: 'Leader', text: 'Phản hồi 2/5 lặp lại lần 3 — Thời gian chờ', detail: 'Vũ Thị Kim · đã giao Leader Thảo xử lý', min: 520, roles: ['leader', 'ceo'], nav: 'customers', readBy: [] },
     { id: 'n4', cat: 'Hệ thống', text: 'Có tài khoản mới xin vào app', detail: 'ktv.dung@gmail.com · xin vai trò KTV', min: 500, roles: ['ceo'], nav: 'approvals', readBy: [] },
   ],
   join: clone(D.SEED_JOIN), staff: clone(D.STAFF), seq: 200,
+  zoneOwner: { ...D.SEED_ZONE_OWNER },
+  cleanReports: [
+    { id: 'cr1', zone: 1, staffId: 'lam', photo: 'tang1-0805.jpg', checks: [true, true, true], at: 8 * 60 + 5, status: 'Đạt', checker: 'thao', points: D.ZONE_POINTS },
+    { id: 'cr2', zone: 5, staffId: 'phuong', photo: 'ngamchan-0820.jpg', checks: [true, true, false], at: 8 * 60 + 20, status: 'Chưa đạt', checker: 'thao', note: 'Tủ khăn nóng chưa đủ khăn — bổ sung và chụp lại', points: 0 },
+    { id: 'cr3', zone: 2, staffId: 'mai', photo: 'phong2-0830.jpg', checks: [true, true, true], at: 8 * 60 + 30, status: 'Chờ kiểm tra' },
+  ],
+  bills: [{ id: 'b1', staffId: 'lan', shift: 1, photo: 'bill-lan-0930.jpg', at: 9 * 60 + 30 }, { id: 'b2', staffId: 'mai', shift: 1, photo: 'bill-mai-0915.jpg', at: 9 * 60 + 15 }],
+  billCheck: null,
+  reviews: [{ id: 'rv1', staffId: 'mai', platform: 'Google', customerId: 'kl061', photo: 'google-ngoc.jpg', at: 9 * 60 + 10, status: 'Chờ đối soát' }],
+  productLogs: [{ id: 'pl1', product: 'Dầu massage', qty: 1, ktvId: 'mai', recId: 'lam', photo: 'dau-mai.jpg', at: 8 * 60 + 10, ktvOk: true, recOk: true }, { id: 'pl2', product: 'Cao hổ', qty: 1, ktvId: 'trieu', recId: 'lam', photo: 'caoho-trieu.jpg', at: 9 * 60 + 40, ktvOk: false, recOk: true }],
+  leaves: [{ id: 'lv1', staffId: 'hien', kind: 'Nghỉ phép', date: D.daysAhead(3), detail: 'Việc gia đình', status: 'Chờ duyệt', at: 8 * 60 }],
+  attendance: { lam: { in: 7 * 60 + 55 }, mai: { in: 7 * 60 + 58 }, hien: { in: 8 * 60 + 2 }, lan: { in: 7 * 60 + 50 }, phuong: { in: 8 * 60 + 12 }, trieu: { in: 7 * 60 + 59 }, bao: { in: 9 * 60 + 58 }, ngoc: { in: 10 * 60 + 1 }, van: { in: 9 * 60 + 55 } },
+  shiftCloses: [],
+  points: [
+    { id: 'pt1', staffId: 'lam', delta: D.ZONE_POINTS, reason: 'Khu vực 1 đạt chuẩn', by: 'thao', at: 8 * 60 + 15, status: 'Đã duyệt', source: 'Dọn dẹp' },
+    { id: 'pt2', staffId: 'mai', delta: 3, reason: 'Khách khen trên Google', by: 'lam', at: 9 * 60 + 20, status: 'Chờ duyệt', source: 'Lễ tân ghi nhận' },
+  ],
+  opsChecks: [],
 })
 
 type Ctx = ReturnType<typeof useStoreValue>
@@ -34,9 +53,9 @@ export const BUDGET_LIMIT = 2000000
 
 function useStoreValue() {
   const [s, setS] = useState<State>(initial)
-  const [user, setUser] = useState<User>({ role: 'reception', staffId: 'lam' })
+  const [user, setUser] = useState<User>({ role: 'ktv', staffId: 'mai' })
   const [toast, setToast] = useState<string | null>(null)
-  const [page, go] = useState('overview')
+  const [page, go] = useState('home')
   const [profile, openCustomer] = useState<string | null>(null)
   const [draftBill, setDraftBill] = useState<string | null>(null) // apptId mở sẵn ở Thu ngân
   D.setStaffLive(s.staff)
@@ -62,7 +81,8 @@ function useStoreValue() {
       const end = f.start + D.svc(f.serviceId).duration
       return tryMutate(d => (D.bedZoneFor(f.serviceId) !== D.BEDS.find(b => b.id === f.bedId)?.zone ? 'Giường không đúng khu vực của dịch vụ' : null) || custConflict(d, f.customerId, f.start, end) || ktvConflict(d, f.ktvId, f.start, end) || bedConflict(d, f.bedId, f.start, end), d => {
         d.appts.push({ id: id(d, 'a'), end, status: f.status ?? 'booked', ...f })
-        notify(d, { cat: 'Lịch hẹn', text: `Lịch mới ${D.hhmm(f.start)} — ${cust(d, f.customerId).name}`, detail: `${D.svc(f.serviceId).name} · KTV ${D.staffName(f.ktvId)} · ${f.bedId}`, roles: ['reception', 'ktv'], nav: 'schedule' })
+        notify(d, { cat: 'Lịch hẹn', text: `Lịch mới ${D.hhmm(f.start)} — ${cust(d, f.customerId).name}`, detail: `${D.svc(f.serviceId).name} · KTV ${D.staffName(f.ktvId)} · ${f.bedId}`, roles: ['reception'], nav: 'schedule' })
+        notify(d, { cat: 'Lịch hẹn', text: `Bạn có khách ${D.hhmm(f.start)} — ${cust(d, f.customerId).name}`, detail: `${D.svc(f.serviceId).name} · ${f.bedId}`, roles: ['ktv'], to: [f.ktvId], nav: 'mywork' })
       }, 'Đã tạo lịch hẹn')
     },
     moveAppt: (apptId: string, start: number, ktvId: string, bedId: string): string | null => {
@@ -92,7 +112,7 @@ function useStoreValue() {
           a.finishedAt = d.now; a.end = Math.min(a.end, Math.max(d.now, a.start + 1)); d.cleaning[a.bedId] = a.ktvId
           notify(d, { cat: 'Thu ngân', text: `${cust(d, a.customerId).name} xong dịch vụ, chờ thanh toán`, detail: `${D.svc(a.serviceId).name} · KTV ${D.staffName(a.ktvId)}`, roles: ['reception'], nav: 'cashier' })
         }
-        if (status === 'checked_in') notify(d, { cat: 'KTV', text: `Khách ${cust(d, a.customerId).name} đã đến`, detail: `${D.hhmm(a.start)} · ${a.bedId}`, roles: ['ktv'], nav: 'mywork' })
+        if (status === 'checked_in') notify(d, { cat: 'KTV', text: `Khách ${cust(d, a.customerId).name} đã đến`, detail: `${D.hhmm(a.start)} · ${a.bedId}`, roles: ['ktv'], to: [a.ktvId], nav: 'mywork' })
         a.status = status
       })
       if (e) say('⚠ ' + e)
@@ -123,7 +143,7 @@ function useStoreValue() {
         // Xoay tour: KTV vừa nhận xuống cuối hàng — trừ khi khách yêu cầu đích danh (không mất lượt)
         const sh = d.staff.find(x => x.id === ktvId)!.shift!
         if (q.requestedKtvId !== ktvId) d.rotation[sh] = [...d.rotation[sh].filter(x => x !== ktvId), ktvId]
-        notify(d, { cat: 'KTV', text: `Nhận khách ${cust(d, q.customerId).name} lúc ${D.hhmm(start)}`, detail: `${D.svc(q.serviceId).name} · ${bedId}`, roles: ['ktv'], nav: 'mywork' })
+        notify(d, { cat: 'KTV', text: `Nhận khách ${cust(d, q.customerId).name} lúc ${D.hhmm(start)}`, detail: `${D.svc(q.serviceId).name} · ${bedId}`, roles: ['ktv'], to: [ktvId], nav: 'mywork' })
       }, `Đã chia tour cho KTV ${D.staffName(ktvId)}`)
     },
     removeQueue: (qid: string) => mutate(d => { d.queue = d.queue.filter(x => x.id !== qid) }),
@@ -290,8 +310,11 @@ function useStoreValue() {
           }
           inv.status = 'Đã xóa'; inv.log.push({ at: D.stamp(d.now), by: 'Chị Quyên', text: `Duyệt xóa mềm · ${a.detail} · đã hoàn thẻ & trả lượt về chờ thanh toán` })
         }
+        const lv = d.leaves.find(x => x.id === a.refId)
+        if (lv) lv.status = ok ? 'Đã duyệt' : 'Từ chối'
         const j = d.join.find(x => x.id === a.refId)
         if (j) { j.status = ok ? 'Đã duyệt' : 'Từ chối'; if (ok) { const nid = 'u' + j.id; d.staff.push({ id: nid, name: j.name, role: j.wantedRole, shift: j.wantedRole === 'ktv' ? 2 : undefined }); if (j.wantedRole === 'ktv') d.rotation[2].push(nid) } }
+        if (a.fromId !== 'system') { const who = d.staff.find(x => x.id === a.fromId); if (who) notify(d, { cat: 'Hệ thống', text: `Chị ${ok ? 'đã duyệt' : 'từ chối'} yêu cầu của bạn: ${a.title}`, detail: note || a.kind, roles: [who.role], to: [who.id], nav: a.kind === 'Nghỉ phép / đổi ca' ? 'home/leave' : undefined }) }
         notify(d, { cat: 'Hệ thống', text: `Chị ${ok ? 'đã duyệt' : 'từ chối'}: ${a.title}`, detail: note || a.kind, roles: ['leader', 'marketing', 'reception'], nav: a.kind === 'Báo cáo tuần' ? 'mine' : undefined })
       })
       say(ok ? 'Đã duyệt' : 'Đã từ chối')
@@ -303,8 +326,79 @@ function useStoreValue() {
       mutate(d => { cust(d, customerId).packages.push(p); cust(d, customerId).care.unshift({ at: D.stamp(d.now), by: me.name, text: `Nhập số dư đầu kỳ ${p.cardCode} (chuyển từ hệ thống cũ — không tính doanh thu hôm nay)` }) })
       say('Đã lưu số dư đầu kỳ')
     },
+    // ── Luồng hằng ngày ──
+    checkIn: () => {
+      if (s.attendance[me.id]?.in != null) return say('Hôm nay bạn đã chấm công vào')
+      const sh = me.shift ? D.SHIFTS[me.shift].start : 8 * 60
+      mutate(d => { d.attendance[me.id] = { in: d.now } })
+      say(s.now > sh ? `Đã chấm công ${D.hhmm(s.now)} — trễ ${s.now - sh} phút` : `Đã chấm công vào ${D.hhmm(s.now)}`)
+    },
+    checkOut: () => mutate(d => { d.attendance[me.id] = { ...d.attendance[me.id], out: d.now } }),
+    submitClean: (zone: number, photo: string, checks: boolean[]): string | null => {
+      const z = D.ZONES.find(x => x.no === zone)!
+      if (z.after && s.now < z.after) return `Khu ${zone} chỉ báo cáo sau ${D.hhmm(z.after)}`
+      if (!photo) return 'Cần tải ảnh minh chứng'
+      if (!checks.every(Boolean)) return 'Chưa tick đủ các việc của khu vực'
+      mutate(d => {
+        d.cleanReports.unshift({ id: id(d, 'cr'), zone, staffId: me.id, photo, checks, at: d.now, status: 'Chờ kiểm tra' })
+        notify(d, { cat: 'Dọn dẹp', text: `${me.name} báo xong khu ${zone} — ${z.name}`, detail: 'Chờ kiểm tra ảnh & chấm điểm', roles: ['leader'], nav: 'checklist' })
+      })
+      say('Đã gửi báo cáo — chờ kiểm tra'); return null
+    },
+    checkClean: (rid: string, ok: boolean, note: string) => mutate(d => {
+      const r = d.cleanReports.find(x => x.id === rid)!; if (r.status !== 'Chờ kiểm tra') return
+      r.status = ok ? 'Đạt' : 'Chưa đạt'; r.checker = me.id; r.note = note; r.points = ok ? D.ZONE_POINTS : 0
+      if (ok) d.points.unshift({ id: id(d, 'pt'), staffId: r.staffId, delta: D.ZONE_POINTS, reason: `Khu vực ${r.zone} đạt chuẩn`, by: me.id, at: d.now, status: 'Đã duyệt', source: 'Dọn dẹp' })
+      notify(d, { cat: 'Dọn dẹp', text: `Khu ${r.zone}: ${ok ? `Đạt · +${D.ZONE_POINTS} điểm` : 'Chưa đạt — làm lại'}`, detail: note || (ok ? 'Đã kiểm tra ảnh' : ''), roles: ['ktv', 'reception'], to: [r.staffId], nav: 'home/cleaning' })
+    }),
+    uploadBill: (shift: 1 | 2, photo: string, note: string) => { mutate(d => { d.bills.unshift({ id: id(d, 'b'), staffId: me.id, shift, photo, at: d.now, note }) }); say('Đã tải ảnh bill — lễ tân đối soát với tour') },
+    confirmBills: (matched: number, issues: string[]) => {
+      mutate(d => {
+        d.billCheck = { by: me.id, at: d.now, matched, issues }
+        notify(d, { cat: 'Thu ngân', text: `Bill Money nhóm: ${matched} tour khớp${issues.length ? ` · ${issues.length} chưa khớp` : ''}`, detail: issues.join(' · ') || 'Tất cả khớp hóa đơn', roles: ['ktv', 'leader', 'ceo'], nav: 'home/bills' })
+      })
+      say('Đã xác nhận danh sách bill cho nhóm')
+    },
+    addReview: (platform: D.Review['platform'], customerId: string, photo: string) => { mutate(d => { d.reviews.unshift({ id: id(d, 'rv'), staffId: me.id, platform, customerId: customerId || undefined, photo, at: d.now, status: 'Chờ đối soát' }) }); say('Đã gửi ảnh đánh giá — chờ đối soát với Google/Facebook') },
+    checkReview: (rid: string, ok: boolean) => mutate(d => {
+      const r = d.reviews.find(x => x.id === rid)!; r.status = ok ? 'Đã xác nhận' : 'Không khớp'; r.checker = me.id
+      // Lễ tân chỉ ghi nhận; điểm do Leader/CEO duyệt
+      if (ok) d.points.unshift({ id: id(d, 'pt'), staffId: r.staffId, delta: 1, reason: `Đánh giá ${r.platform} đã xác nhận`, by: me.id, at: d.now, status: me.role === 'leader' || me.role === 'ceo' ? 'Đã duyệt' : 'Chờ duyệt', source: 'Review' })
+    }),
+    addProduct: (product: string, qty: number, ktvId: string, photo: string) => {
+      mutate(d => { const recSide = me.role === 'reception'; d.productLogs.unshift({ id: id(d, 'pl'), product, qty, ktvId: recSide ? ktvId : me.id, recId: recSide ? me.id : '', photo, at: d.now, ktvOk: !recSide, recOk: recSide }) })
+      say('Đã ghi — chờ bên còn lại bấm xác nhận')
+    },
+    confirmProduct: (pid: string) => mutate(d => { const p = d.productLogs.find(x => x.id === pid)!; if (me.role === 'reception') { p.recOk = true; p.recId = me.id } else if (p.ktvId === me.id) p.ktvOk = true }),
+    requestLeave: (kind: D.Leave['kind'], date: string, detail: string) => {
+      mutate(d => {
+        const lid = id(d, 'lv')
+        d.leaves.unshift({ id: lid, staffId: me.id, kind, date, detail, status: 'Chờ duyệt', at: d.now })
+        d.approvals.unshift({ id: id(d, 'ap'), kind: 'Nghỉ phép / đổi ca', fromId: me.id, title: `${kind} ${date} — ${me.name}`, detail, status: 'Chờ duyệt', refId: lid })
+      })
+      say('Đã gửi đơn — chị (CEO) duyệt')
+    },
+    closeShift: (counted: Record<D.PayMethod, number>, expected: Record<D.PayMethod, number>, books: boolean[], note: string) => {
+      mutate(d => {
+        d.shiftCloses.unshift({ id: id(d, 'sc'), staffId: me.id, at: d.now, expected, counted, note, books })
+        const diff = (Object.keys(counted) as D.PayMethod[]).reduce((t, k) => t + counted[k] - expected[k], 0)
+        notify(d, { cat: 'Thu ngân', text: `${me.name} chốt ca ${D.hhmm(d.now)}${diff ? ` · lệch ${D.vnd(diff)}` : ' · khớp tiền'}`, detail: note || 'Không ghi chú', roles: ['leader', 'ceo'], nav: 'home/close' })
+      })
+      say('Đã chốt ca — gửi Leader & chị')
+    },
+    addOpsCheck: (item: string, ok: boolean, note: string) => { mutate(d => { d.opsChecks.unshift({ id: id(d, 'oc'), item, by: me.id, at: d.now, ok, note }) }); say('Đã ghi nhận') },
+    proposePoint: (staffId: string, delta: number, reason: string) => {
+      mutate(d => {
+        const direct = me.role === 'leader' || me.role === 'ceo'
+        d.points.unshift({ id: id(d, 'pt'), staffId, delta, reason, by: me.id, at: d.now, status: direct ? 'Đã duyệt' : 'Chờ duyệt', source: direct ? 'Leader' : 'Lễ tân ghi nhận' })
+      })
+      say(me.role === 'leader' || me.role === 'ceo' ? 'Đã ghi điểm' : 'Đã ghi nhận — chờ Leader/CEO duyệt')
+    },
+    decidePoint: (pid: string, ok: boolean) => mutate(d => { const p = d.points.find(x => x.id === pid)!; if (p.status === 'Chờ duyệt') p.status = ok ? 'Đã duyệt' : 'Từ chối' }),
+    setZoneOwner: (zone: number, staffId: string) => mutate(d => { d.zoneOwner[zone] = staffId }),
+    logCare: (customerId: string, e: Omit<D.CareEntry, 'at' | 'by'>) => mutate(d => { cust(d, customerId).care.unshift({ ...e, at: D.stamp(d.now), by: me.name }) }),
     markRead: (nid: string) => mutate(d => { const n = d.notifs.find(x => x.id === nid); if (n && !n.readBy.includes(me.id)) n.readBy.push(me.id) }),
-    markAllRead: () => mutate(d => { d.notifs.forEach(n => { if (n.roles.includes(user.role) && !n.readBy.includes(me.id)) n.readBy.push(me.id) }) }),
+    markAllRead: () => mutate(d => { d.notifs.forEach(n => { if (canSee(n, user.role, me.id) && !n.readBy.includes(me.id)) n.readBy.push(me.id) }) }),
   }
   return { s, user, setUser, me, toast, say, page, go, profile, openCustomer, draftBill, setDraftBill, ...actions, CLEAN_MIN }
 }

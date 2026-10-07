@@ -22,6 +22,17 @@ export type State = {
   join: import('./data').JoinRequest[]
   staff: Staff[]
   seq: number
+  zoneOwner: Record<number, string>
+  cleanReports: import('./data').CleanReport[]
+  bills: import('./data').BillPhoto[]
+  billCheck: import('./data').BillCheck | null
+  reviews: import('./data').Review[]
+  productLogs: import('./data').ProductLog[]
+  leaves: import('./data').Leave[]
+  attendance: Record<string, { in?: number; out?: number }>
+  shiftCloses: import('./data').ShiftClose[]
+  points: import('./data').PointEntry[]
+  opsChecks: import('./data').OpsCheck[]
 }
 
 const LIVE: Appt['status'][] = ['booked', 'checked_in', 'in_service']
@@ -160,3 +171,29 @@ export function alerts(s: State): Alert[] {
 
 export const custSegment = (c: Customer) =>
   c.visits <= 1 ? 'Khách mới' : c.lastVisitDays >= 45 ? 'Lâu chưa đến' : c.packages.some(p => pkgLeft(p) > 0) ? 'Đang dùng liệu trình' : 'Khách quay lại'
+
+// ── Luồng hằng ngày ──
+/** Thông báo người này được thấy: đúng vai trò, và nếu có người nhận cụ thể thì chỉ người đó */
+export const canSee = (n: import('./data').Notif, role: import('./data').Role, staffId: string) => (n.to ? n.to.includes(staffId) : n.roles.includes(role))
+export const myZones = (s: State, staffId: string) => Object.entries(s.zoneOwner).filter(([, v]) => v === staffId).map(([k]) => +k)
+export const zoneReport = (s: State, zone: number) => s.cleanReports.filter(r => r.zone === zone).sort((a, b) => b.at - a.at)[0]
+/** Thứ tự tour hôm nay: ca sáng trước, ca chiều sau (theo hàng xoay tour hiện tại) */
+export const tourOrder = (s: State) => [...s.rotation[1], ...s.rotation[2]]
+export const pointsOf = (s: State, staffId: string) => s.points.filter(p => p.staffId === staffId && p.status === 'Đã duyệt').reduce((t, p) => t + p.delta, 0)
+/** Tour hôm nay cần đối soát bill: lượt đã/đang phục vụ */
+export function billRows(s: State) {
+  return s.appts.filter(a => ['in_service', 'done', 'paid'].includes(a.status)).sort((a, b) => a.start - b.start).map(a => {
+    const inv = s.invoices.find(i => i.status !== 'Đã xóa' && i.status !== 'Nháp' && i.lines.some(l => l.apptId === a.id))
+    const photo = s.bills.some(b => b.staffId === a.ktvId && b.at >= a.start) // ảnh bill chụp sau khi tour bắt đầu
+    const issue = a.status === 'in_service' ? null : !inv ? `Chưa thu tiền — trách nhiệm KTV ${s.staff.find(x => x.id === a.ktvId)?.name} hoặc lễ tân` : !photo ? `KTV ${s.staff.find(x => x.id === a.ktvId)?.name} chưa tải ảnh bill` : null
+    return { a, inv, photo, issue }
+  })
+}
+/** Tiền hệ thống của ca hiện tại: hóa đơn tạo SAU lần chốt ca gần nhất trong ngày (bàn giao giữa 2 lễ tân) */
+export const lastCloseAt = (s: State) => Math.max(-1, ...s.shiftCloses.map(x => x.at))
+export const expectedByMethod = (s: State) => {
+  const r: Record<'Tiền mặt' | 'Chuyển khoản' | 'Thẻ ngân hàng', number> = { 'Tiền mặt': 0, 'Chuyển khoản': 0, 'Thẻ ngân hàng': 0 }
+  const since = lastCloseAt(s)
+  s.invoices.filter(i => i.status !== 'Nháp' && i.status !== 'Đã xóa' && i.createdMin > since).forEach(i => i.payments.forEach(p => { r[p.method] += p.amount }))
+  return r
+}

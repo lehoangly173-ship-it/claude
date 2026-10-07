@@ -19,6 +19,10 @@ const P: Record<string, string> = {
   shield: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10 M9 12l2 2 4-4',
   mega: 'M3 11v3a1 1 0 0 0 1 1h3l5 4V6L7 10H4a1 1 0 0 0-1 1 M16 8a5 5 0 0 1 0 8',
   more: 'M5 12h.01 M12 12h.01 M19 12h.01', chart: 'M3 3v18h18 M7 15l4-4 3 3 5-6',
+  arrow: 'M5 12h14 M13 6l6 6-6 6', back: 'M19 12H5 M11 18l-6-6 6-6', camera: 'M3 8h4l2-3h6l2 3h4v12H3z M12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8',
+  ops: 'M4 6h16 M4 12h16 M4 18h10', team: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M22 21v-2a4 4 0 0 0-3-3.9',
+  qr: 'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h3v3h-3z M20 20h1 M17 20h1 M20 17h1', star: 'M12 3l2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9z',
+  box: 'M21 8 12 3 3 8v8l9 5 9-5z M3 8l9 5 9-5 M12 13v8', gear: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6 M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z',
 }
 export function Icon({ n, s = 16 }: { n: string; s?: number }) {
   return <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={P[n] ?? P.more} /></svg>
@@ -53,6 +57,48 @@ export function Modal({ title, onClose, children, footer, wide }: { title: React
 export const Empty = ({ children }: { children: ReactNode }) => <div className="empty">{children}</div>
 export const Sec = ({ eyebrow, title, right, children }: { eyebrow?: string; title?: string; right?: ReactNode; children: ReactNode }) =>
   <section><div className="sec-title">{eyebrow && <span className="eyebrow">{eyebrow}</span>}{title && <h2>{title}</h2>}{right}</div>{children}</section>
+// ── Bộ khung theo phong cách Home (video mẫu) ──
+export function Hero({ tag, title, sub, children }: { tag: string; title: ReactNode; sub?: ReactNode; children?: ReactNode }) {
+  return <div className="hero"><span className="tag">{tag}</span><h1>{title}</h1>{sub && <p>{sub}</p>}{children && <div className="hrow">{children}</div>}</div>
+}
+export type TileT = { v: ReactNode; l: string; s?: string; tone?: 'warn' | 'ok'; onClick?: () => void }
+export function Tiles({ items, soft }: { items: TileT[]; soft?: boolean }) {
+  return <div className={`tiles${soft ? ' soft' : ''}`}>{items.map((t, i) => {
+    const inner = <><span className="v num">{t.v}</span><span className="l">{t.l}</span>{t.s && <span className="s">{t.s}</span>}</>
+    const cls = `tile${t.tone ? ` ${t.tone}-t` : ''}`
+    return t.onClick ? <button key={i} className={cls} onClick={t.onClick}>{inner}</button> : <div key={i} className={cls}>{inner}</div>
+  })}</div>
+}
+export function Block({ title, sub, right, children }: { title: ReactNode; sub?: ReactNode; right?: ReactNode; children: ReactNode }) {
+  return <section className="block"><div className="bh"><div style={{ minWidth: 0 }}><h2>{title}</h2>{sub && <p>{sub}</p>}</div>{right && <div className="right">{right}</div>}</div>{children}</section>
+}
+export type NodeT = { no?: ReactNode; t: string; d?: string; badge?: number; alert?: boolean; onClick: () => void }
+export function Nodes({ items }: { items: NodeT[] }) {
+  return <div className="nodes">{items.map((n, i) => <button key={i} className={`node${n.alert ? ' alert' : ''}`} onClick={n.onClick}>
+    <span className="no">{n.no ?? i + 1}</span><span className="body"><span className="t" style={{ display: 'block' }}>{n.t}</span>{n.d && <span className="d" style={{ display: 'block' }}>{n.d}</span>}</span>
+    {n.badge ? <span className="badge red">{n.badge}</span> : null}<span className="arr"><Icon n="arrow" s={18} /></span></button>)}</div>
+}
+export function ChipGrid({ items }: { items: { l: string; onClick: () => void; solid?: boolean; badge?: number }[] }) {
+  return <div className="chipgrid">{items.map(c => <button key={c.l} className={`cbtn${c.solid ? ' solid' : ''}`} onClick={c.onClick}>{c.l}{c.badge ? <span className="badge red">{c.badge}</span> : null}</button>)}</div>
+}
+export function SubHead({ title, sub, onBack, right }: { title: string; sub?: ReactNode; onBack: () => void; right?: ReactNode }) {
+  return <div className="subhead"><button className="back" onClick={onBack}><Icon n="back" />Quay lại</button>
+    <div className="row" style={{ alignItems: 'flex-end' }}><div style={{ minWidth: 0, flex: 1 }}><h1>{title}</h1>{sub && <p>{sub}</p>}</div>{right}</div></div>
+}
+/** Ảnh minh chứng: chọn ảnh thật từ máy/điện thoại (giữ trong phiên chạy thử) */
+export function PhotoInput({ value, onChange, label = 'Tải ảnh lên' }: { value: string; onChange: (v: string) => void; label?: string }) {
+  return <label className={`photo${value ? ' done' : ''}`}>
+    <input type="file" accept="image/*" capture="environment" onChange={e => { const f = e.target.files?.[0]; if (f) onChange(URL.createObjectURL(f)) }} />
+    {value ? (value.startsWith('blob:') ? <img src={value} alt="Ảnh đã chọn" /> : <span className="ph-ic">🖼</span>) : <span className="ph-ic"><Icon n="camera" s={20} /></span>}
+    <span>{value ? 'Đã có ảnh · bấm để đổi' : label}<span className="tiny muted" style={{ display: 'block', fontWeight: 400 }}>Không chụp được ảnh? Báo quản lý kiểm tra hệ thống.</span></span>
+  </label>
+}
+export const Thumb = ({ src }: { src: string }) => <span className="thumb">{src.startsWith('blob:') ? <img src={src} alt="" /> : '🖼'}</span>
+/** Nút chưa nối dữ liệu: vẫn hiện đủ cấu trúc theo sơ đồ để kiểm tra luồng */
+export function NodeSpec({ rows }: { rows: { t: string; d: string }[] }) {
+  return <div className="col"><div className="note">Mục này đã có <b>cấu trúc theo sơ đồ</b>; số liệu sẽ hiện khi nối dữ liệu thật (Supabase). App không hiển thị số mẫu ở đây.</div>
+    <div className="card list">{rows.map(r => <div key={r.t} className="item"><div className="body"><div className="t">{r.t}</div><div className="d">{r.d}</div></div><Pill>Chưa nối</Pill></div>)}</div></div>
+}
 export const Av = ({ name }: { name: string }) => <span className="av">{name.replace('Chị ', '')[0]}</span>
 
 /** Hồ sơ khách — mỗi khách một hồ sơ thật, dùng chung ở mọi màn */
@@ -68,7 +114,7 @@ export function CustomerModal({ customerId, onClose }: { customerId: string; onC
     <div className="row">{c.vip && <Pill tone="yellow">VIP</Pill>}<Pill tone="purple">{c.group === 'NN' ? 'Khách nước ngoài' : 'Khách Việt Nam'}</Pill><Pill>Nguồn: {c.source}</Pill><span className="muted small">{c.visits} lượt · lần cuối {c.lastVisitDays === 0 ? 'hôm nay' : `${c.lastVisitDays} ngày trước`}</span></div>
     <Seg value={tab} onChange={setTab} items={[{ k: 'info', label: 'Thông tin' }, { k: 'pkg', label: `Gói liệu trình (${c.packages.length})` }, { k: 'care', label: 'Chăm sóc & phản hồi' }]} />
     {tab === 'info' && <div className="grid g2">
-      <div className="col small"><span className="eyebrow">Liên hệ</span><span>SĐT: {user.role === 'ktv' ? 'ẩn với KTV' : c.phone || '—'}</span><span>Sinh nhật: {c.dob || '—'}</span><span>Khách từ: {c.firstVisit}</span>{canSeeMoney && <span>Tổng chi: <b className="num">{D.vnd(c.totalPaid)}</b></span>}</div>
+      <div className="col small"><span className="eyebrow">Liên hệ</span><span>SĐT: {user.role === 'reception' || user.role === 'ceo' ? c.phone || '—' : 'ẩn (chỉ lễ tân thấy)'}</span><span>Sinh nhật: {c.dob || '—'}</span><span>Khách từ: {c.firstVisit}</span>{canSeeMoney && <span>Tổng chi: <b className="num">{D.vnd(c.totalPaid)}</b></span>}</div>
       <div className="col small"><span className="eyebrow">Lưu ý khi phục vụ</span><span>Sức khỏe: {c.health || 'Không có lưu ý'}</span><span>Sở thích: {c.preference || '—'}</span></div>
       <div className="col small" style={{ gridColumn: '1 / -1' }}><span className="eyebrow">Hôm nay</span>{visits.length ? visits.map(a => <span key={a.id}>{D.hhmm(a.start)} · {D.svc(a.serviceId).name} · KTV {D.staffName(a.ktvId)} · {a.bedId}</span>) : <span className="muted">Không có lịch hôm nay</span>}</div>
     </div>}

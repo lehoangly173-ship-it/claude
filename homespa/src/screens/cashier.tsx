@@ -33,7 +33,7 @@ export function CashierScreen() {
     <div className="grid g4">
       <Stat label="Chờ thanh toán" value={bills.length} tone="r-fg" sub="lượt phục vụ xong" />
       <Stat label={range === 'day' ? 'Hóa đơn đã xác nhận' : 'Lượt phục vụ'} value={stats.confirmed} tone="g-fg" sub={range === 'day' ? 'hôm nay' : D.SAMPLE_NOTE} />
-      <Stat label="Tiền đã thu" value={D.vndShort(stats.collected)} tone="gold" sub="tiền mặt · CK · thẻ NH" />
+      <Stat label="Tiền đã thu" value={D.vndShort(stats.collected)} tone="gold" sub={range === 'day' ? 'tiền mặt · CK · thẻ NH' : D.SAMPLE_NOTE} />
       <Stat label="Còn phải thu (gói)" value={D.vndShort(stats.due)} tone="y-fg" sub="cọc & còn thiếu" />
     </div>
     <Seg value={tab} onChange={setTab} items={[{ k: 'waiting', label: 'Chờ thanh toán', badge: bills.length }, { k: 'invoices', label: 'Hóa đơn' }, { k: 'deposits', label: 'Cọc & còn thiếu' }, { k: 'cards', label: 'Thẻ liệu trình' }]} />

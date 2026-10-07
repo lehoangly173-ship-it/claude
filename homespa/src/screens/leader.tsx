@@ -4,8 +4,8 @@
 import { useMemo, useState } from 'react'
 import { useStore, BUDGET_LIMIT } from '../store'
 import * as D from '../data'
-import { alerts, overview, cust, ktvState, custSegment, Alert, State } from '../logic'
-import { Icon, Pill, Stat, PageHeader, Seg, Modal, Empty, Sec, Av, Delta } from '../ui'
+import { alerts, overview, cust, ktvState, custSegment, Alert, State, myZones, zoneReport, tourOrder, pointsOf } from '../logic'
+import { Icon, Pill, Stat, PageHeader, Seg, Modal, Empty, Sec, Av, Delta, Hero } from '../ui'
 
 const isRec = (s: State, id: string) => s.staff.find(x => x.id === id)?.role === 'reception'
 const FLOW = ['Mở việc', 'Nhận xử lý', 'Ghi kết quả / minh chứng', 'Hoàn thành / chuyển']
@@ -185,9 +185,39 @@ export function RoiPanel() {
 
 // ═══════════════════════════ 3. HỎI ĐÁP MỘC ═══════════════════════════
 type Answer = { q: string; title: string; facts: string[]; hyps: string[]; next: string[]; sop?: string; task?: Partial<D.Task>; noRule?: boolean }
-function answer(s: State, q: string): Answer {
+const PERMS: Record<D.Role, { can: string[]; cannot: string[] }> = {
+  ktv: { can: ['Xem ca, tour, khách được giao của chính mình', 'Báo dọn dẹp, bill, đánh giá, sản phẩm, sự cố', 'Xem điểm uy tín và lý do'], cannot: ['Xem SĐT khách, lương/HR người khác', 'Tự chia tour, tạo/sửa hóa đơn', 'Sửa điểm uy tín, duyệt nghỉ/đổi ca, sửa SOP'] },
+  reception: { can: ['Lịch hẹn, chia tour, thu ngân, hồ sơ khách (có SĐT)', 'Đối soát bill nhóm, xác nhận sản phẩm, chốt ca', 'Ghi nhận điểm uy tín (Leader/CEO duyệt)'], cannot: ['Xóa hóa đơn (gửi chị duyệt)', 'Đổi giá/ưu đãi ngoài khung đã duyệt', 'Tự quyết điểm uy tín của đồng nghiệp', 'Xuất file dữ liệu khách (chỉ CEO)'] },
+  leader: { can: ['Giao việc, kiểm tra dọn dẹp, duyệt điểm uy tín', 'Chương trình ≤ 2tr không đổi giá'], cannot: ['Đổi giá, ngân sách vượt mức, hoàn tiền (chị duyệt)'] },
+  ceo: { can: ['Toàn quyền, xem mọi giao diện, xuất file'], cannot: [] },
+  marketing: { can: ['Nội dung, chiến dịch, nguồn khách, CSKH AI theo quyền'], cannot: ['Đổi giá/ưu đãi, ngân sách vượt mức (chị duyệt)', 'Xem SĐT khách khi không được cấp'] },
+}
+function answer(s: State, q: string, me?: D.Staff): Answer {
   const t = q.toLowerCase()
   const w = D.HISTORY.week
+  if (me) {
+    if (/ca nào|tour thứ|thứ tự tour/.test(t)) { const o = tourOrder(s); const pos = o.indexOf(me.id)
+      return { q, title: 'Ca & tour hôm nay của bạn', facts: [me.shift ? `Bạn làm ${D.SHIFTS[me.shift].label}.` : 'Bạn không xếp ca theo giờ.', ...(pos >= 0 ? [`Bạn đang đứng thứ ${pos + 1}/${o.length} trong hàng xoay tour.`] : []), `Chấm công: ${s.attendance[me.id]?.in != null ? `đã vào lúc ${D.hhmm(s.attendance[me.id].in!)}` : 'chưa chấm — bấm "Quét QR chấm công" ở Hôm nay'}.`], hyps: [], next: ['Muốn đổi ca: Hôm nay → mục 1 → "Xin đổi ca" → CEO duyệt.'] } }
+    if (/việc gì chưa xong|còn việc/.test(t)) { const z = myZones(s, me.id).filter(n => { const r = zoneReport(s, n); return !r || r.status === 'Chưa đạt' })
+      const tk = s.tasks.filter(x => x.ownerId === me.id && (x.status === 'open' || x.status === 'doing'))
+      const pr = s.productLogs.filter(p => (me.role === 'reception' ? !p.recOk : p.ktvId === me.id && !p.ktvOk))
+      const facts = [...z.map(n => `Khu dọn số ${n} (${D.ZONES[n - 1].name}) ${zoneReport(s, n)?.status === 'Chưa đạt' ? 'chưa đạt — cần làm lại' : 'chưa báo cáo'}.`), ...tk.map(x => `Việc: ${x.title}`), ...(pr.length ? [`${pr.length} lượt sản phẩm chờ bạn xác nhận.`] : []), ...(me.role === 'ktv' && !s.bills.some(b => b.staffId === me.id) ? ['Chưa tải ảnh bill hôm nay.'] : []), ...(me.role === 'reception' && !s.billCheck ? ['Chưa xác nhận Bill Money nhóm.'] : [])]
+      return { q, title: 'Việc còn lại của bạn', facts: facts.length ? facts : ['Bạn đã xong các việc được giao. 👏'], hyps: [], next: ['Mở mục tương ứng ở "Hôm nay" để làm tiếp.'] } }
+    if (/điểm uy tín/.test(t)) { const mine = s.points.filter(p => p.staffId === me.id)
+      return { q, title: `Điểm uy tín: ${pointsOf(s, me.id)} điểm đã duyệt`, facts: mine.length ? mine.map(p => `${p.delta > 0 ? '+' : ''}${p.delta} · ${p.reason} · ${p.source} · ${p.status}`) : ['Chưa có thay đổi điểm hôm nay.'], hyps: [], next: ['Mộc chỉ giải thích — không tự cộng/trừ, xóa vi phạm hay quyết định thưởng/phạt.', 'Điểm có tranh chấp do Leader/CEO duyệt.'] } }
+    if (/nghỉ|đổi ca/.test(t)) return { q, title: 'Xin nghỉ / đổi ca', facts: ['Bước 1: Hôm nay → mục "Xin nghỉ phép" (hoặc mục 1 → "Xin đổi ca").', 'Bước 2: chọn ngày, ghi lý do / người đổi.', 'Bước 3: bấm "Gửi đơn" → vào hộp duyệt của chị (CEO).', 'Bước 4: khi được duyệt, bảng chia ca 4 tuần tự cập nhật OFF.'], hyps: [], next: [] }
+    if (/được xem|quyền/.test(t)) { const pm = PERMS[me.role]; return { q, title: 'Quyền hạn & bảo mật dữ liệu', facts: pm.can, hyps: [], next: pm.cannot.map(x => `Không được: ${x}`) } }
+    if (/học gì|đào tạo/.test(t)) { const fb = s.feedback.filter(f => f.ktvId === me.id && f.rating <= 3)
+      return { q, title: 'Gợi ý học tiếp', facts: fb.length ? fb.map(f => `Phản hồi ${f.rating}/5 nhóm "${f.group}": ${f.text}`) : ['Chưa có phản hồi chưa tốt gần đây.'], hyps: fb.length ? [`Kỹ năng cần luyện: ${[...new Set(fb.map(f => f.group))].join(', ')}`] : [], next: ['Chu trình: Học → Test → Tìm điểm yếu → Lộ trình → Nhắc luyện → Test lại.', 'Đánh giá tay nghề cuối cùng do Leader/người phụ trách đào tạo quyết định.'] } }
+    if (/tiến bộ/.test(t)) { const tours = s.appts.filter(a => a.ktvId === me.id && ['done', 'paid'].includes(a.status)).length
+      return { q, title: 'Phát triển cá nhân', facts: [`Hôm nay đã xong ${tours} tour.`, `Khách yêu cầu bạn: ${s.appts.filter(a => a.ktvId === me.id && a.requested).length}.`, `Điểm uy tín đã duyệt: ${pointsOf(s, me.id)}.`], hyps: [], next: ['Xem chi tiết ở "Của tôi" → Hiệu suất.'] } }
+    if (/quy chuẩn|văn hóa/.test(t)) return { q, title: 'Quy chuẩn Home Spa', facts: ['Theo quy chuẩn Home Spa đã được phê duyệt: chào khách bằng tên, hỏi vùng đau & lực mong muốn trước khi làm.', 'Mắc lỗi: nhận lỗi, xin lỗi, báo sớm cho lễ tân/Leader — không giấu.', 'Phối hợp: hỗ trợ đồng đội khi rảnh tour, giữ khu vực chung sạch.'], hyps: [], next: ['Câu chưa có trong quy chuẩn → Mộc báo cần Leader/CEO xác nhận.'] }
+    if (/lâu chưa quay lại/.test(t)) { const l = s.customers.filter(c => c.lastVisitDays >= 30).sort((a, b) => b.lastVisitDays - a.lastVisitDays)
+      return { q, title: 'Khách lâu chưa quay lại (≥ 30 ngày)', facts: l.map(c => `${c.name} · ${c.lastVisitDays} ngày · ${c.packages.length ? 'liệu trình' : 'khách lẻ'}`), hyps: [], next: ['Khách hàng → lọc "Lâu chưa quay lại" → Kịch bản mục tiêu → Ghi CSKH.'] } }
+    if (/thiếu tiền/.test(t)) { const l = s.customers.flatMap(c => c.packages.filter(p => D.pkgOwed(p) > 0).map(p => `${c.name} · ${p.cardCode} còn thiếu ${D.vnd(D.pkgOwed(p))}`))
+      return { q, title: 'Khách còn thiếu tiền gói', facts: l.length ? l : ['Không có khách còn thiếu.'], hyps: [], next: ['Thu tiếp tại Thu ngân → chọn "Đóng tiếp".'] } }
+    if (/chốt ca/.test(t)) return { q, title: 'Chốt ca cần kiểm tra', facts: ['Tiền: so tiền mặt / chuyển khoản / thẻ thực đếm với số hệ thống tính từ hóa đơn.', ...D.BOOK_CHECKS.map(x => `Sổ sách: ${x}`)], hyps: [], next: ['Hôm nay → "Chốt ca". Lệch tiền phải ghi lý do — Leader & chị nhận thông báo.'] }
+  }
   if (/quay lại|giảm khách|khách giảm/.test(t)) {
     const worst = [...D.RETURN_BY_GROUP].sort((a, b) => (a.now - a.prev) / a.prev - (b.now - b.prev) / b.prev)[0]
     return { q, title: 'Khách quay lại tuần này', facts: [`(${D.SAMPLE_NOTE}) Khách quay lại: ${w.now.returning} (tuần trước ${w.prev.returning}) → giảm ${w.prev.returning - w.now.returning} khách, tương đương ${Math.abs(D.pctChange(w.now.returning, w.prev.returning))}%.`, ...D.RETURN_BY_GROUP.map(g => `${g.group}: ${g.now} (trước ${g.prev}, ${D.pctChange(g.now, g.prev)}%)`), `Giảm mạnh nhất: ${worst.group}.`],
@@ -217,16 +247,18 @@ function answer(s: State, q: string): Answer {
   return { q, title: 'Chưa có quy định của Home', facts: [], hyps: [], next: ['Mộc chưa có dữ liệu hoặc quy định cho câu hỏi này. Đề nghị chuyển chị hoặc bổ sung quy trình.'], noRule: true, task: { title: `Bổ sung quy định: ${q.slice(0, 60)}`, detail: 'Câu hỏi chưa có quy định của Home', category: 'Vận hành', priority: 'thấp' } }
 }
 const PROMPTS = ['Tuần này khách quay lại giảm ở nhóm nào?', 'Khách đặt lịch nhiều nhưng đến ít, cần kiểm tra gì?', 'Đề xuất cách giảm thời gian chờ giờ cao điểm', 'Lên chương trình marketing cho từng nhóm khách', 'Soạn báo cáo đề xuất cho CEO', 'Quy trình xử lý khiếu nại']
-export function MocScreen() {
-  const { s, requestApproval } = useStore()
-  const [log, setLog] = useState<Answer[]>(() => [answer(s, PROMPTS[0])])
+export function MocScreen({ groups }: { groups?: { t: string; q: string }[] }) {
+  const { s, me, user, requestApproval } = useStore()
+  const [log, setLog] = useState<Answer[]>(() => groups?.length ? [] : [answer(s, PROMPTS[0], me)])
   const [q, setQ] = useState('')
   const [sop, setSop] = useState<string | null>(null)
   const [taskPreset, setTaskPreset] = useState<Partial<D.Task> | null>(null)
-  const ask = (text: string) => { if (!text.trim()) return; setLog(l => [...l, answer(s, text.trim())]); setQ('') }
+  const ask = (text: string) => { if (!text.trim()) return; setLog(l => [...l, answer(s, text.trim(), me)]); setQ('') }
+  const canTask = user.role === 'leader' || user.role === 'ceo' || user.role === 'marketing'
   return <>
-    <PageHeader eyebrow="Trợ lý tra cứu, phân tích & phát triển" title="Hỏi đáp Mộc" sub="Mộc luôn tách “dữ liệu đã xác nhận” với “giả thuyết nguyên nhân”, và báo rõ khi Home chưa có quy định" />
-    <div className="row">{PROMPTS.map(p => <button key={p} className="btn sm" onClick={() => ask(p)}>{p}</button>)}</div>
+    <Hero tag="Hỏi đáp Mộc" title="Mộc luôn ở đây" sub="Hướng dẫn · nhắc việc · gia sư · giải thích dữ liệu của chính bạn. Mộc tách “dữ liệu đã xác nhận” với “giả thuyết”, và báo rõ khi Home chưa có quy định." />
+    {groups?.length ? <div className="nodes">{groups.map((g, i) => <button key={g.t} className="node" onClick={() => ask(g.q)}><span className="no">{i + 1}</span><span className="body"><span className="t" style={{ display: 'block' }}>{g.t}</span><span className="d" style={{ display: 'block' }}>VD: {g.q}</span></span><span className="arr"><Icon n="arrow" s={18} /></span></button>)}</div>
+      : <div className="row">{PROMPTS.map(p => <button key={p} className="btn sm" onClick={() => ask(p)}>{p}</button>)}</div>}
     <div className="chat">{log.map((a, i) => <div key={i} className="col"><div className="bubble me">{a.q}</div>
       <div className="bubble moc"><b>{a.title}</b>
         {a.facts.length > 0 && <><h4 className="fact">Dữ liệu đã xác nhận</h4><ul>{a.facts.map((f, j) => <li key={j}>{f}</li>)}</ul></>}
@@ -234,9 +266,9 @@ export function MocScreen() {
         {a.next.length > 0 && <><h4 className="next">{a.noRule ? 'Lưu ý' : 'Bước tiếp theo'}</h4><ul>{a.next.map((f, j) => <li key={j}>{f}</li>)}</ul></>}
         <div className="row" style={{ marginTop: 10 }}>
           <button className="btn sm" disabled={!a.sop} onClick={() => setSop(a.sop!)}>Mở quy trình</button>
-          <button className="btn sm" onClick={() => setTaskPreset(a.task ?? { title: a.title, detail: a.facts.join(' ') })}>Tạo việc cần làm</button>
-          {a.noRule ? <button className="btn sm" onClick={() => requestApproval({ kind: 'Chuyển vượt quyền', title: `Chưa có quy định: ${a.q.slice(0, 70)}`, detail: 'Mộc chưa có dữ liệu/quy định — đề nghị chị quyết định hoặc ban hành quy trình' })}>Chuyển chị quyết định</button>
-            : <button className="btn sm" onClick={() => setTaskPreset({ ...(a.task ?? { title: a.title }), ownerId: a.task?.ownerId ?? D.firstOf('reception') })}>Chuyển người phụ trách</button>}
+          {canTask && <button className="btn sm" onClick={() => setTaskPreset(a.task ?? { title: a.title, detail: a.facts.join(' ') })}>Tạo việc cần làm</button>}
+          {a.noRule ? <button className="btn sm" onClick={() => requestApproval({ kind: 'Chuyển vượt quyền', title: `Chưa có quy định: ${a.q.slice(0, 70)}`, detail: 'Mộc chưa có dữ liệu/quy định — đề nghị chị quyết định hoặc ban hành quy trình' })}>{canTask ? 'Chuyển chị quyết định' : 'Gửi Leader/chị bổ sung quy định'}</button>
+            : canTask && <button className="btn sm" onClick={() => setTaskPreset({ ...(a.task ?? { title: a.title }), ownerId: a.task?.ownerId ?? D.firstOf('reception') })}>Chuyển người phụ trách</button>}
         </div></div></div>)}</div>
     <form className="row" onSubmit={e => { e.preventDefault(); ask(q) }} style={{ position: 'sticky', bottom: 0, background: 'var(--bg)', paddingBlock: 8 }}>
       <input id="moc-q" className="inp" style={{ flex: 1 }} value={q} onChange={e => setQ(e.target.value)} placeholder="Hỏi Mộc về số liệu, quy trình, sáng kiến…" /><button className="btn pri" type="submit">Hỏi</button></form>
