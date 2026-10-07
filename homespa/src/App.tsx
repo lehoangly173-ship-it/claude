@@ -1,9 +1,9 @@
 // Khung ứng dụng: MỘT codebase — điện thoại (thanh tab dưới) và máy tính (thanh bên).
 // Mỗi vai trò có 4 nút mẹ theo sơ đồ: HÔM NAY · KHÁCH HÀNG · HỎI ĐÁP MỘC · CỦA TÔI (+ tab vận hành riêng).
-import { ReactNode } from 'react'
+import { ReactNode, useEffect, useState } from 'react'
 import { useStore, defaultStaffFor } from './store'
 import * as D from './data'
-import { Icon, CustomerModal } from './ui'
+import { Icon, CustomerModal, MenuCtx } from './ui'
 import { canSee } from './logic'
 import { KtvHome, KtvWork, ReceptionHome, OpsHub, ReceptionCustomers, MyPage } from './screens/staff'
 import { LeaderHome, TeamTab, MarketingHome, MarketingCust, MarketingMine, CeoHome, CeoCust, CeoMoc, CeoMine } from './screens/roles'
@@ -51,6 +51,14 @@ function screenFor(role: D.Role, r: string[]): ReactNode {
 const ROLE_ORDER: D.Role[] = ['ktv', 'reception', 'leader', 'marketing', 'ceo']
 const ROLE_CHIP: Record<D.Role, string> = { ktv: 'KTV', reception: 'Lễ Tân', leader: 'Leader/Manager', marketing: 'Marketing', ceo: 'CEO' }
 
+/** Máy tính (rộng > 900px) */
+function useDesktop() {
+  const q = '(min-width: 901px)'
+  const [d, setD] = useState(() => typeof window !== 'undefined' && window.matchMedia(q).matches)
+  useEffect(() => { const m = window.matchMedia(q); const f = () => setD(m.matches); m.addEventListener('change', f); return () => m.removeEventListener('change', f) }, [])
+  return d
+}
+
 export default function App() {
   const { s, user, setUser, me, page, go, profile, openCustomer, toast, advance, reset } = useStore()
   const r = route(user.role, page)
@@ -64,12 +72,35 @@ export default function App() {
   const switchRole = (role: D.Role) => { setUser({ role, staffId: defaultStaffFor(role) }); go('home') }
   const sameRole = s.staff.filter(x => x.role === user.role)
   const nav = (id: string) => { go(id); document.querySelector('.main')?.scrollTo({ top: 0 }) }
+  // Máy tính: nút mẹ của "Hôm nay" nằm trong menu bật ra cạnh thanh trái
+  const desktop = useDesktop()
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [host, setHost] = useState<HTMLElement | null>(null)
+  const menuMode = desktop && r[0] === 'home' && r.length === 1 && !!host
+  const closeMenu = () => setMenuOpen(false)
+  useEffect(() => { if (!desktop) setMenuOpen(false) }, [desktop])
+  useEffect(() => { setMenuOpen(false) }, [user.role])
+  useEffect(() => {
+    if (!menuOpen) return
+    const k = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenuOpen(false) }
+    const c = (e: MouseEvent) => { const t = e.target as HTMLElement; if (!t.closest('.flymenu') && !t.closest('[data-tab="home"]')) setMenuOpen(false) }
+    document.addEventListener('keydown', k); document.addEventListener('mousedown', c)
+    return () => { document.removeEventListener('keydown', k); document.removeEventListener('mousedown', c) }
+  }, [menuOpen])
+  const sideClick = (id: string) => {
+    if (id === 'home' && desktop) { if (r[0] !== 'home' || r.length > 1) { nav('home'); setMenuOpen(true) } else setMenuOpen(o => !o); return }
+    setMenuOpen(false); nav(id)
+  }
   return <div className="app">
     <aside className="side">
       <div className="brand"><span className="logo">H</span><div><b>HOME SPA</b><small>Clinic Dr Quyên</small></div></div>
-      <nav className="nav">{tabs.map(t => <button key={t.id} className={r[0] === t.id ? 'on' : ''} onClick={() => nav(t.id)}><Icon n={t.icon} s={18} />{t.label}{badge[t.id] ? <span className="badge">{badge[t.id]}</span> : null}</button>)}</nav>
+      <nav className="nav">{tabs.map(t => <button key={t.id} data-tab={t.id} aria-haspopup={t.id === 'home' ? 'menu' : undefined} aria-expanded={t.id === 'home' ? menuOpen : undefined} className={r[0] === t.id ? 'on' : ''} onClick={() => sideClick(t.id)}><Icon n={t.icon} s={18} />{t.label}{badge[t.id] ? <span className="badge">{badge[t.id]}</span> : null}</button>)}</nav>
       <div className="small" style={{ color: 'var(--side-dim)', padding: '0 8px' }}>🕒 {D.hhmm(s.now)} · {D.dateShort()}</div>
     </aside>
+    <div className={`flymenu${menuOpen && menuMode ? ' open' : ''}`} role="menu" aria-label="Việc hôm nay">
+      <div className="fm-top"><b>Hôm nay</b><button className="x" onClick={closeMenu} aria-label="Đóng">×</button></div>
+      <div className="fm-body" ref={setHost} />
+    </div>
     <main className="main">
       {D.DEMO && <div className="rolebar">
         <div className="rb-top"><span>Demo — chuyển vai trò</span><span>Bấm để xem giao diện khác</span></div>
@@ -86,7 +117,10 @@ export default function App() {
         <span className="grow" />
         <button className="iconbtn" onClick={() => nav('home/notices')} aria-label={`Thông báo${unread ? `, ${unread} chưa đọc` : ''}`}><Icon n="bell" s={18} />{unread > 0 && <span className="dot" />}</button>
       </div>
-      <div className="page" key={user.role + r.join('/')}>{screenFor(user.role, r)}</div>
+      <div className="page" key={user.role + r.join('/')}>
+        <MenuCtx.Provider value={menuMode && host ? { host, close: closeMenu } : null}>{screenFor(user.role, r)}</MenuCtx.Provider>
+        {menuMode && !menuOpen && <button className="fm-hint" onClick={() => setMenuOpen(true)}><Icon n="home" s={16} />Mở danh mục việc hôm nay</button>}
+      </div>
     </main>
     <nav className="tabbar">{tabs.map(t => <button key={t.id} className={r[0] === t.id ? 'on' : ''} onClick={() => nav(t.id)}><Icon n={t.icon} s={20} /><span>{t.label}</span>{badge[t.id] ? <span className="badge">{badge[t.id]}</span> : null}</button>)}</nav>
     {profile && <CustomerModal customerId={profile} onClose={() => openCustomer(null)} />}

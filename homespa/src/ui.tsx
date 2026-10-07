@@ -1,4 +1,5 @@
-import { ReactNode, useState } from 'react'
+import { ReactNode, useState, createContext, useContext } from 'react'
+import { createPortal } from 'react-dom'
 import { useStore } from './store'
 import { Tone, cust } from './logic'
 import * as D from './data'
@@ -69,16 +70,30 @@ export function Tiles({ items, soft }: { items: TileT[]; soft?: boolean }) {
     return t.onClick ? <button key={i} className={cls} onClick={t.onClick}>{inner}</button> : <div key={i} className={cls}>{inner}</div>
   })}</div>
 }
+/** Máy tính: các nút mẹ/nhóm nút của trang Hôm nay được đưa vào menu bật ra cạnh nút "Hôm nay" ở thanh trái */
+export const MenuCtx = createContext<{ host: HTMLElement; close: () => void } | null>(null)
+const GroupCtx = createContext<string | null>(null)
+function useMenuPortal(content: (close: () => void) => ReactNode) {
+  const m = useContext(MenuCtx), g = useContext(GroupCtx)
+  if (!m) return null
+  return createPortal(<div className="fm-group">{g && <div className="fm-h">{g}</div>}{content(m.close)}</div>, m.host)
+}
 export function Block({ title, sub, right, children }: { title: ReactNode; sub?: ReactNode; right?: ReactNode; children: ReactNode }) {
-  return <section className="block"><div className="bh"><div style={{ minWidth: 0 }}><h2>{title}</h2>{sub && <p>{sub}</p>}</div>{right && <div className="right">{right}</div>}</div>{children}</section>
+  return <section className="block"><div className="bh"><div style={{ minWidth: 0 }}><h2>{title}</h2>{sub && <p>{sub}</p>}</div>{right && <div className="right">{right}</div>}</div><GroupCtx.Provider value={typeof title === 'string' ? title : null}>{children}</GroupCtx.Provider></section>
 }
 export type NodeT = { no?: ReactNode; t: string; d?: string; badge?: number; alert?: boolean; onClick: () => void }
 export function Nodes({ items }: { items: NodeT[] }) {
+  const menu = useMenuPortal(close => items.map((n, i) => <button key={i} className={`fm-item${n.alert ? ' alert' : ''}`} onClick={() => { close(); n.onClick() }}>
+    <span className="no">{n.no ?? i + 1}</span><span className="t">{n.t}</span>{n.badge ? <span className="badge red">{n.badge}</span> : null}</button>))
+  if (menu) return menu
   return <div className="nodes">{items.map((n, i) => <button key={i} className={`node${n.alert ? ' alert' : ''}`} onClick={n.onClick}>
     <span className="no">{n.no ?? i + 1}</span><span className="body"><span className="t" style={{ display: 'block' }}>{n.t}</span>{n.d && <span className="d" style={{ display: 'block' }}>{n.d}</span>}</span>
     {n.badge ? <span className="badge red">{n.badge}</span> : null}<span className="arr"><Icon n="arrow" s={18} /></span></button>)}</div>
 }
 export function ChipGrid({ items }: { items: { l: string; onClick: () => void; solid?: boolean; badge?: number }[] }) {
+  const menu = useMenuPortal(close => items.map(c => <button key={c.l} className={`fm-item${c.solid ? ' solid' : ''}`} onClick={() => { close(); c.onClick() }}>
+    <span className="t">{c.l}</span>{c.badge ? <span className="badge red">{c.badge}</span> : null}</button>))
+  if (menu) return menu
   return <div className="chipgrid">{items.map(c => <button key={c.l} className={`cbtn${c.solid ? ' solid' : ''}`} onClick={c.onClick}>{c.l}{c.badge ? <span className="badge red">{c.badge}</span> : null}</button>)}</div>
 }
 export function SubHead({ title, sub, onBack, right }: { title: string; sub?: ReactNode; onBack: () => void; right?: ReactNode }) {

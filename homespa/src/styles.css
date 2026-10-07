@@ -320,3 +320,29 @@ textarea.inp { resize: vertical; min-height: 70px }
   .tiles { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important } }
+
+/* ── Máy tính: menu bật ra của nút "Hôm nay" ── */
+.flymenu { display: none }
+.fm-hint { display: none }
+@media (min-width: 901px) {
+  .app { position: relative }
+  .flymenu { position: absolute; left: 256px; top: 76px; z-index: 40; width: 340px; max-height: calc(100% - 96px); display: flex; flex-direction: column; background: var(--card); border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 18px 40px rgba(0,0,0,.18); visibility: hidden; opacity: 0; transform: translateX(-6px); transition: opacity .14s ease, transform .14s ease, visibility 0s .14s }
+  .flymenu.open { visibility: visible; opacity: 1; transform: none; transition: opacity .14s ease, transform .14s ease }
+  .fm-top { display: flex; align-items: center; padding: 12px 14px 8px; border-bottom: 1px solid var(--line-2) }
+  .fm-top b { font-family: 'Playfair Display', serif; font-size: 18px; color: var(--green) }
+  .fm-top .x { margin-left: auto; border: 0; background: none; font-size: 22px; line-height: 1; color: var(--dim); width: 32px; height: 32px; border-radius: 8px }
+  .fm-top .x:hover { background: var(--line-2) }
+  .fm-body { overflow-y: auto; padding: 6px 8px 10px; display: flex; flex-direction: column; gap: 4px }
+  .fm-group + .fm-group { border-top: 1px solid var(--line-2); margin-top: 4px; padding-top: 4px }
+  .fm-h { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--dim); padding: 8px 8px 4px }
+  .fm-item { display: flex; align-items: center; gap: 10px; width: 100%; border: 0; background: none; text-align: left; padding: 8px; border-radius: 10px; color: inherit; font-weight: 600; font-size: 14px }
+  .fm-item:hover, .fm-item:focus-visible { background: var(--mint) }
+  .fm-item .no { width: 28px; height: 28px; border-radius: 8px; background: var(--mint); color: var(--mint-ink); display: grid; place-items: center; font-size: 12.5px; font-weight: 700; flex: none }
+  .fm-item.alert .no { background: var(--r-bg); color: var(--r-fg) }
+  .fm-item.solid .t { color: var(--green) }
+  .fm-item .t { flex: 1; min-width: 0 }
+  .fm-item .badge { margin-left: auto }
+  .block:has(> .bh:only-child) { display: none }
+  .fm-hint { display: inline-flex; align-self: flex-start; align-items: center; gap: 8px; border: 1.5px solid var(--green-2); background: var(--card); color: var(--green); border-radius: 12px; padding: 10px 14px; font-weight: 600 }
+  .fm-hint:hover { background: var(--mint) }
+}
