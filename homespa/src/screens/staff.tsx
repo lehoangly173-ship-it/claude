@@ -1,8 +1,8 @@
 // KTV & LỄ TÂN — 4 nút mẹ: HÔM NAY · (CÔNG VIỆC / VẬN HÀNH) · KHÁCH HÀNG · HỎI ĐÁP MỘC · CỦA TÔI
-import { ReactNode, useState } from 'react'
+import { ReactNode, useState, useRef } from 'react'
 import { useStore } from '../store'
 import * as D from '../data'
-import { canSee, cust, myZones, zoneReport, tourOrder, billRows, overview, alerts, pointsOf, expectedByMethod, ktvState } from '../logic'
+import { canSee, cust, myZones, zoneReport, tourOrder, billRows, overview, alerts, pointsOf, expectedByMethod, ktvState, lastCloseAt } from '../logic'
 import { Hero, Tiles, Nodes, Block, ChipGrid, SubHead, Pill, Empty, Modal, Seg, Av, PhotoInput, NodeSpec, Icon } from '../ui'
 import { ShiftTourPage, CleaningPage, BoardPage, KtvCustomersPage, NoticesPage, BillsPage, ReviewsPage, ProductsPage, LeavePage, IncidentPage, LeaveModal } from './daily'
 import { OverviewScreen, ScheduleScreen, QueueScreen, BedsScreen } from './ops'
@@ -107,7 +107,7 @@ export function ReceptionHome({ sub }: { sub: string[] }) {
     <Block title="Cần chú ý hôm nay" sub="Chỉ hiện việc cần ưu tiên; chức năng chi tiết nằm trong các nút mẹ bên dưới.">
       <Tiles soft items={[
         { v: o.ktvFree, l: 'KTV sẵn sàng', onClick: () => go('home/shift') },
-        { v: s.tasks.filter(t => t.earlyReport && t.status !== 'done').length, l: 'Sự cố chưa đóng', onClick: () => go('home/tasks') },
+        { v: s.tasks.filter(t => t.earlyReport && ['open', 'doing'].includes(t.status)).length, l: 'Sự cố chưa đóng', onClick: () => go('home/tasks') },
         { v: c.billIssues + c.reviewsTodo, l: 'Bill/review cần xem', onClick: () => go('home/bills') },
         { v: needCare, l: 'Khách cần CSKH', onClick: () => go('cust') },
         { v: o.waiting, l: 'Khách chờ chia tour', tone: o.waitingLong ? 'warn' : undefined, onClick: () => go('ops/queue') },
@@ -140,7 +140,7 @@ export function ReceptionHome({ sub }: { sub: string[] }) {
 function MyTasksPage({ back }: { back: () => void }) {
   const { s, me } = useStore()
   const [open, setOpen] = useState<string | null>(null)
-  const list = s.tasks.filter(t => (t.ownerId === me.id || (t.earlyReport && t.status !== 'done')) && t.status !== 'transferred')
+  const list = s.tasks.filter(t => (t.ownerId === me.id || (t.earlyReport && ['open', 'doing'].includes(t.status))) && t.status !== 'transferred')
   return <>
     <SubHead title="Việc được giao & sự cố" sub="Leader giao: chuẩn bị quà, xác nhận lịch, nhắc đóng tiếp… · sự cố đang mở" onBack={back} />
     <div className="card list">{list.map(t => <button key={t.id} className="item" onClick={() => setOpen(t.id)}><span className={`sev ${t.priority}`} /><div className="body"><div className="t">{t.title}</div><div className="d">{t.detail} · {D.staffName(t.ownerId)}</div></div>{t.status === 'done' ? <Pill tone="green">Xong</Pill> : <PrioPill p={t.priority} />}</button>)}{!list.length && <Empty>Không có việc</Empty>}</div>
@@ -172,27 +172,30 @@ function CloseShiftPage({ back }: { back: () => void }) {
   const { s, me, closeShift } = useStore()
   const exp = expectedByMethod(s)
   const methods = Object.keys(exp) as D.PayMethod[]
-  const [counted, setCounted] = useState<Record<D.PayMethod, number>>({ 'Tiền mặt': 0, 'Chuyển khoản': exp['Chuyển khoản'], 'Thẻ ngân hàng': exp['Thẻ ngân hàng'] })
+  const [counted, setCounted] = useState<Record<D.PayMethod, number>>({ 'Tiền mặt': 0, 'Chuyển khoản': 0, 'Thẻ ngân hàng': 0 })
   const [note, setNote] = useState('')
   const drafts = s.invoices.filter(i => i.status === 'Nháp').length + overview(s).bills.length
   const prodOpen = s.productLogs.filter(p => !(p.ktvOk && p.recOk)).length
-  const auto = [drafts === 0, !!s.billCheck, false, prodOpen === 0, false]
+  const billOk = !!s.billCheck && s.billCheck.at >= lastCloseAt(s) && !s.billCheck.issues.length
+  const auto = [drafts === 0, billOk, false, prodOpen === 0, false]
+  const sent = useRef(false)
   const [books, setBooks] = useState<boolean[]>(auto)
   const hints = [`${drafts} hóa đơn nháp / lượt chờ thu`, s.billCheck ? `Đã đối soát ${D.hhmm(s.billCheck.at)}` : 'Chưa đối soát Bill Money', 'Tự kiểm tra trên Lịch điều phối', `${prodOpen} lượt chưa đủ 2 bên`, 'Ghi vào ô ghi chú bên dưới']
   const diff = methods.reduce((t, k) => t + (counted[k] || 0) - exp[k], 0)
+  const absDiff = methods.reduce((t, k) => t + Math.abs((counted[k] || 0) - exp[k]), 0)
   const done = s.shiftCloses.filter(x => x.staffId === me.id)
   return <>
     <SubHead title="Chốt ca" sub="Tiền → công việc sổ sách. Lệch tiền phải ghi lý do; Leader & chị nhận thông báo." onBack={back} />
     <Block title="1. Tiền" sub="Số hệ thống tính từ hóa đơn đã xác nhận hôm nay">
       <div className="card tbl-wrap"><table><thead><tr><th>Phương thức</th><th>Hệ thống</th><th>Thực đếm / sao kê</th><th>Lệch</th></tr></thead><tbody>
-        {methods.map(m => { const d = (counted[m] || 0) - exp[m]; return <tr key={m}><td className="strong">{m}</td><td className="num">{D.vnd(exp[m])}</td><td><input className="inp num" type="number" step={1000} min={0} value={counted[m]} onChange={e => setCounted({ ...counted, [m]: +e.target.value })} aria-label={`Thực đếm ${m}`} style={{ maxWidth: 160 }} /></td><td className="num strong" style={{ color: d ? 'var(--r-fg)' : 'var(--g-fg)' }}>{d ? `${d > 0 ? '+' : ''}${D.vnd(d)}` : 'Khớp'}</td></tr> })}
+        {methods.map(m => { const d = (counted[m] || 0) - exp[m]; return <tr key={m}><td className="strong">{m}</td><td className="num">{D.vnd(exp[m])}</td><td><input className="inp num" type="number" step={1000} min={0} value={counted[m]} onChange={e => setCounted({ ...counted, [m]: Math.max(0, +e.target.value || 0) })} aria-label={`Thực đếm ${m}`} style={{ maxWidth: 160 }} /></td><td className="num strong" style={{ color: d ? 'var(--r-fg)' : 'var(--g-fg)' }}>{d ? `${d > 0 ? '+' : ''}${D.vnd(d)}` : 'Khớp'}</td></tr> })}
       </tbody></table></div>
-      <div className={diff ? 'err small' : 'ok small'}>{diff ? `Tổng lệch ${diff > 0 ? '+' : ''}${D.vnd(diff)} — ghi rõ lý do bên dưới` : 'Tiền khớp với hệ thống'}</div>
+      <div className={absDiff ? 'err small' : 'ok small'}>{absDiff ? `Tổng lệch ${diff > 0 ? '+' : ''}${D.vnd(diff)} — ghi rõ lý do bên dưới` : 'Tiền khớp với hệ thống'}</div>
     </Block>
     <Block title="2. Công việc sổ sách">
-      {D.BOOK_CHECKS.map((x, i) => <label key={i} className="check"><input type="checkbox" checked={books[i]} onChange={() => setBooks(b => b.map((v, j) => (j === i ? !v : v)))} /><span>{x}<span className="tiny muted" style={{ display: 'block' }}>{hints[i]}</span></span></label>)}
+      {D.BOOK_CHECKS.map((x, i) => <label key={i} className="check"><input type="checkbox" checked={books[i]} disabled={[1, 3].includes(i) && !auto[i]} onChange={() => setBooks(b => b.map((v, j) => (j === i ? !v : v)))} /><span>{x}<span className="tiny muted" style={{ display: 'block' }}>{hints[i]}</span></span></label>)}
       <label className="f">Ghi chú / bàn giao ca sau<textarea id="cs-note" className="inp" value={note} onChange={e => setNote(e.target.value)} placeholder="VD: khách Kim còn thiếu 1,7tr, hẹn đóng thứ 7; lệch 20k do thối tiền lẻ" /></label>
-      <button className="btn pri" disabled={(diff !== 0 && !note.trim()) || !books.every(Boolean)} onClick={() => closeShift(counted, exp, books, note.trim())}>Chốt ca & gửi báo cáo</button>
+      <button className="btn pri" disabled={(absDiff !== 0 && !note.trim()) || !books.every(Boolean)} onClick={() => { if (sent.current) return; if (!closeShift(counted, exp, books, note.trim())) { sent.current = true; back() } }}>Chốt ca & gửi báo cáo</button>
       {!books.every(Boolean) && <div className="tiny muted">Tick đủ 5 mục sổ sách trước khi chốt.</div>}
     </Block>
     {done.length > 0 && <Block title="Đã chốt"><div className="card list">{done.map(x => { const d = (Object.keys(x.counted) as D.PayMethod[]).reduce((t, k) => t + x.counted[k] - x.expected[k], 0); return <div key={x.id} className="item"><div className="body"><div className="t">{D.hhmm(x.at)} · {d ? `lệch ${D.vnd(d)}` : 'khớp tiền'}</div><div className="d">{x.note || 'Không ghi chú'}</div></div><Pill tone={d ? 'yellow' : 'green'}>Đã gửi</Pill></div> })}</div></Block>}
@@ -331,7 +334,7 @@ export function MyPage({ sub }: { sub: string[] }) {
       <NodeSpec rows={[{ t: 'Khóa đang học', d: 'Danh sách bài học theo vai trò' }, { t: 'Video / SOP cần xem', d: D.SOPS.map(x => x.title).join(' · ') }, { t: 'Bài test & kết quả', d: 'Điểm từng lần test, phần còn yếu' }, { t: 'Kỹ năng đã đạt / cần cải thiện', d: 'Do Leader / người phụ trách đào tạo xác nhận' }, { t: 'Lộ trình phát triển', d: 'Mục tiêu học & người hướng dẫn' }]} /></>
     case 'income': return <><SubHead title="Thu nhập & yêu cầu" onBack={back} />
       <NodeSpec rows={[{ t: 'Lương cơ bản · công thực tế', d: 'Từ bảng chấm công đã chốt' }, { t: 'Hoa hồng · thưởng · phạt', d: 'Theo tour, khách chốt liệu trình, điểm uy tín' }, { t: 'Tổng thu nhập dự kiến · phiếu lương', d: 'Từng tháng — chỉ bạn và CEO xem' }]} />
-      <Block title="Lịch sử yêu cầu"><div className="card list">{[...s.leaves.filter(l => l.staffId === me.id).map(l => ({ k: l.id, t: `${l.kind} ${l.date}`, d: l.detail, st: l.status })), ...s.tasks.filter(t => t.earlyReport && t.createdBy === me.id).map(t => ({ k: t.id, t: 'Báo sự cố', d: t.detail, st: t.status === 'done' ? 'Đã xử lý' : 'Đang xử lý' }))].map(r => <div key={r.k} className="item"><div className="body"><div className="t">{r.t}</div><div className="d">{r.d}</div></div><Pill tone={r.st === 'Đã duyệt' || r.st === 'Đã xử lý' ? 'green' : r.st === 'Từ chối' ? 'red' : 'yellow'}>{r.st}</Pill></div>)}</div></Block></>
+      <Block title="Lịch sử yêu cầu"><div className="card list">{[...s.leaves.filter(l => l.staffId === me.id).map(l => ({ k: l.id, t: `${l.kind} ${l.date}`, d: l.detail, st: l.status })), ...s.tasks.filter(t => t.earlyReport && t.createdBy === me.id && t.status !== 'transferred').map(t => ({ k: t.id, t: 'Báo sự cố', d: t.detail, st: t.status === 'done' ? 'Đã xử lý' : 'Đang xử lý' }))].map(r => <div key={r.k} className="item"><div className="body"><div className="t">{r.t}</div><div className="d">{r.d}</div></div><Pill tone={r.st === 'Đã duyệt' || r.st === 'Đã xử lý' ? 'green' : r.st === 'Từ chối' ? 'red' : 'yellow'}>{r.st}</Pill></div>)}</div></Block></>
   }
   return <>
     <Hero tag="Của tôi" title={me.name} sub={`${D.ROLE_LABEL[me.role]}${me.shift ? ` · ${D.SHIFTS[me.shift].label}` : ''} · ${pointsOf(s, me.id)} điểm uy tín`} />

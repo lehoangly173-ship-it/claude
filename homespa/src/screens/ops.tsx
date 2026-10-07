@@ -190,7 +190,7 @@ export function ApptModal({ id, onClose }: { id: string; onClose: () => void }) 
   const isRec = user.role === 'reception', isMine = user.role === 'ktv' && a.ktvId === user.staffId
   const save = () => { const m = D.parseHHMM(f.start); if (m == null) return setErr('Giờ không hợp lệ (HH:MM)'); const e = moveAppt(a.id, m, f.ktvId, f.bedId); if (e) setErr(e); else { setEdit(false); setErr(null) } }
   return <Modal title={cust(s, a.customerId).name} onClose={onClose} footer={<>
-    <button className="btn ghost" onClick={() => openCustomer(a.customerId)}>Hồ sơ khách</button>
+    {(user.role !== 'ktv' || isMine) && <button className="btn ghost" onClick={() => openCustomer(a.customerId)}>Hồ sơ khách</button>}
     {isRec && a.status === 'booked' && <><button className="btn danger" onClick={() => setApptStatus(a.id, 'no_show')}>Không đến</button><button className="btn danger" onClick={() => setApptStatus(a.id, 'cancelled')}>Hủy lịch</button><button className="btn" onClick={() => setEdit(true)}>Đổi giờ / KTV</button><button className="btn pri" onClick={() => setApptStatus(a.id, 'checked_in')}>Khách đã đến</button></>}
     {(isRec || isMine) && a.status === 'checked_in' && <button className="btn pri" onClick={() => setApptStatus(a.id, 'in_service')}>Bắt đầu phục vụ</button>}
     {(isRec || isMine) && a.status === 'in_service' && <button className="btn pri" onClick={() => setApptStatus(a.id, 'done')}>Hoàn thành dịch vụ</button>}
@@ -227,16 +227,16 @@ export function NewApptModal({ init, onClose }: { init: NewDraft; onClose: () =>
   const [err, setErr] = useState<string | null>(null)
   const m = D.parseHHMM(start), dur = D.svc(serviceId).duration
   // KTV "Home sắp xếp": người đầu hàng xoay tour trống đúng giờ đó
-  const autoKtv = m == null ? null : [...s.rotation[1], ...s.rotation[2]].find(k => !ktvConflict(s, k, m, m + dur)) ?? null
+  const autoKtv = m == null ? null : [...s.rotation[1], ...s.rotation[2]].find(k => (m > s.now + 30 || (s.attendance[k]?.in != null && s.attendance[k]?.out == null)) && !ktvConflict(s, k, m, m + dur)) ?? null
   const realKtv = ktvId === 'auto' ? autoKtv : ktvId
   const bed = m != null ? freeBedFor(s, serviceId, m, m + dur) : null
   const conflict = m == null ? 'Giờ không hợp lệ (HH:MM)' : !realKtv ? 'Không còn KTV trống giờ này' : ktvConflict(s, realKtv, m, m + dur) || (!bed ? 'Không còn giường trống đúng khu vực' : null)
   const matches = q.trim() ? s.customers.filter(c => c.name.toLowerCase().includes(q.toLowerCase()) || c.phone.replace(/\s/g, '').includes(q.replace(/\s/g, '')) || c.code.toLowerCase() === q.toLowerCase()).slice(0, 5) : []
   const submit = () => {
     let cid = custId
-    if (!cid) { if (!q.trim()) return setErr('Chọn hoặc nhập tên khách'); const nc = addCustomer({ name: q.trim(), phone: '', group: 'VN', source: 'Chưa xác định' }); if (typeof nc === 'string') return setErr(nc); cid = nc.id }
+    if (!cid) { if (!q.trim()) return setErr('Chọn hoặc nhập tên khách'); const nc = addCustomer({ name: q.trim(), phone: '', group: 'VN', source: 'Chưa xác định' }); if (typeof nc === 'string') return setErr(nc); cid = nc.id; setCustId(nc.id) }
     if (conflict || !realKtv || !bed || m == null) return setErr(conflict)
-    const e = addAppt({ customerId: cid, serviceId, ktvId: realKtv, bedId: bed, start: m, requested: requested && ktvId !== 'auto', channel, note })
+    const e = addAppt({ customerId: cid, serviceId, ktvId: realKtv, bedId: bed, start: m, requested: requested && ktvId !== 'auto', channel, note, rotate: ktvId === 'auto' })
     if (e) setErr(e); else onClose()
   }
   return <Modal title="Tạo lịch hẹn" onClose={onClose} footer={<><button className="btn" onClick={onClose}>Hủy</button><button className="btn pri" onClick={submit} disabled={!!conflict}>Xác nhận tạo lịch</button></>}>
@@ -326,7 +326,7 @@ export function BedsScreen() {
   return <>
     <PageHeader eyebrow="Điều phối hôm nay" title="Sơ đồ giường" sub={`${D.BEDS.length} giường · ${counts.filter(c => c === 'Trống').length} trống · ${counts.filter(c => c === 'Đang làm' || c === 'Sắp xong').length} đang dùng · ${counts.filter(c => c === 'Đang dọn').length} đang dọn`} />
     {([1, 2, 3] as const).map(fl => <Sec key={fl} eyebrow={`Tầng ${fl}`}><div className="beds">{D.BEDS.filter(b => b.floor === fl).map(b => { const st = bedState(s, b)
-      return <button key={b.id} className={`bed t-${st.tone}`} onClick={() => st.appt ? setSel(st.appt.id) : undefined} style={{ cursor: st.appt ? 'pointer' : 'default' }}>
+      return <button key={b.id} className={`bed t-${st.tone}`} onClick={() => st.appt && (user.role !== 'ktv' || st.appt.ktvId === user.staffId) ? setSel(st.appt.id) : undefined} style={{ cursor: st.appt && (user.role !== 'ktv' || st.appt.ktvId === user.staffId) ? 'pointer' : 'default' }}>
         <div className="row"><b>{b.id}</b><span className="tiny right-al">{b.zone === 'wash' ? 'Gội' : 'Trị liệu'}</span></div>
         <span className="small strong">{st.label}</span>
         {st.appt && <span className="tiny">{cust(s, st.appt.customerId).name} · {D.staffName(st.appt.ktvId)} · {D.hhmm(st.appt.start)}–{D.hhmm(st.appt.end)}</span>}

@@ -154,11 +154,11 @@ function CustTable({ list, onOpen }: { list: D.Customer[]; onOpen: (id: string) 
   </tbody></table></div>
 }
 
-export function ProgramsPanel({ ownerFilter }: { ownerFilter?: string }) {
+export function ProgramsPanel({ ownerFilter, only }: { ownerFilter?: string; only?: boolean }) {
   const { s, addProgram, me } = useStore()
   const [adding, setAdding] = useState(false)
   const [f, setF] = useState({ name: '', type: 'Sinh nhật' as D.Program['type'], target: '', budget: 1000000, discount: '' })
-  const list = [...s.programs].sort((a, b) => (a.ownerId === ownerFilter ? -1 : 0) - (b.ownerId === ownerFilter ? -1 : 0))
+  const list = [...s.programs].filter(p => !only || p.ownerId === ownerFilter).sort((a, b) => (a.ownerId === ownerFilter ? -1 : 0) - (b.ownerId === ownerFilter ? -1 : 0))
   return <>
     <div className="row"><span className="small muted">Ngân sách ≤ {D.vnd(BUDGET_LIMIT)} và không đổi giá/ưu đãi: Leader tự triển khai & báo cáo. Có ưu đãi hoặc vượt ngân sách: gửi chị duyệt trước.</span><button className="btn pri right-al" onClick={() => setAdding(true)}><Icon n="plus" />Chương trình mới</button></div>
     <div className="grid g2">{list.map(p => <div key={p.id} className="card pad col"><div className="row"><b>{p.name}</b><Pill tone="purple">{p.type}</Pill><span className="right-al"><Pill tone={p.status === 'Đang chạy' ? 'green' : p.status === 'Chờ duyệt' ? 'yellow' : 'grey'}>{p.status}</Pill></span></div>
@@ -178,7 +178,7 @@ export function RoiPanel() {
   return <div className="grid g2">{s.programs.filter(p => p.reached > 0).map(p => { const steps: [string, number][] = [['Tiếp cận', p.reached], ['Đặt lịch', p.booked], ['Đến thực tế', p.arrived]]; const roi = p.cost ? p.revenue / p.cost : 0
     return <div key={p.id} className="card pad col"><div className="row"><b>{p.name}</b><span className="right-al"><Pill tone={roi >= 3 ? 'green' : roi >= 1.5 ? 'yellow' : 'red'}>Thu/chi ×{roi.toFixed(1)}</Pill></span></div>
       <div className="funnel" style={{ marginTop: 14 }}>{steps.map(([l, n]) => <div key={l} style={{ height: `${Math.max(8, (n / p.reached) * 100)}%` }}><span className="num">{n}</span></div>)}</div>
-      <div className="row tiny muted">{steps.map(([l, n], i) => <span key={l} style={{ flex: 1, textAlign: 'center' }}>{l}{i > 0 && ` (${Math.round(n / steps[i - 1][1] * 100)}%)`}</span>)}</div>
+      <div className="row tiny muted">{steps.map(([l, n], i) => <span key={l} style={{ flex: 1, textAlign: 'center' }}>{l}{i > 0 && ` (${steps[i - 1][1] ? Math.round(n / steps[i - 1][1] * 100) + '%' : '—'})`}</span>)}</div>
       <div className="row small"><span>Tiền đã thu <b className="num">{D.vnd(p.revenue)}</b></span><span className="right-al">Chi phí <b className="num">{D.vnd(p.cost)}</b></span></div>
       <div className="tiny muted">Chi phí / khách đến: {p.arrived ? D.vnd(p.cost / p.arrived) : '—'}</div></div> })}</div>
 }
@@ -211,7 +211,7 @@ function answer(s: State, q: string, me?: D.Staff): Answer {
       return { q, title: 'Gợi ý học tiếp', facts: fb.length ? fb.map(f => `Phản hồi ${f.rating}/5 nhóm "${f.group}": ${f.text}`) : ['Chưa có phản hồi chưa tốt gần đây.'], hyps: fb.length ? [`Kỹ năng cần luyện: ${[...new Set(fb.map(f => f.group))].join(', ')}`] : [], next: ['Chu trình: Học → Test → Tìm điểm yếu → Lộ trình → Nhắc luyện → Test lại.', 'Đánh giá tay nghề cuối cùng do Leader/người phụ trách đào tạo quyết định.'] } }
     if (/tiến bộ/.test(t)) { const tours = s.appts.filter(a => a.ktvId === me.id && ['done', 'paid'].includes(a.status)).length
       return { q, title: 'Phát triển cá nhân', facts: [`Hôm nay đã xong ${tours} tour.`, `Khách yêu cầu bạn: ${s.appts.filter(a => a.ktvId === me.id && a.requested).length}.`, `Điểm uy tín đã duyệt: ${pointsOf(s, me.id)}.`], hyps: [], next: ['Xem chi tiết ở "Của tôi" → Hiệu suất.'] } }
-    if (/quy chuẩn|văn hóa/.test(t)) return { q, title: 'Quy chuẩn Home Spa', facts: ['Theo quy chuẩn Home Spa đã được phê duyệt: chào khách bằng tên, hỏi vùng đau & lực mong muốn trước khi làm.', 'Mắc lỗi: nhận lỗi, xin lỗi, báo sớm cho lễ tân/Leader — không giấu.', 'Phối hợp: hỗ trợ đồng đội khi rảnh tour, giữ khu vực chung sạch.'], hyps: [], next: ['Câu chưa có trong quy chuẩn → Mộc báo cần Leader/CEO xác nhận.'] }
+    if (/quy chuẩn|văn hóa/.test(t)) return { q, title: 'Chưa có quy chuẩn được duyệt trong app', facts: [], hyps: [], next: ['Home chưa nhập bộ quy chuẩn giao tiếp/văn hóa vào app — Mộc không tự đặt ra quy chuẩn.', 'Hỏi Leader hoặc chị Quyên; khi quy chuẩn được ban hành, Mộc sẽ trích dẫn đúng nội dung.'], noRule: true }
     if (/lâu chưa quay lại/.test(t)) { const l = s.customers.filter(c => c.lastVisitDays >= 30).sort((a, b) => b.lastVisitDays - a.lastVisitDays)
       return { q, title: 'Khách lâu chưa quay lại (≥ 30 ngày)', facts: l.map(c => `${c.name} · ${c.lastVisitDays} ngày · ${c.packages.length ? 'liệu trình' : 'khách lẻ'}`), hyps: [], next: ['Khách hàng → lọc "Lâu chưa quay lại" → Kịch bản mục tiêu → Ghi CSKH.'] } }
     if (/thiếu tiền/.test(t)) { const l = s.customers.flatMap(c => c.packages.filter(p => D.pkgOwed(p) > 0).map(p => `${c.name} · ${p.cardCode} còn thiếu ${D.vnd(D.pkgOwed(p))}`))
@@ -229,9 +229,9 @@ function answer(s: State, q: string, me?: D.Staff): Answer {
     return { q, title: 'Đặt lịch nhiều nhưng đến ít', facts: [`(${D.SAMPLE_NOTE}) Tỷ lệ đến tuần này ${w.now.showRate}% (tuần trước ${w.prev.showRate}%, mục tiêu ${w.target.showRate}%).`, `Hôm nay: ${ns} không đến, ${late} đang trễ hẹn > 10 phút.`],
       hyps: ['Chưa nhắc lịch trước 1–2 giờ.', 'Đặt qua kênh online (Website/Messenger) dễ bỏ hẹn hơn đặt qua điện thoại — cần thống kê theo kênh.', 'Khung giờ đặt quá xa ngày đặt.'], next: ['Lễ tân nhắn xác nhận lịch trước 1 giờ cho mọi lịch hẹn.', 'Theo dõi tỷ lệ đến theo kênh đặt trong 2 tuần.'], sop: 'sop-tour', task: { title: 'Nhắn xác nhận lịch trước 1 giờ', detail: 'Áp dụng cho mọi lịch hẹn, ghi lại khách không phản hồi', category: 'Vận hành', priority: 'vừa', ownerId: D.firstOf('reception') } }
   }
-  if (/chờ|cao điểm|thời gian chờ/.test(t)) {
+  if (/thời gian chờ|chờ lâu|cao điểm|giảm.*chờ/.test(t)) {
     const fb = s.feedback.filter(f => f.group === 'Thời gian chờ').length
-    return { q, title: 'Giảm thời gian chờ giờ cao điểm', facts: [`(${D.SAMPLE_NOTE}) Thời gian chờ TB tuần: ${w.now.waitAvg} phút (tuần trước ${w.prev.waitAvg}, mục tiêu ${w.target.waitAvg}).`, `${fb} phản hồi nhóm "Thời gian chờ"; hiện ${s.queue.length} khách đang chờ chia tour.`, 'Sáng kiến "Giảm thời gian chờ cuối tuần" đang chạy: 14 → 9 phút sau 2 tuần.'],
+    return { q, title: 'Giảm thời gian chờ giờ cao điểm', facts: [`(${D.SAMPLE_NOTE}) Thời gian chờ TB tuần: ${w.now.waitAvg} phút (tuần trước ${w.prev.waitAvg}, mục tiêu ${w.target.waitAvg}).`, `${fb} phản hồi nhóm "Thời gian chờ"; hiện ${s.queue.length} khách đang chờ chia tour.`, ...s.initiatives.filter(i => /chờ/i.test(i.title) && i.status !== 'Đã kiểm chứng').map(i => `Sáng kiến "${i.title}" — ${i.status}, kết quả chưa được chị xác nhận`)],
       hyps: ['Giường chưa dọn kịp giữa 2 khách (cần ≥ 10 phút).', 'Lịch hẹn xếp sát nhau, không có đệm.'], next: ['Giãn khung lịch 15 phút giờ cao điểm.', 'Bật checklist dọn giường bắt buộc trước khi "Bắt đầu".'], task: { title: 'Thử giãn khung lịch 15 phút thứ 7–CN', detail: 'Theo dõi thời gian chờ & phản hồi 2 tuần, báo cáo kết quả trước/sau', category: 'Vận hành', priority: 'vừa' } }
   }
   if (/dự án|sáng kiến|kế hoạch/.test(t)) return { q, title: 'Mẫu lập sáng kiến / dự án', facts: ['Mẫu thống nhất: Vấn đề có dữ liệu → Mục tiêu → Giải pháp → Người phối hợp → Ngân sách → Hạn hoàn thành → Kết quả trước/sau → Đề xuất duy trì hoặc điều chỉnh.', `Ngân sách ≤ ${D.vnd(BUDGET_LIMIT)}: Leader tự làm & báo cáo. Vượt mức: gửi chị duyệt trước.`], hyps: [], next: ['Vào "Của tôi" → Sáng kiến & dự án → Tạo mới.'] }
@@ -241,14 +241,14 @@ function answer(s: State, q: string, me?: D.Staff): Answer {
       hyps: ['Khách lẻ 2–3 lượt phù hợp "buổi thứ 4 tặng gội 45 phút".', 'Khách nước ngoài cần nội dung tiếng Anh, đặt qua Google Maps.'], next: ['Mọi ưu đãi giá phải gửi chị duyệt trước khi chạy.'], task: { title: 'Soạn chương trình cho khách lẻ 2–3 lượt', detail: 'Đề xuất ưu đãi, ngân sách, cách đo hiệu quả (tiếp cận → đặt → đến → tiền thu → chi phí)', category: 'Chương trình', priority: 'thấp' } }
   }
   if (/báo cáo|ceo|chị/.test(t)) return { q, title: 'Soạn báo cáo / đề xuất cho chị', facts: ['Báo cáo tuần chỉ trả lời 6 câu: kết quả so mục tiêu & kỳ trước · điểm nghẽn lớn nhất · nguyên nhân có bằng chứng / đang kiểm tra · đã chủ động làm gì · 3 ưu tiên tuần tới · cần chị quyết định gì, trước ngày nào.', 'Số liệu tuần đã được điền sẵn trong mẫu.'], hyps: [], next: ['Vào "Của tôi" → Báo cáo tuần.'] }
-  for (const sop of D.SOPS) if (t.includes(sop.title.toLowerCase().replace('quy trình ', '').split(' ')[0]) || (/dọn/.test(t) && sop.id === 'sop-don') || (/khiếu nại|phàn nàn/.test(t) && sop.id === 'sop-kn') || (/chia tour/.test(t) && sop.id === 'sop-tour') || (/tái tục/.test(t) && sop.id === 'sop-tt'))
+  for (const sop of D.SOPS) if ((/dọn/.test(t) && sop.id === 'sop-don') || (/khiếu nại|phàn nàn/.test(t) && sop.id === 'sop-kn') || (/chia tour/.test(t) && sop.id === 'sop-tour') || (/tái tục/.test(t) && sop.id === 'sop-tt'))
     return { q, title: sop.title, facts: sop.steps.map((x, i) => `Bước ${i + 1}: ${x}`), hyps: [], next: [], sop: sop.id }
   if (/ktv|kỹ thuật viên|nhân viên/.test(t)) return { q, title: 'Đánh giá KTV', facts: s.feedback.filter(f => f.ktvId).map(f => `${D.staffName(f.ktvId)}: ${f.group} ${f.rating}/5 (${f.daysAgo ? `${f.daysAgo} ngày trước` : 'hôm nay'})`), hyps: ['Một vài phản hồi chưa đủ kết luận — cần xem số tour, khung giờ, loại dịch vụ.'], next: ['Kèm cặp trực tiếp 1 buổi, ghi kết quả trước/sau.'] }
   return { q, title: 'Chưa có quy định của Home', facts: [], hyps: [], next: ['Mộc chưa có dữ liệu hoặc quy định cho câu hỏi này. Đề nghị chuyển chị hoặc bổ sung quy trình.'], noRule: true, task: { title: `Bổ sung quy định: ${q.slice(0, 60)}`, detail: 'Câu hỏi chưa có quy định của Home', category: 'Vận hành', priority: 'thấp' } }
 }
 const PROMPTS = ['Tuần này khách quay lại giảm ở nhóm nào?', 'Khách đặt lịch nhiều nhưng đến ít, cần kiểm tra gì?', 'Đề xuất cách giảm thời gian chờ giờ cao điểm', 'Lên chương trình marketing cho từng nhóm khách', 'Soạn báo cáo đề xuất cho CEO', 'Quy trình xử lý khiếu nại']
 export function MocScreen({ groups }: { groups?: { t: string; q: string }[] }) {
-  const { s, me, user, requestApproval } = useStore()
+  const { s, me, user, requestApproval, addTask } = useStore()
   const [log, setLog] = useState<Answer[]>(() => groups?.length ? [] : [answer(s, PROMPTS[0], me)])
   const [q, setQ] = useState('')
   const [sop, setSop] = useState<string | null>(null)
@@ -267,7 +267,7 @@ export function MocScreen({ groups }: { groups?: { t: string; q: string }[] }) {
         <div className="row" style={{ marginTop: 10 }}>
           <button className="btn sm" disabled={!a.sop} onClick={() => setSop(a.sop!)}>Mở quy trình</button>
           {canTask && <button className="btn sm" onClick={() => setTaskPreset(a.task ?? { title: a.title, detail: a.facts.join(' ') })}>Tạo việc cần làm</button>}
-          {a.noRule ? <button className="btn sm" onClick={() => requestApproval({ kind: 'Chuyển vượt quyền', title: `Chưa có quy định: ${a.q.slice(0, 70)}`, detail: 'Mộc chưa có dữ liệu/quy định — đề nghị chị quyết định hoặc ban hành quy trình' })}>{canTask ? 'Chuyển chị quyết định' : 'Gửi Leader/chị bổ sung quy định'}</button>
+          {a.noRule ? (user.role === 'ceo' ? null : <button className="btn sm" onClick={() => user.role === 'leader' || user.role === 'marketing' ? requestApproval({ kind: 'Chuyển vượt quyền', title: `Chưa có quy định: ${a.q.slice(0, 70)}`, detail: 'Mộc chưa có dữ liệu/quy định — đề nghị chị quyết định hoặc ban hành quy trình' }) : addTask({ title: `Bổ sung quy định: ${a.q.slice(0, 60)}`, detail: `${me.name} hỏi Mộc: ${a.q}`, category: 'Vận hành', priority: 'thấp', ownerId: D.firstOf('leader') })}>{canTask ? 'Chuyển chị quyết định' : 'Gửi Leader bổ sung quy định'}</button>)
             : canTask && <button className="btn sm" onClick={() => setTaskPreset({ ...(a.task ?? { title: a.title }), ownerId: a.task?.ownerId ?? D.firstOf('reception') })}>Chuyển người phụ trách</button>}
         </div></div></div>)}</div>
     <form className="row" onSubmit={e => { e.preventDefault(); ask(q) }} style={{ position: 'sticky', bottom: 0, background: 'var(--bg)', paddingBlock: 8 }}>
@@ -317,7 +317,7 @@ export function MineScreen() {
   return <>
     <PageHeader eyebrow={`Leader ${me.name}`} title="Của tôi" sub="Kết quả quản lý & đóng góp phát triển — liên kết với dữ liệu ở “Hôm nay”, không cần nhập lại"
       right={<><Seg value={per} onChange={setPer} items={[{ k: 'day', label: 'Ngày' }, { k: 'week', label: 'Tuần' }, { k: 'month', label: 'Tháng' }]} /><button className="btn pri" onClick={() => setReport(true)}>Báo cáo tuần</button></>} />
-    <Sec eyebrow="Home đang tăng hay giảm" right={<span className="tiny muted">So kỳ tương đương & mục tiêu · luôn hiện số tuyệt đối và % {per !== 'day' && <Pill tone="yellow">{D.SAMPLE_NOTE}</Pill>}</span>}>
+    <Sec eyebrow="Home đang tăng hay giảm" right={<span className="tiny muted">So kỳ tương đương & mục tiêu · luôn hiện số tuyệt đối và % <Pill tone="yellow">{per === 'day' ? 'Kỳ trước & mục tiêu: ' : ''}{D.SAMPLE_NOTE}</Pill></span>}>
       <div className="grid g3">{METRICS.map(m => { const v = cur[m.k], p = prev[m.k], tg = target[m.k]; const fmt = (n: number) => (m.unit === 'đ' ? D.vndShort(n) : `${n}${m.unit ?? ''}`)
         const hit = m.invert ? v <= tg : v >= tg
         return <div key={m.k} className="card stat" style={{ ['--tone' as any]: hit ? 'var(--g-fg)' : 'var(--y-fg)' }}><span className="l">{m.label}</span><span className="v num">{fmt(v)}</span><Delta now={v} prev={p} invert={m.invert} unit={m.unit === 'đ' ? 'đ' : m.unit === '%' ? ' điểm %' : m.unit} /><span className="tiny muted">Kỳ trước {fmt(p)} · mục tiêu {fmt(tg)} {hit ? '✓' : `· còn thiếu ${fmt(Math.abs(tg - v))}`}</span></div> })}</div>
@@ -359,13 +359,13 @@ function WeeklyReportModal({ onClose }: { onClose: () => void }) {
   const doneT = s.tasks.filter(t => t.status === 'done' && (t.ownerId === me.id || t.createdBy === me.id))
   const QUESTIONS = ['Tuần này kết quả thay đổi thế nào so với mục tiêu và kỳ trước?', 'Điểm nghẽn lớn nhất nằm ở đâu?', 'Nguyên nhân nào đã có bằng chứng, nguyên nhân nào đang kiểm tra?', 'Leader đã chủ động làm gì và kết quả ra sao?', 'Tuần tới ưu tiên 3 việc nào?', 'Cần chị quyết định hoặc hỗ trợ điều gì, trước ngày nào?']
   const [a, setA] = useState<string[]>([
-    `Doanh thu ${D.vndShort(w.now.revenue)} (mục tiêu ${D.vndShort(w.target.revenue)}, tuần trước ${D.vndShort(w.prev.revenue)}, ${D.pctChange(w.now.revenue, w.prev.revenue)}%). Khách quay lại ${w.now.returning} (tuần trước ${w.prev.returning}: ${w.now.returning - w.prev.returning} khách, ${D.pctChange(w.now.returning, w.prev.returning)}%). [${D.SAMPLE_NOTE} — kiểm tra lại]`,
+    '', // chưa nối dữ liệu tuần thật — Leader tự nhập số đã kiểm tra
     '', '',
     doneT.map(t => `${t.title} → ${t.result}`).join('; '),
     '', '',
   ])
-  return <Modal wide title="Báo cáo tuần gửi chị" onClose={onClose} footer={<><button className="btn" onClick={onClose}>Hủy</button><button className="btn pri" disabled={a.slice(0, 5).some(x => !x.trim()) || a[0].includes('kiểm tra lại]')} onClick={() => { sendReport(`${D.weekNo()}/${D.TODAY.getFullYear()}`, a); onClose() }}>Gửi chị</button></>}>
-    <div className="small muted">Chỉ trả lời rõ 6 câu. Câu 1 và 4 đã điền sẵn từ dữ liệu — kiểm tra lại trước khi gửi; các câu còn lại Leader tự viết.</div>
+  return <Modal wide title="Báo cáo tuần gửi chị" onClose={onClose} footer={<><button className="btn" onClick={onClose}>Hủy</button><button className="btn pri" disabled={a.slice(0, 5).some(x => !x.trim())} onClick={() => { sendReport(`${D.weekNo()}/${D.TODAY.getFullYear()}`, a); onClose() }}>Gửi chị</button></>}>
+    <div className="small muted">Chỉ trả lời rõ 6 câu. Câu 4 đã điền sẵn từ việc đã xong; câu 1 tự nhập số thật (chưa nối dữ liệu tuần); các câu còn lại Leader tự viết.</div>
     {QUESTIONS.map((q, i) => <label key={i} className="f">{i + 1}. {q}<textarea id={`wr-${i}`} className="inp" value={a[i]} onChange={e => setA(x => x.map((y, j) => (j === i ? e.target.value : y)))} placeholder={i === 5 ? 'VD: Duyệt ngân sách 1,5tr cho chương trình giới thiệu bạn, trước thứ 6' : ''} /></label>)}
   </Modal>
 }

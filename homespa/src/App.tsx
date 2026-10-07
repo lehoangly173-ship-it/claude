@@ -5,6 +5,7 @@ import { useStore, defaultStaffFor } from './store'
 import * as D from './data'
 import { Icon, CustomerModal, MenuCtx } from './ui'
 import { canSee } from './logic'
+import { MKT_NODES } from './specs'
 import { KtvHome, KtvWork, ReceptionHome, OpsHub, ReceptionCustomers, MyPage } from './screens/staff'
 import { LeaderHome, TeamTab, MarketingHome, MarketingCust, MarketingMine, CeoHome, CeoCust, CeoMoc, CeoMine } from './screens/roles'
 import { LeaderCustomers, MocScreen, MineScreen } from './screens/leader'
@@ -43,7 +44,7 @@ function screenFor(role: D.Role, r: string[]): ReactNode {
     case 'ktv': return tab === 'work' ? <KtvWork sub={sub} /> : tab === 'moc' ? <MocScreen groups={D.MOC_GROUPS.ktv} /> : tab === 'me' ? <MyPage sub={sub} /> : <KtvHome sub={sub} />
     case 'reception': return tab === 'ops' ? <OpsHub sub={sub[0]} base="ops" /> : tab === 'cust' ? <ReceptionCustomers /> : tab === 'moc' ? <MocScreen groups={D.MOC_GROUPS.reception} /> : tab === 'me' ? <MyPage sub={sub} /> : <ReceptionHome sub={sub} />
     case 'leader': return tab === 'team' ? <TeamTab sub={sub} /> : tab === 'cust' ? <LeaderCustomers /> : tab === 'moc' ? <MocScreen /> : tab === 'me' ? <MineScreen /> : <LeaderHome sub={sub} />
-    case 'marketing': return tab === 'cust' ? <MarketingCust sub={sub} /> : tab === 'moc' ? <MocScreen /> : tab === 'me' ? <MarketingMine sub={sub} /> : <MarketingHome sub={sub} />
+    case 'marketing': return tab === 'cust' ? <MarketingCust sub={sub} /> : tab === 'moc' ? <MocScreen groups={MKT_NODES.M3.rows.map(r => ({ t: `${r.no}. ${r.t}`, q: r.t }))} /> : tab === 'me' ? <MarketingMine sub={sub} /> : <MarketingHome sub={sub} />
     case 'ceo': return tab === 'cust' ? <CeoCust sub={sub} /> : tab === 'moc' ? <CeoMoc sub={sub} /> : tab === 'me' ? <CeoMine sub={sub} /> : <CeoHome sub={sub} />
   }
 }
@@ -65,7 +66,7 @@ export default function App() {
   const tabs = TABS[user.role]
   const unread = s.notifs.filter(n => canSee(n, user.role, me.id) && !n.readBy.includes(me.id)).length
   const badge: Record<string, number> = {
-    moc: user.role === 'ceo' ? s.approvals.filter(a => a.status === 'Chờ duyệt').length : 0,
+    moc: user.role === 'ceo' ? s.approvals.filter(a => a.status === 'Chờ duyệt').length + s.points.filter(p => p.status === 'Chờ duyệt').length + s.reviews.filter(r => r.status === 'Chờ đối soát').length : 0,
     ops: user.role === 'reception' ? s.queue.length + s.appts.filter(a => a.status === 'done').length : 0,
     team: user.role === 'leader' ? s.points.filter(p => p.status === 'Chờ duyệt').length : 0,
   }

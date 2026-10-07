@@ -16,9 +16,9 @@ export function ApprovalsScreen() {
     <PageHeader eyebrow="Chị Quyên · CEO" title="Phê duyệt" sub="Đổi giá / ưu đãi, ngân sách ngoài mức, xóa hóa đơn, việc vượt quyền, báo cáo tuần, tài khoản mới" />
     <div className="grid g4">
       <Stat label="Chờ duyệt" value={s.approvals.filter(a => a.status === 'Chờ duyệt').length} tone="gold" />
-      <Stat label="Doanh thu tháng" value={D.vndShort(m.now.revenue)} tone="g-fg" extra={<Delta now={m.now.revenue} prev={m.prev.revenue} unit="đ" />} />
-      <Stat label="Khách quay lại (tháng)" value={m.now.returning} tone="p-fg" extra={<Delta now={m.now.returning} prev={m.prev.returning} />} />
-      <Stat label="Tỷ lệ đến" value={`${m.now.showRate}%`} tone="y-fg" extra={<Delta now={m.now.showRate} prev={m.prev.showRate} unit=" điểm %" />} />
+      <Stat label="Tiền đã thu tháng · số liệu mẫu" value={D.vndShort(m.now.revenue)} tone="g-fg" extra={<Delta now={m.now.revenue} prev={m.prev.revenue} unit="đ" />} />
+      <Stat label="Khách quay lại (tháng) · số liệu mẫu" value={m.now.returning} tone="p-fg" extra={<Delta now={m.now.returning} prev={m.prev.returning} />} />
+      <Stat label="Tỷ lệ đến · số liệu mẫu" value={`${m.now.showRate}%`} tone="y-fg" extra={<Delta now={m.now.showRate} prev={m.prev.showRate} unit=" điểm %" />} />
     </div>
     <Seg value={tab} onChange={setTab} items={[{ k: 'wait', label: 'Chờ duyệt', badge: s.approvals.filter(a => a.status === 'Chờ duyệt').length }, { k: 'done', label: 'Đã xử lý' }]} />
     <div className="card list">{list.map(a => { const rep = s.reports.find(r => r.id === a.refId)

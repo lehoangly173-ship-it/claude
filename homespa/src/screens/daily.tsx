@@ -25,7 +25,7 @@ export function ShiftTourPage({ back }: P) {
     {me.shift && <div className="tiles">
       <div className="tile"><span className="l">Ca của tôi hôm nay</span><span className="v" style={{ fontSize: 19 }}>{me.shift === 1 ? 'Ca sáng' : 'Ca chiều'}</span><span className="s">{D.SHIFTS[me.shift].label}</span></div>
       {me.role === 'ktv' && <div className="tile"><span className="l">Thứ tự tour</span><span className="v">#{pos + 1}</span><span className="s">trong {order.length} KTV · tự xoay khi nhận khách</span></div>}
-      <div className="tile"><span className="l">Chấm công</span><span className="v" style={{ fontSize: 19 }}>{s.attendance[me.id]?.in != null ? D.hhmm(s.attendance[me.id].in!) : 'Chưa'}</span><span className="s">{s.attendance[me.id]?.in != null && s.attendance[me.id].in! > D.SHIFTS[me.shift].start ? `trễ ${s.attendance[me.id].in! - D.SHIFTS[me.shift].start} phút` : 'đúng giờ'}</span></div>
+      <div className="tile"><span className="l">Chấm công</span><span className="v" style={{ fontSize: 19 }}>{s.attendance[me.id]?.in != null ? D.hhmm(s.attendance[me.id].in!) : 'Chưa'}</span><span className="s">{s.attendance[me.id]?.in == null ? 'chưa quét QR' : s.attendance[me.id].in! > D.SHIFTS[me.shift].start ? `trễ ${s.attendance[me.id].in! - D.SHIFTS[me.shift].start} phút` : 'đúng giờ'}</span></div>
     </div>}
     <Block title="Lịch chia tour hôm nay" sub="Khách yêu cầu đích danh không làm mất lượt. Thứ tự do hệ thống xoay theo quy luật CEO cài đặt.">
       <div className="grid g2">{([1, 2] as const).map(sh => <div key={sh} className="card pad col"><b>{sh === 1 ? 'SÁNG · 08:00–18:00' : 'CHIỀU · 10:00–20:00'}</b>
@@ -36,7 +36,7 @@ export function ShiftTourPage({ back }: P) {
     <Block title="Bảng chia ca 4 tuần" sub="S = sáng · C = chiều · OFF = nghỉ đã duyệt · đổi ca đã duyệt tự đảo S↔C" right={<Seg value={String(week)} onChange={v => setWeek(+v)} items={[0, 1, 2, 3].map(w => ({ k: String(w), label: `Tuần ${w + 1}` }))} />}>
       <div className="tbl-wrap"><table className="roster"><thead><tr><th>Nhân viên</th>{Array.from({ length: 7 }, (_, i) => <th key={i}>{D.dayLabel(week * 7 + i)}</th>)}</tr></thead>
         <tbody>{people.map(p => <tr key={p.id} style={{ background: p.id === me.id ? 'var(--mint)' : undefined }}><td className="strong">{p.name}<span className="tiny muted"> · {p.role === 'ktv' ? 'KTV' : 'LT'}</span></td>
-          {Array.from({ length: 7 }, (_, i) => { const off = week * 7 + i; const lv = s.leaves.find(l => l.staffId === p.id && l.status === 'Đã duyệt' && l.date === D.daysAhead(off)); const base = D.rosterCell(p, off); const c = !lv ? base : lv.kind === 'Nghỉ phép' ? 'OFF' : base === 'S' ? 'C' : base === 'C' ? 'S' : base; return <td key={i}><span className={`cell ${c}`}>{c}</span></td> })}</tr>)}</tbody></table></div>
+          {Array.from({ length: 7 }, (_, i) => { const off = week * 7 + i; const lv = s.leaves.find(l => (l.staffId === p.id || (l.kind === 'Đổi ca' && l.withId === p.id)) && l.status === 'Đã duyệt' && l.date === D.daysAhead(off)); const base = D.rosterCell(p, off); const c = !lv ? base : lv.kind === 'Nghỉ phép' ? 'OFF' : base === 'S' ? 'C' : base === 'C' ? 'S' : base; return <td key={i}><span className={`cell ${c}`}>{c}</span></td> })}</tr>)}</tbody></table></div>
     </Block>
     {ask && <LeaveModal kind="Đổi ca" onClose={() => setAsk(false)} />}
   </>
@@ -59,7 +59,7 @@ export function CleaningPage({ back }: P) {
       {r ? <Pill tone={r.status === 'Đạt' ? 'green' : r.status === 'Chưa đạt' ? 'red' : 'yellow'}>{r.status}{r.status === 'Đạt' ? ` +${r.points}` : ''}</Pill> : <Pill tone={locked ? 'grey' : 'brown'}>{locked ? 'Chưa đến giờ' : 'Chưa báo'}</Pill>}</button> }
   return <>
     <SubHead title="Nhiệm vụ dọn dẹp" sub={mine.length ? <>Khu vực của bạn là <b>số {mine.join(', ')}</b> — bấm vào khu để xem tiêu chuẩn, tải ảnh và gửi kiểm tra.</> : 'Bảng tổng quan dọn dẹp KTV – lễ tân'} onBack={back} />
-    <Tiles items={[...(boss ? [] : [{ v: mine.length ? `số ${mine.join(', ')}` : '—', l: 'Khu của tôi' }, { v: todayPts, l: 'Điểm dọn dẹp hôm nay', tone: 'ok' as const }]), { v: pending.length, l: 'Chờ kiểm tra' }, { v: s.cleanReports.filter(r => r.status === 'Chưa đạt').length, l: 'Cần làm lại', tone: s.cleanReports.some(r => r.status === 'Chưa đạt') ? 'warn' : undefined }]} />
+    <Tiles items={[...(boss ? [] : [{ v: mine.length ? `số ${mine.join(', ')}` : '—', l: 'Khu của tôi' }, { v: todayPts, l: 'Điểm dọn dẹp hôm nay', tone: 'ok' as const }]), { v: pending.length, l: 'Chờ kiểm tra' }, { v: s.cleanReports.filter(r => r.status === 'Chưa đạt' && zoneReport(s, r.zone)?.id === r.id).length, l: 'Cần làm lại', tone: s.cleanReports.some(r => r.status === 'Chưa đạt') ? 'warn' : undefined }]} />
     {boss && pending.length > 0 && <Block title="Chờ kiểm tra ảnh" sub="Xem ảnh → Đạt (+điểm) hoặc Chưa đạt (ghi lý do để làm lại)">
       <div className="card list">{pending.map(r => <button key={r.id} className="item" onClick={() => setCheck(r)}><Thumb src={r.photo} /><div className="body"><div className="t">Khu {r.zone} · {D.ZONES[r.zone - 1].name}</div><div className="d">{D.staffName(r.staffId)} · {D.hhmm(r.at)}</div></div><span className="btn sm pri">Kiểm tra</span></button>)}</div></Block>}
     <Block title="Ca sáng · 08:00–18:00"><div className="card list">{D.ZONES.filter(z => z.shift === 1).map(zoneRow)}</div></Block>
@@ -111,7 +111,7 @@ export function KtvCustomersPage({ back }: P) {
   const [minTimes, setMinTimes] = useState(1)
   const caredIds = new Set([...s.appts.filter(a => a.ktvId === me.id && ['in_service', 'done', 'paid'].includes(a.status)).map(a => a.customerId), ...s.customers.filter(c => c.packages.some(p => p.usage.some(u => u.ktv === me.name)) || c.care.some(x => x.by === me.name)).map(c => c.id)])
   const reqIds = new Set(s.appts.filter(a => a.ktvId === me.id && a.requested).map(a => a.customerId))
-  const closed = s.customers.filter(c => c.packages.some(p => p.closer === me.name || p.closer === me.id))
+  const closed = s.customers.filter(c => c.packages.some(p => p.closerIds?.includes(me.id) || p.closer === me.name || p.closer === me.id))
   const base = tab === 'cared' ? s.customers.filter(c => caredIds.has(c.id)) : tab === 'req' ? s.customers.filter(c => reqIds.has(c.id)) : closed
   const list = base.filter(c => (kind === 'all' || (kind === 'lt') === c.packages.length > 0) && c.visits >= minTimes).sort((a, b) => b.visits - a.visits)
   const all = s.customers.filter(c => caredIds.has(c.id)).length
@@ -143,7 +143,9 @@ export function BillsPage({ back }: P) {
   const [shift, setShift] = useState<'1' | '2'>(String(me.shift ?? 1) as '1' | '2')
   const [photo, setPhoto] = useState('')
   const [note, setNote] = useState('')
-  const rows = billRows(s)
+  const all = billRows(s)
+  // KTV chỉ xem tour của chính mình; lễ tân/Leader/CEO xem cả nhóm
+  const rows = user.role === 'ktv' ? all.filter(r => r.a.ktvId === me.id) : all
   const issues = rows.filter(r => r.issue).map(r => `${cust(s, r.a.customerId).name}: ${r.issue}`)
   const isRec = user.role === 'reception'
   const canUpload = user.role === 'ktv' || isRec
@@ -157,7 +159,7 @@ export function BillsPage({ back }: P) {
       <div className="row">{s.bills.filter(b => b.staffId === me.id).map(b => <span key={b.id} className="row small"><Thumb src={b.photo} />{D.hhmm(b.at)} · ca {b.shift}</span>)}</div>
     </Block>}
     <Block title="Đối soát tour ↔ hóa đơn" sub="Máy tự quét: tên khách – thời gian trị liệu – KTV – đã thu chưa" right={s.billCheck && <Pill tone={s.billCheck.issues.length ? 'yellow' : 'green'}>Đã xác nhận {D.hhmm(s.billCheck.at)}</Pill>}>
-      <div className="card list">{rows.map(({ a, inv, photo: ph, issue }) => <div key={a.id} className="item"><span className="num strong" style={{ width: 46 }}>{D.hhmm(a.start)}</span><div className="body"><div className="t">{cust(s, a.customerId).name} · KTV {D.staffName(a.ktvId)}</div><div className="d">{D.svc(a.serviceId).name}{inv ? ` · ${inv.code} · đã thu ${D.vnd(inv.paid)}` : ''}{ph ? ' · có ảnh bill' : ''}</div>{issue && <div className="tiny" style={{ color: 'var(--r-fg)' }}>{issue}</div>}</div>
+      <div className="card list">{rows.map(({ a, inv, photo: ph, issue }) => <div key={a.id} className="item"><span className="num strong" style={{ width: 46 }}>{D.hhmm(a.start)}</span><div className="body"><div className="t">{cust(s, a.customerId).name} · KTV {D.staffName(a.ktvId)}</div><div className="d">{D.svc(a.serviceId).name}{inv ? (user.role === 'ktv' ? ' · đã thu' : ` · ${inv.code} · đã thu ${D.vnd(inv.paid)}`) : ''}{ph ? ' · có ảnh bill' : ''}</div>{issue && <div className="tiny" style={{ color: 'var(--r-fg)' }}>{issue}</div>}</div>
         <Pill tone={a.status === 'in_service' ? 'purple' : issue ? 'red' : 'green'}>{a.status === 'in_service' ? 'Đang làm' : issue ? 'Chưa khớp' : 'Khớp'}</Pill></div>)}{!rows.length && <Empty>Chưa có tour</Empty>}</div>
       {isRec && <button className="btn pri" onClick={() => confirmBills(rows.filter(r => !r.issue && r.a.status !== 'in_service').length, issues)}>Xác nhận danh sách khách & hóa đơn cho nhóm</button>}
       {s.billCheck && <div className={s.billCheck.issues.length ? 'warn small' : 'ok small'}>{D.staffName(s.billCheck.by)} xác nhận lúc {D.hhmm(s.billCheck.at)}: {s.billCheck.matched} tour khớp{s.billCheck.issues.length ? ` · chưa khớp: ${s.billCheck.issues.join(' · ')}` : ''}</div>}
@@ -214,14 +216,21 @@ export function ProductsPage({ back }: P) {
 
 // ── 9. Xin nghỉ phép ──
 export function LeaveModal({ kind: k0, onClose }: { kind?: D.Leave['kind']; onClose: () => void }) {
-  const { requestLeave } = useStore()
+  const { s, me, requestLeave } = useStore()
   const [kind, setKind] = useState<D.Leave['kind']>(k0 ?? 'Nghỉ phép')
   const [date, setDate] = useState(D.daysAhead(1))
   const [detail, setDetail] = useState('')
-  return <Modal title="Gửi đơn — CEO duyệt" onClose={onClose} footer={<><button className="btn" onClick={onClose}>Hủy</button><button className="btn pri" disabled={!detail.trim()} onClick={() => { requestLeave(kind, date, detail.trim()); onClose() }}>Gửi đơn</button></>}>
+  const [withId, setWithId] = useState('')
+  // Đổi ca: chỉ đổi với người cùng bộ phận đang làm ca ngược lại ngày đó (để bảng chia ca đảo đúng cả 2 người)
+  const off = Array.from({ length: 28 }, (_, i) => D.daysAhead(i + 1)).indexOf(date) + 1
+  const mine = D.rosterCell(me, off)
+  const partners = s.staff.filter(x => x.id !== me.id && x.role === me.role && ['S', 'C'].includes(D.rosterCell(x, off)) && D.rosterCell(x, off) !== mine && ['S', 'C'].includes(mine))
+  const needPartner = kind === 'Đổi ca'
+  return <Modal title="Gửi đơn — CEO duyệt" onClose={onClose} footer={<><button className="btn" onClick={onClose}>Hủy</button><button className="btn pri" disabled={!detail.trim() || (needPartner && !partners.some(x => x.id === withId))} onClick={() => { requestLeave(kind, date, detail.trim(), needPartner ? withId : undefined); onClose() }}>Gửi đơn</button></>}>
     <Seg value={kind} onChange={setKind} items={[{ k: 'Nghỉ phép', label: 'Nghỉ phép' }, { k: 'Đổi ca', label: 'Đổi ca' }]} />
     <label className="f">Ngày<select id="lv-date" className="inp" value={date} onChange={e => setDate(e.target.value)}>{Array.from({ length: 28 }, (_, i) => D.daysAhead(i + 1)).map(d => <option key={d}>{d}</option>)}</select></label>
-    <label className="f">{kind === 'Đổi ca' ? 'Đổi với ai / sang ca nào' : 'Lý do'}<textarea id="lv-detail" className="inp" value={detail} onChange={e => setDetail(e.target.value)} placeholder={kind === 'Đổi ca' ? 'VD: đổi ca sáng với Hiền' : 'VD: việc gia đình'} /></label>
+    {needPartner && <label className="f">Đổi với<select id="lv-with" className="inp" value={withId} onChange={e => setWithId(e.target.value)}><option value="">{partners.length ? '— Chọn người làm ca ngược lại —' : 'Không có ai làm ca ngược lại ngày này'}</option>{partners.map(x => <option key={x.id} value={x.id}>{x.name} · {D.rosterCell(x, off) === 'S' ? 'ca sáng' : 'ca chiều'}</option>)}</select></label>}
+    <label className="f">{kind === 'Đổi ca' ? 'Lý do đổi ca' : 'Lý do'}<textarea id="lv-detail" className="inp" value={detail} onChange={e => setDetail(e.target.value)} placeholder={kind === 'Đổi ca' ? 'VD: bận việc buổi sáng' : 'VD: việc gia đình'} /></label>
   </Modal>
 }
 export function LeavePage({ back }: P) {
@@ -240,7 +249,7 @@ export function IncidentPage({ back }: P) {
   const { s, me, addTask } = useStore()
   const [txt, setTxt] = useState('')
   const [photo, setPhoto] = useState('')
-  const mine = s.tasks.filter(t => t.earlyReport && t.createdBy === me.id)
+  const mine = s.tasks.filter(t => t.earlyReport && t.createdBy === me.id && t.status !== 'transferred')
   return <>
     <SubHead title="Báo cáo sự cố" sub="Mô tả · ảnh · theo dõi trạng thái xử lý. Báo sớm được ghi nhận tích cực, không trừ điểm." onBack={back} />
     <Block title="Báo sự cố mới">

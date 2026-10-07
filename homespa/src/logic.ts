@@ -115,7 +115,7 @@ export function bedState(s: State, b: Bed): BedState {
 /** Gợi ý KTV cho khách đang chờ: KTV khách yêu cầu → đầu hàng xoay tour → giờ trống sớm nhất */
 export function suggestKtv(s: State, serviceId: string, requested?: string) {
   const dur = svc(serviceId).duration
-  const order = [...s.rotation[1], ...s.rotation[2]]
+  const order = [...s.rotation[1], ...s.rotation[2]].filter(id => s.attendance[id]?.in != null && s.attendance[id]?.out == null)
   const opts = order.map(id => {
     const t = earliestFor(s, id, dur, s.now)
     const bed = t != null ? freeBedFor(s, serviceId, t, t + dur) : null
@@ -191,9 +191,14 @@ export function billRows(s: State) {
 }
 /** Tiền hệ thống của ca hiện tại: hóa đơn tạo SAU lần chốt ca gần nhất trong ngày (bàn giao giữa 2 lễ tân) */
 export const lastCloseAt = (s: State) => Math.max(-1, ...s.shiftCloses.map(x => x.at))
+/** Hóa đơn chưa thuộc lần chốt ca nào (không mất hóa đơn tạo cùng phút với lần chốt trước) */
+export const shiftInvoices = (s: State) => {
+  const done = new Set(s.shiftCloses.flatMap(x => x.codes ?? []))
+  const since = s.shiftCloses.some(x => x.codes) ? -1 : lastCloseAt(s)
+  return s.invoices.filter(i => i.status !== 'Nháp' && i.status !== 'Đã xóa' && !done.has(i.code) && i.createdMin > since)
+}
 export const expectedByMethod = (s: State) => {
   const r: Record<'Tiền mặt' | 'Chuyển khoản' | 'Thẻ ngân hàng', number> = { 'Tiền mặt': 0, 'Chuyển khoản': 0, 'Thẻ ngân hàng': 0 }
-  const since = lastCloseAt(s)
-  s.invoices.filter(i => i.status !== 'Nháp' && i.status !== 'Đã xóa' && i.createdMin > since).forEach(i => i.payments.forEach(p => { r[p.method] += p.amount }))
+  shiftInvoices(s).forEach(i => i.payments.forEach(p => { r[p.method] += p.amount }))
   return r
 }

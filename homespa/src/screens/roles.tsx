@@ -41,9 +41,10 @@ export function LeaderHome({ sub }: { sub: string[] }) {
   const redo = s.cleanReports.filter(r => r.status === 'Chưa đạt' && zoneReport(s, r.zone)?.id === r.id).length
   const toCheck = s.cleanReports.filter(r => r.status === 'Chờ kiểm tra').length
   const stock = s.productLogs.filter(p => !(p.ktvOk && p.recOk)).length
-  const incidents = s.tasks.filter(t => t.earlyReport && t.status !== 'done').length
+  const incidents = s.tasks.filter(t => t.earlyReport && ['open', 'doing'].includes(t.status)).length
   const tourIssues = billRows(s).filter(r => r.issue).length
-  const al = alerts(s)
+  const taken = new Set(s.tasks.map(t => t.sourceKey).filter(Boolean))
+  const al = alerts(s).filter(a => !taken.has(a.key)) // chỉ cảnh báo chưa có người nhận việc — khớp danh sách Việc bất thường
   const opsBad = s.opsChecks.filter(x => !x.ok).length
   return <>
     <Hero tag="Leader · Phạm vi chi nhánh" title="Điều hành ca hôm nay" sub={al.length + opsBad ? `${al.length} cảnh báo tự động · ${opsBad} vấn đề cơ sở lễ tân báo` : 'Chưa có ngoại lệ vận hành nổi bật.'} />
@@ -116,12 +117,12 @@ export function PointsPage({ back }: { back: () => void }) {
 
 // ═══════════════ MARKETING ═══════════════
 export function MarketingHome({ sub }: { sub: string[] }) {
-  const { s, go } = useStore()
+  const { s, me, go } = useStore()
   const page = dailySub(sub[0], () => go('home'))
   if (page) return <>{page}</>
   const running = s.programs.filter(p => p.status === 'Đang chạy')
-  return <SpecHub rows={MKT_NODES.M1.rows} sub={sub[0]} base="home" tag="Marketing · Dữ liệu thật" title="Marketing hôm nay"
-    intro={<Tiles items={[{ v: running.length, l: 'Chiến dịch đang chạy' }, { v: s.customers.filter(c => c.firstVisit === D.dateShort()).length, l: 'Khách mới hôm nay' }, { v: s.approvals.filter(a => a.status === 'Chờ duyệt' && a.fromId === 'khoa').length, l: 'Chờ chị duyệt' }, { v: D.vndShort(running.reduce((t, p) => t + p.revenue, 0)), l: 'Tiền thu từ chiến dịch' }]} />}
+  return <SpecHub rows={MKT_NODES.M1.rows} sub={sub[0]} base="home" tag="Marketing" title="Marketing hôm nay"
+    intro={<Tiles items={[{ v: running.length, l: 'Chiến dịch đang chạy' }, { v: s.customers.filter(c => c.firstVisit === D.dateShort()).length, l: 'Khách mới hôm nay' }, { v: s.approvals.filter(a => a.status === 'Chờ duyệt' && a.fromId === me.id).length, l: 'Chờ chị duyệt' }, { v: D.vndShort(running.reduce((t, p) => t + p.revenue, 0)), l: 'Tiền thu từ chiến dịch', s: D.SAMPLE_NOTE }]} />}
     custom={{ '1.1': () => <MarketingScreen />, '1.7': () => <ProgramsPanel />, '1.10': () => <MocScreen /> }} />
 }
 export function MarketingCust({ sub }: { sub: string[] }) {
@@ -136,10 +137,10 @@ export function MarketingCust({ sub }: { sub: string[] }) {
     }} />
 }
 export function MarketingMine({ sub }: { sub: string[] }) {
-  const { go } = useStore()
+  const { me, go } = useStore()
   if (sub[0] === 'time' || sub[0] === 'perf') return <MyPage sub={sub} />
   return <SpecHub rows={MKT_NODES.M4.rows} sub={sub[0]} base="me" tag="Của tôi" title="Kết quả & năng lực"
-    custom={{ '4.2': () => <button className="softbtn" onClick={() => go('me/time')}>Mở lịch & chấm công</button>, '4.8': () => <button className="softbtn" onClick={() => go('me/perf')}>Mở điểm uy tín của tôi</button>, '4.5': () => <ProgramsPanel ownerFilter="khoa" /> }} />
+    custom={{ '4.2': () => <button className="softbtn" onClick={() => go('me/time')}>Mở lịch & chấm công</button>, '4.8': () => <button className="softbtn" onClick={() => go('me/perf')}>Mở điểm uy tín của tôi</button>, '4.5': () => <ProgramsPanel ownerFilter={me.id} only /> }} />
 }
 
 // ═══════════════ CEO ═══════════════
@@ -161,7 +162,7 @@ export function CeoHome({ sub }: { sub: string[] }) {
       <button className="hbtn solid" onClick={() => go('moc')}>Phê duyệt ({waiting})</button><button className="hbtn" onClick={() => go('home/ops')}>Trung tâm vận hành</button>
     </Hero>
     <Tiles items={[
-      { v: s.tasks.filter(t => t.earlyReport && t.status !== 'done').length, l: 'Sự cố chưa đóng', onClick: () => go('home/n2') },
+      { v: s.tasks.filter(t => t.earlyReport && ['open', 'doing'].includes(t.status)).length, l: 'Sự cố chưa đóng', onClick: () => go('home/n2') },
       { v: s.productLogs.filter(p => !(p.ktvOk && p.recOk)).length, l: 'Kho cần đối chiếu', onClick: () => go('home/products') },
       { v: s.reviews.filter(r => r.status === 'Chờ đối soát').length + s.points.filter(p => p.status === 'Chờ duyệt').length, l: 'Review/điểm cần duyệt', onClick: () => go(s.points.some(p => p.status === 'Chờ duyệt') ? 'moc/points' : 'moc/reviews') },
       { v: billRows(s).filter(r => r.issue).length, l: 'Lệch đối soát tour', onClick: () => go('home/bills') },

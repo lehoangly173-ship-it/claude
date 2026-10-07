@@ -67,7 +67,7 @@ export type Payment = { at: string; amount: number; method: PayMethod; by: strin
 export type Usage = { at: string; service: string; ktv: string; deducted: string; before: string; after: string; invoice: string }
 export type Package = {
   cardCode: string; catalogId: string; name: string; type: 'session' | 'money'; group: PkgCatalog['group']
-  buyDate: string; expiry: string; finalPrice: number; closer: string; renewalOf?: string
+  buyDate: string; expiry: string; finalPrice: number; closer: string; closerIds?: string[]; renewalOf?: string
   sessions?: number; bonus?: number; used?: number; value?: number; bonusValue?: number; valueUsed?: number
   payments: Payment[]; usage: Usage[]
 }
@@ -349,9 +349,9 @@ export type BillPhoto = { id: string; staffId: string; shift: 1 | 2; photo: stri
 export type BillCheck = { by: string; at: number; matched: number; issues: string[] }
 export type Review = { id: string; staffId: string; platform: 'Google' | 'Facebook'; customerId?: string; photo: string; at: number; status: 'Chờ đối soát' | 'Đã xác nhận' | 'Không khớp'; checker?: string }
 export type ProductLog = { id: string; product: string; qty: number; ktvId: string; recId: string; photo: string; at: number; ktvOk: boolean; recOk: boolean }
-export type Leave = { id: string; staffId: string; kind: 'Nghỉ phép' | 'Đổi ca'; date: string; detail: string; status: 'Chờ duyệt' | 'Đã duyệt' | 'Từ chối'; at: number }
-export type ShiftClose = { id: string; staffId: string; at: number; expected: Record<PayMethod, number>; counted: Record<PayMethod, number>; note: string; books: boolean[] }
-export type PointEntry = { id: string; staffId: string; delta: number; reason: string; by: string; at: number; status: 'Chờ duyệt' | 'Đã duyệt' | 'Từ chối'; source: 'Dọn dẹp' | 'Lễ tân ghi nhận' | 'Leader' | 'Review' }
+export type Leave = { id: string; staffId: string; kind: 'Nghỉ phép' | 'Đổi ca'; date: string; detail: string; withId?: string; status: 'Chờ duyệt' | 'Đã duyệt' | 'Từ chối'; at: number }
+export type ShiftClose = { id: string; staffId: string; at: number; expected: Record<PayMethod, number>; counted: Record<PayMethod, number>; note: string; books: boolean[]; codes?: string[] }
+export type PointEntry = { id: string; staffId: string; delta: number; reason: string; by: string; at: number; status: 'Chờ duyệt' | 'Đã duyệt' | 'Từ chối'; source: 'Dọn dẹp' | 'Lễ tân ghi nhận' | 'Leader' | 'CEO' | 'Review' }
 export type OpsCheck = { id: string; item: string; by: string; at: number; ok: boolean; note: string }
 export const OPS_ITEMS = ['Kiểm tra vệ sinh lao công', 'Kiểm tra không gian trải nghiệm', 'Vật tư – tồn kho – đề xuất mua', 'Thiết bị – bảo dưỡng – sửa chữa', 'Sinh nhật nhân sự – quà tháng – hoạt động chung', 'Ghi nhận điểm uy tín', 'Bàn giao ca – việc còn tồn'] as const
 export const BOOK_CHECKS = ['Không còn hóa đơn nháp / chưa thu', 'Bill Money nhóm đã đối soát', 'Lịch hẹn ngày mai đã nhắn xác nhận', 'Sản phẩm xuất trong ca đã xác nhận 2 bên', 'Việc tồn đã ghi bàn giao ca sau']

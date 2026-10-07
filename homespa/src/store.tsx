@@ -2,7 +2,7 @@
 // nên một thay đổi (chia tour, thu tiền, xong việc) cập nhật mọi nơi cùng lúc.
 import { createContext, useContext, useState, ReactNode } from 'react'
 import * as D from './data'
-import { State, ktvConflict, bedConflict, custConflict, cust, CLEAN_MIN, canSee } from './logic'
+import { State, ktvConflict, bedConflict, custConflict, cust, shiftInvoices, CLEAN_MIN, canSee } from './logic'
 
 export type User = { role: D.Role; staffId: string }
 const DEFAULT_USER: Record<D.Role, string> = { reception: 'lam', ktv: 'mai', leader: 'thao', ceo: 'quyen', marketing: 'khoa' }
@@ -77,18 +77,21 @@ function useStoreValue() {
     advance: (m: number) => mutate(d => { d.now = Math.min(20 * 60, d.now + m) }),
 
     // ── Lịch hẹn ── (kiểm tra 2 lần: trước khi bấm và ngay lúc ghi, để bấm đúp không tạo trùng)
-    addAppt: (f: { customerId: string; serviceId: string; ktvId: string; bedId: string; start: number; requested: boolean; channel: string; note?: string; status?: D.ApptStatus }): string | null => {
+    addAppt: (f: { customerId: string; serviceId: string; ktvId: string; bedId: string; start: number; requested: boolean; channel: string; note?: string; status?: D.ApptStatus; rotate?: boolean }): string | null => {
       const end = f.start + D.svc(f.serviceId).duration
       return tryMutate(d => (D.bedZoneFor(f.serviceId) !== D.BEDS.find(b => b.id === f.bedId)?.zone ? 'Giường không đúng khu vực của dịch vụ' : null) || custConflict(d, f.customerId, f.start, end) || ktvConflict(d, f.ktvId, f.start, end) || bedConflict(d, f.bedId, f.start, end), d => {
-        d.appts.push({ id: id(d, 'a'), end, status: f.status ?? 'booked', ...f })
+        const { rotate, ...rec } = f
+        d.appts.push({ id: id(d, 'a'), end, status: f.status ?? 'booked', ...rec })
+        // "Home sắp xếp": KTV vừa được giao xuống cuối hàng xoay tour
+        if (rotate) { const sh = d.staff.find(x => x.id === f.ktvId)?.shift; if (sh) d.rotation[sh] = [...d.rotation[sh].filter(x => x !== f.ktvId), f.ktvId] }
         notify(d, { cat: 'Lịch hẹn', text: `Lịch mới ${D.hhmm(f.start)} — ${cust(d, f.customerId).name}`, detail: `${D.svc(f.serviceId).name} · KTV ${D.staffName(f.ktvId)} · ${f.bedId}`, roles: ['reception'], nav: 'schedule' })
         notify(d, { cat: 'Lịch hẹn', text: `Bạn có khách ${D.hhmm(f.start)} — ${cust(d, f.customerId).name}`, detail: `${D.svc(f.serviceId).name} · ${f.bedId}`, roles: ['ktv'], to: [f.ktvId], nav: 'mywork' })
       }, 'Đã tạo lịch hẹn')
     },
     moveAppt: (apptId: string, start: number, ktvId: string, bedId: string): string | null => {
       const dur = (() => { const a = s.appts.find(x => x.id === apptId)!; return a.end - a.start })()
-      return tryMutate(d => custConflict(d, d.appts.find(x => x.id === apptId)!.customerId, start, start + dur, apptId) || ktvConflict(d, ktvId, start, start + dur, apptId) || bedConflict(d, bedId, start, start + dur, apptId),
-        d => { Object.assign(d.appts.find(x => x.id === apptId)!, { start, end: start + dur, ktvId, bedId }) }, 'Đã cập nhật lịch hẹn')
+      return tryMutate(d => (start < d.now ? 'Giờ bắt đầu đã qua' : null) || custConflict(d, d.appts.find(x => x.id === apptId)!.customerId, start, start + dur, apptId) || ktvConflict(d, ktvId, start, start + dur, apptId) || bedConflict(d, bedId, start, start + dur, apptId),
+        d => { const a = d.appts.find(x => x.id === apptId)!; Object.assign(a, { start, end: start + dur, ktvId, bedId, requested: a.requested && a.ktvId === ktvId }) }, 'Đã cập nhật lịch hẹn')
     },
     setApptStatus: (apptId: string, status: D.ApptStatus): string | null => {
       const check = (d: State): string | null => {
@@ -222,7 +225,7 @@ function useStoreValue() {
         const t = d.tasks.find(x => x.id === tid)!
         t.status = 'transferred'; t.transferTo = to; t.result = reason; t.prevOwner = t.ownerId
         if (d.staff.find(x => x.id === to)?.role === 'ceo') d.approvals.unshift({ id: id(d, 'ap'), kind: 'Chuyển vượt quyền', fromId: me.id, title: t.title, detail: reason, status: 'Chờ duyệt', refId: tid })
-        else d.tasks.unshift({ ...t, id: id(d, 't'), ownerId: to, status: 'open', createdBy: me.id, createdMin: d.now, transferTo: undefined, result: undefined })
+        else d.tasks.unshift({ ...t, id: id(d, 't'), ownerId: to, status: 'open', createdBy: t.earlyReport ? t.createdBy : me.id, createdMin: d.now, transferTo: undefined, result: undefined })
       })
       say(`Đã chuyển cho ${D.staffName(to)}`)
     },
@@ -285,7 +288,7 @@ function useStoreValue() {
         const ini = d.initiatives.find(x => x.id === a.refId)
         if (ini) {
           if (a.kind === 'Xác nhận kết quả') ini.status = ok ? 'Đã kiểm chứng' : 'Đang làm'
-          else { ini.status = ok ? 'Đang làm' : 'Đề xuất'; if (ok) ini.approvedBudget = ini.budget }
+          else if (ok) { ini.status = 'Đang làm'; ini.approvedBudget = ini.budget } else if (ini.approvedBudget != null) { ini.budget = ini.approvedBudget; ini.status = 'Đang làm' } else ini.status = 'Đề xuất'
         }
         const tk = d.tasks.find(x => x.id === a.refId)
         if (tk) { if (ok) Object.assign(tk, { status: 'done', doneMin: d.now, result: `Chị đã quyết: ${note || 'đồng ý'}` }); else Object.assign(tk, { status: 'doing', ownerId: tk.prevOwner ?? tk.ownerId, transferTo: undefined, result: `Chị trả lại: ${note || 'Leader tự xử lý trong quyền hạn'}` }) }
@@ -315,7 +318,10 @@ function useStoreValue() {
         const j = d.join.find(x => x.id === a.refId)
         if (j) { j.status = ok ? 'Đã duyệt' : 'Từ chối'; if (ok) { const nid = 'u' + j.id; d.staff.push({ id: nid, name: j.name, role: j.wantedRole, shift: j.wantedRole === 'ktv' ? 2 : undefined }); if (j.wantedRole === 'ktv') d.rotation[2].push(nid) } }
         if (a.fromId !== 'system') { const who = d.staff.find(x => x.id === a.fromId); if (who) notify(d, { cat: 'Hệ thống', text: `Chị ${ok ? 'đã duyệt' : 'từ chối'} yêu cầu của bạn: ${a.title}`, detail: note || a.kind, roles: [who.role], to: [who.id], nav: a.kind === 'Nghỉ phép / đổi ca' ? 'home/leave' : undefined }) }
-        notify(d, { cat: 'Hệ thống', text: `Chị ${ok ? 'đã duyệt' : 'từ chối'}: ${a.title}`, detail: note || a.kind, roles: ['leader', 'marketing', 'reception'], nav: a.kind === 'Báo cáo tuần' ? 'mine' : undefined })
+        // Chỉ báo rộng cho Leader khi ảnh hưởng vận hành; đơn cá nhân không lộ cho bộ phận khác
+        const fromLeader = d.staff.find(x => x.id === a.fromId)?.role === 'leader'
+        if (!fromLeader && (['Đổi giá / ưu đãi', 'Ngân sách'].includes(a.kind) || (a.kind === 'Nghỉ phép / đổi ca' && ok))) notify(d, { cat: 'Hệ thống', text: `Chị ${ok ? 'đã duyệt' : 'từ chối'}: ${a.title}`, detail: note || a.kind, roles: ['leader'], nav: a.kind === 'Nghỉ phép / đổi ca' ? 'team/leave' : undefined })
+        if (lv?.withId && ok) notify(d, { cat: 'Hệ thống', text: `Chị đã duyệt đổi ca với ${D.staffName(lv.staffId)} ngày ${lv.date}`, detail: 'Bảng chia ca đã cập nhật', roles: ['ktv', 'reception'], to: [lv.withId], nav: 'home/leave' })
       })
       say(ok ? 'Đã duyệt' : 'Đã từ chối')
     },
@@ -346,7 +352,7 @@ function useStoreValue() {
       say('Đã gửi báo cáo — chờ kiểm tra'); return null
     },
     checkClean: (rid: string, ok: boolean, note: string) => mutate(d => {
-      const r = d.cleanReports.find(x => x.id === rid)!; if (r.status !== 'Chờ kiểm tra') return
+      const r = d.cleanReports.find(x => x.id === rid)!; if (r.status !== 'Chờ kiểm tra' || !['leader', 'ceo'].includes(me.role) || (!ok && !note.trim())) return
       r.status = ok ? 'Đạt' : 'Chưa đạt'; r.checker = me.id; r.note = note; r.points = ok ? D.ZONE_POINTS : 0
       if (ok) d.points.unshift({ id: id(d, 'pt'), staffId: r.staffId, delta: D.ZONE_POINTS, reason: `Khu vực ${r.zone} đạt chuẩn`, by: me.id, at: d.now, status: 'Đã duyệt', source: 'Dọn dẹp' })
       notify(d, { cat: 'Dọn dẹp', text: `Khu ${r.zone}: ${ok ? `Đạt · +${D.ZONE_POINTS} điểm` : 'Chưa đạt — làm lại'}`, detail: note || (ok ? 'Đã kiểm tra ảnh' : ''), roles: ['ktv', 'reception'], to: [r.staffId], nav: 'home/cleaning' })
@@ -359,9 +365,12 @@ function useStoreValue() {
       })
       say('Đã xác nhận danh sách bill cho nhóm')
     },
-    addReview: (platform: D.Review['platform'], customerId: string, photo: string) => { mutate(d => { d.reviews.unshift({ id: id(d, 'rv'), staffId: me.id, platform, customerId: customerId || undefined, photo, at: d.now, status: 'Chờ đối soát' }) }); say('Đã gửi ảnh đánh giá — chờ đối soát với Google/Facebook') },
+    addReview: (platform: D.Review['platform'], customerId: string, photo: string) => { mutate(d => {
+      // Minh chứng của từng tour: lễ tân tải lên thì ghi cho KTV của lượt gần nhất của khách
+      const last = me.role === 'ktv' || !customerId ? null : d.appts.filter(a => a.customerId === customerId && ['done', 'paid'].includes(a.status)).sort((a, b) => b.start - a.start)[0]
+      d.reviews.unshift({ id: id(d, 'rv'), staffId: last?.ktvId ?? me.id, platform, customerId: customerId || undefined, photo, at: d.now, status: 'Chờ đối soát' }) }); say('Đã gửi ảnh đánh giá — chờ đối soát với Google/Facebook') },
     checkReview: (rid: string, ok: boolean) => mutate(d => {
-      const r = d.reviews.find(x => x.id === rid)!; r.status = ok ? 'Đã xác nhận' : 'Không khớp'; r.checker = me.id
+      const r = d.reviews.find(x => x.id === rid)!; if (r.status !== 'Chờ đối soát') return; r.status = ok ? 'Đã xác nhận' : 'Không khớp'; r.checker = me.id
       // Lễ tân chỉ ghi nhận; điểm do Leader/CEO duyệt
       if (ok) d.points.unshift({ id: id(d, 'pt'), staffId: r.staffId, delta: 1, reason: `Đánh giá ${r.platform} đã xác nhận`, by: me.id, at: d.now, status: me.role === 'leader' || me.role === 'ceo' ? 'Đã duyệt' : 'Chờ duyệt', source: 'Review' })
     }),
@@ -370,31 +379,42 @@ function useStoreValue() {
       say('Đã ghi — chờ bên còn lại bấm xác nhận')
     },
     confirmProduct: (pid: string) => mutate(d => { const p = d.productLogs.find(x => x.id === pid)!; if (me.role === 'reception') { p.recOk = true; p.recId = me.id } else if (p.ktvId === me.id) p.ktvOk = true }),
-    requestLeave: (kind: D.Leave['kind'], date: string, detail: string) => {
+    requestLeave: (kind: D.Leave['kind'], date: string, detail: string, withId?: string) => {
       mutate(d => {
         const lid = id(d, 'lv')
-        d.leaves.unshift({ id: lid, staffId: me.id, kind, date, detail, status: 'Chờ duyệt', at: d.now })
-        d.approvals.unshift({ id: id(d, 'ap'), kind: 'Nghỉ phép / đổi ca', fromId: me.id, title: `${kind} ${date} — ${me.name}`, detail, status: 'Chờ duyệt', refId: lid })
+        d.leaves.unshift({ id: lid, staffId: me.id, kind, date, detail, withId: kind === 'Đổi ca' ? withId : undefined, status: 'Chờ duyệt', at: d.now })
+        d.approvals.unshift({ id: id(d, 'ap'), kind: 'Nghỉ phép / đổi ca', fromId: me.id, title: `${kind} ${date} — ${me.name}${kind === 'Đổi ca' && withId ? ` ↔ ${D.staffName(withId)}` : ''}`, detail, status: 'Chờ duyệt', refId: lid })
       })
       say('Đã gửi đơn — chị (CEO) duyệt')
     },
-    closeShift: (counted: Record<D.PayMethod, number>, expected: Record<D.PayMethod, number>, books: boolean[], note: string) => {
+    closeShift: (counted: Record<D.PayMethod, number>, expected: Record<D.PayMethod, number>, books: boolean[], note: string): string | null => {
+      if (Object.values(counted).some(v => !(v >= 0))) { say('⚠ Số tiền không hợp lệ'); return 'Số tiền không hợp lệ' }
+      const diff0 = (Object.keys(counted) as D.PayMethod[]).reduce((t, k) => t + Math.abs(counted[k] - expected[k]), 0)
+      if (diff0 && !note.trim()) { say('⚠ Tiền lệch — cần ghi lý do'); return 'Cần ghi lý do lệch' }
       mutate(d => {
-        d.shiftCloses.unshift({ id: id(d, 'sc'), staffId: me.id, at: d.now, expected, counted, note, books })
+        d.shiftCloses.unshift({ id: id(d, 'sc'), staffId: me.id, at: d.now, expected, counted, note, books, codes: shiftInvoices(d).map(i => i.code) })
         const diff = (Object.keys(counted) as D.PayMethod[]).reduce((t, k) => t + counted[k] - expected[k], 0)
         notify(d, { cat: 'Thu ngân', text: `${me.name} chốt ca ${D.hhmm(d.now)}${diff ? ` · lệch ${D.vnd(diff)}` : ' · khớp tiền'}`, detail: note || 'Không ghi chú', roles: ['leader', 'ceo'], nav: 'home/close' })
       })
-      say('Đã chốt ca — gửi Leader & chị')
+      say('Đã chốt ca — gửi Leader & chị'); return null
     },
     addOpsCheck: (item: string, ok: boolean, note: string) => { mutate(d => { d.opsChecks.unshift({ id: id(d, 'oc'), item, by: me.id, at: d.now, ok, note }) }); say('Đã ghi nhận') },
     proposePoint: (staffId: string, delta: number, reason: string) => {
       mutate(d => {
         const direct = me.role === 'leader' || me.role === 'ceo'
-        d.points.unshift({ id: id(d, 'pt'), staffId, delta, reason, by: me.id, at: d.now, status: direct ? 'Đã duyệt' : 'Chờ duyệt', source: direct ? 'Leader' : 'Lễ tân ghi nhận' })
+        d.points.unshift({ id: id(d, 'pt'), staffId, delta, reason, by: me.id, at: d.now, status: direct ? 'Đã duyệt' : 'Chờ duyệt', source: me.role === 'ceo' ? 'CEO' : direct ? 'Leader' : 'Lễ tân ghi nhận' })
+        if (direct) notify(d, { cat: 'Điểm uy tín', text: `${delta > 0 ? '+' : ''}${delta} điểm uy tín`, detail: reason, roles: ['ktv', 'reception', 'marketing'], to: [staffId], nav: 'me' })
       })
       say(me.role === 'leader' || me.role === 'ceo' ? 'Đã ghi điểm' : 'Đã ghi nhận — chờ Leader/CEO duyệt')
     },
-    decidePoint: (pid: string, ok: boolean) => mutate(d => { const p = d.points.find(x => x.id === pid)!; if (p.status === 'Chờ duyệt') p.status = ok ? 'Đã duyệt' : 'Từ chối' }),
+    decidePoint: (pid: string, ok: boolean) => {
+      if (!['leader', 'ceo'].includes(me.role)) return say('Chỉ Leader/CEO duyệt điểm')
+      mutate(d => {
+        const p = d.points.find(x => x.id === pid)!; if (p.status !== 'Chờ duyệt') return
+        p.status = ok ? 'Đã duyệt' : 'Từ chối'
+        notify(d, { cat: 'Điểm uy tín', text: `${ok ? 'Đã duyệt' : 'Không duyệt'} ${p.delta > 0 ? '+' : ''}${p.delta} điểm`, detail: p.reason, roles: ['ktv', 'reception', 'marketing'], to: [p.staffId, p.by], nav: 'me' })
+      })
+    },
     setZoneOwner: (zone: number, staffId: string) => mutate(d => { d.zoneOwner[zone] = staffId }),
     logCare: (customerId: string, e: Omit<D.CareEntry, 'at' | 'by'>) => mutate(d => { cust(d, customerId).care.unshift({ ...e, at: D.stamp(d.now), by: me.name }) }),
     markRead: (nid: string) => mutate(d => { const n = d.notifs.find(x => x.id === nid); if (n && !n.readBy.includes(me.id)) n.readBy.push(me.id) }),

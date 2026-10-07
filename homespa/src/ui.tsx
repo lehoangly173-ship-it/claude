@@ -39,6 +39,7 @@ export function Stat({ label, value, sub, tone, onClick, extra }: { label: strin
 export function Delta({ now, prev, invert, unit = '' }: { now: number; prev: number; invert?: boolean; unit?: string }) {
   const diff = now - prev, pct = D.pctChange(now, prev)
   if (diff === 0) return <span className="delta muted">= kỳ trước</span>
+  if (prev === 0) return <span className="delta up">phát sinh mới</span>
   const good = invert ? diff < 0 : diff > 0
   const abs = unit === 'đ' ? D.vndShort(Math.abs(diff)) : `${Math.abs(diff)}${unit}`
   return <span className={`delta ${good ? 'up' : 'down'}`}>{diff > 0 ? '▲' : '▼'} {diff > 0 ? 'tăng' : 'giảm'} {abs} ({Math.abs(pct)}%)</span>
