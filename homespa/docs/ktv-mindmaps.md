@@ -75,3 +75,52 @@ Ghi chú: *đối soát tour mới ngầm bên dưới để xác nhận bill.*
 → Điền biểu mẫu → *app CEO duyệt.*
 
 ### 9. BÁO CÁO SỰ CỐ
+
+## Sơ đồ 3 – "KHÁCH HÀNG KTV"
+
+**Hồ sơ khách gồm 9 trường:**
+1. Tên · 2. Địa chỉ · 3. Sinh nhật · 4. SĐT (ẩn) ·
+5. Lịch sử nhân viên CSKH và báo cáo tiến triển *(lần 1 Mai – lần 2 Quý – lần 3, lần 4 Vân chốt thẻ)* ·
+6. Ngân sách · 7. Triệu chứng đau, tiến triển hiện tại *(cho khách đánh giá sau 4 ngày trị liệu)* ·
+8. Nguồn · 9. Quét mã QR CSKH chưa *(cá nhân hóa chăm sóc AI)*
+
+Ghi chú: *KTV và ban ngành khác ẩn SĐT; chỉ có lễ tân được thấy. Không ai được xuất file trừ CEO.*
+Ghi chú: *Danh sách xếp ngân sách giảm dần theo thứ tự xưa tới nay dần.*
+
+### KHÁCH HÀNG HOME → chia 2 nhóm lớn
+**A. KHÁCH LẺ VIỆT** (có nút chọn thời gian, ví dụ 25/9/2026 – 28/11/2026)
+- Bộ lọc 1-2-3… lần, số tiền, lọc 1 lần, nguồn khách → lọc ra danh sách lớn hơn / nhỏ hơn
+- Khách lâu chưa quay lại → bộ lọc thời gian
+- Sinh nhật khách lẻ → bộ lọc thời gian tháng
+- Khách lẻ có phản hồi chưa hài lòng
+- Khách lẻ giới thiệu khách → danh sách khách được giới thiệu / 1 KH lẻ
+
+**KHÁCH LIỆU TRÌNH VIỆT (có mã)** – tìm mã KH:
+1. Đã cọc, còn thiếu
+2. Đã hoàn thành
+3. Khách còn 2 buổi cuối
+4. Khách còn buổi cuối cùng
+5. Khách đã hết liệu trình
+- Sinh nhật khách liệu trình → bộ lọc thời gian tháng
+- Khách liệu trình có phản hồi chưa hài lòng
+- **Bộ lọc thời gian:** khách lâu chưa quay lại của các tệp 1, 2, 3, 4, 5
+
+**B. KHÁCH LẺ NƯỚC NGOÀI** – cùng bộ lọc như khách lẻ Việt.
+**KHÁCH LIỆU TRÌNH NƯỚC NGOÀI (có mã)** – tìm mã KH, cùng 5 trạng thái như trên. Thêm nhánh *Khách hàng đi – Sinh nhật khách*.
+
+### Các chỉ số để tổng hợp ở bảng CEO (cột bên phải)
+Doanh thu tổng và từng tệp → Lợi nhuận tổng và từng tệp → Chi phí trên 1 khách và tổng chi phí → Nguồn khách mới (= lẻ 1 lần đến) và doanh thu, lợi nhuận.
+
+### KHÁCH HÀNG CỦA KỸ THUẬT VIÊN XEM (có nút chọn thời gian)
+1. **KH tôi đã chăm sóc** *(có yêu cầu và ngẫu nhiên theo tour)* → Lẻ · Liệu trình
+   → danh sách xếp giảm dần theo thứ tự xưa tới nay dần, tần suất của khách
+2. **KH yêu cầu tôi** → Liệu trình · Lẻ 1-2-3
+   → danh sách xếp giảm dần theo thứ tự xưa tới nay dần, tần suất của khách
+3. **KH tôi chốt liệu trình** →
+   - Từ khách lẻ tôi làm và chốt liệu trình → Hoàn thành / Cọc tiền
+   - Từ khách liệu trình tái tục tôi làm → Hoàn thành / Cọc tiền
+
+Ghi chú: *Sẽ có 4 bộ lọc 1:2:3 tệp — Lẻ · Liệu trình.* · *Số lần lớn hơn hoặc bằng, lọc số lần có ô tự điền.*
+Ghi chú: *Tính tỉ suất từng tệp khách yêu cầu / tổng lần lượt 3 loại KH.* · *Mục đích đưa KPI cho nhân sự chốt tiếp.*
+Ghi chú: *Chỉ số KPI phấn đấu chốt khách mới, khách liệu trình. Vẽ biểu đồ tỉ suất cho họ thấy sự cố gắng bản thân.* · *Tần suất tăng dần.*
+Ghi chú: *Doanh thu – lợi nhuận trên từng tệp KH này của nhân viên, chỉ có CEO thấy. Làm 1 bảng cáo vào mục báo cáo giữa các nhân viên.*
