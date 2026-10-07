@@ -124,3 +124,15 @@ Ghi chú: *Sẽ có 4 bộ lọc 1:2:3 tệp — Lẻ · Liệu trình.* · *S�
 Ghi chú: *Tính tỉ suất từng tệp khách yêu cầu / tổng lần lượt 3 loại KH.* · *Mục đích đưa KPI cho nhân sự chốt tiếp.*
 Ghi chú: *Chỉ số KPI phấn đấu chốt khách mới, khách liệu trình. Vẽ biểu đồ tỉ suất cho họ thấy sự cố gắng bản thân.* · *Tần suất tăng dần.*
 Ghi chú: *Doanh thu – lợi nhuận trên từng tệp KH này của nhân viên, chỉ có CEO thấy. Làm 1 bảng cáo vào mục báo cáo giữa các nhân viên.*
+
+## Sơ đồ 4 – "HỎI ĐÁP MỘC KTV" (9 nhóm)
+1. Hỏi Mộc về SOP – quy trình – nội quy
+2. Công việc trong ngày của KTV
+3. Nhắc việc chủ động
+4. Đào tạo KTV
+5. Phân tích sự phát triển cá nhân
+6. KPI – Điểm uy tín – Dữ liệu cá nhân
+7. Hỗ trợ xử lý tình huống với khách
+8. Yêu cầu cá nhân của KTV
+9. Văn hóa – Quy chuẩn Home Spa
+10. Quyền hạn & Bảo mật dữ liệu
