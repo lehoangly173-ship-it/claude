@@ -73,6 +73,20 @@ Ghi chú: *đối soát với tình trạng ảnh trên Google Map.*
 9. Đào tạo – KPI – Phát triển cá nhân
 10. Yêu cầu cá nhân – Văn hóa – Quyền hạn & Bảo mật
 
+### Bảng chi tiết: các mục con lễ tân làm việc với Mộc
+| STT | Mục mẹ | Các mục con lễ tân làm việc với Mộc |
+|---|---|---|
+| 1 | Hỏi Mộc về SOP – Quy trình – Nội quy | Tra cứu quy trình mở/đóng ca; đón khách; đặt lịch; điều phối; thu ngân; bàn giao ca; chính sách giá, voucher và liệu trình đã được Home duyệt. |
+| 2 | Công việc hôm nay – Nhắc việc chủ động | Xem checklist đầu/giữa/cuối ca; lịch khách sắp đến; lịch chưa xác nhận; thông tin khách còn thiếu; việc chăm sóc đến hạn; các việc tồn từ ca trước. |
+| 3 | Đặt lịch – Đón khách – Điều phối KTV | Ghi nhận nhu cầu, vùng đau mỏi và lực mong muốn; khách chọn KTV hay Home sắp xếp; kiểm tra lịch KTV và giường; đề xuất giờ trống; hỗ trợ đổi/hủy lịch; báo khách đến; bàn giao lưu ý cho KTV. |
+| 4 | Hồ sơ khách hàng – Nguồn khách | Tra cứu và bổ sung tên, điện thoại, địa chỉ; khách lẻ/liệu trình, Việt Nam/nước ngoài; nguồn biết đến Home; tên người giới thiệu; voucher; lịch sử đến; sở thích và phản hồi. Nhắc kiểm tra hồ sơ trùng trước khi tạo mới. |
+| 5 | Thu ngân – Hóa đơn – Liệu trình | Hướng dẫn lập hóa đơn; kiểm tra dịch vụ, ưu đãi, phương thức thanh toán và **tiền đã thu**; theo dõi tiền cọc, tiền còn cần thanh toán của gói mới/tái tục; tra cứu số buổi đã dùng, lịch sử gói và số tiền còn dư của khách đi thẻ. Tra cứu thời gian tạo và lịch sử sửa/xóa hóa đơn. |
+| 6 | Chăm sóc khách hàng – Tái tục – Giới thiệu | Lập danh sách khách cần chăm sóc; soạn tin hỏi thăm sau dịch vụ, nhắc lịch, sinh nhật, gói sắp hết; theo dõi đã liên hệ/chưa liên hệ và phản hồi; hỗ trợ xin đánh giá; ghi nhận khách giới thiệu. **Lễ tân duyệt trước khi gửi tin.** |
+| 7 | Hỗ trợ xử lý tình huống với khách | Gợi ý cách nói khi khách chờ lâu, đến trễ, đổi KTV, không hài lòng, thắc mắc giá hoặc sợ dự thẻ; hỗ trợ dịch cho khách nước ngoài; ghi nhận sự việc và chuyển người phụ trách khi vượt quyền. |
+| 8 | Bàn giao ca – Báo cáo – Báo sự cố | Tổng hợp lịch còn lại, khách đang phục vụ, việc chưa xong, khoản thanh toán cần kiểm tra và khiếu nại đang xử lý; hỗ trợ đối chiếu tiền theo phương thức thanh toán; báo lỗi app, thiết bị hoặc chênh lệch để người phụ trách xử lý. |
+| 9 | Đào tạo – KPI – Phát triển cá nhân | Học nghiệp vụ lễ tân; luyện tình huống tư vấn, thu ngân và chăm sóc khách; làm bài kiểm tra; xem KPI, điểm uy tín và tiến độ cá nhân; nhận góp ý dựa trên công việc đã ghi nhận. |
+| 10 | Yêu cầu cá nhân – Văn hóa – Quyền hạn & Bảo mật | Gửi xin nghỉ/đổi ca, đề xuất hỗ trợ và góp ý; tra cứu quy chuẩn giao tiếp của Home; biết việc nào được tự xử lý, việc nào cần duyệt; quy định xem và sử dụng dữ liệu khách hàng. |
+
 ## Sơ đồ 3 – KHÁCH HÀNG LỄ TÂN
 Cấu trúc hồ sơ và bộ lọc **giống bên KTV** (xem `ktv-mindmaps.md`, sơ đồ 3), nhưng lễ tân có thêm cột **kịch bản mục tiêu → CSKH** và bộ chỉ số CSKH riêng.
 
