@@ -1,7 +1,7 @@
 # app HOME KTV (chép từ Lark)
 
 Nguồn: https://gjpg5za5o267.jp.larksuite.com/wiki/M3o4wtzhCinX8KkXwhHj7fBKpuc
-Tài liệu còn 5 sơ đồ mindmap (whiteboard) chưa chép được vì chỉ là hình.
+Các sơ đồ (whiteboard) của tài liệu này đã được chép sang `ktv-mindmaps.md`.
 
 ## Giao diện KTV: 4 khu vực lớn
 **HÔM NAY | CÔNG VIỆC | HỎI MỘC | CỦA TÔI**
