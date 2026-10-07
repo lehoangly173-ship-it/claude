@@ -60,3 +60,60 @@ Ghi chú: *đối soát với tình trạng ảnh trên Google Map.*
 > - **Ca 1 (8h–18h):** ưu tiên kiểm tra đầu ngày, rà danh sách khách, chuẩn bị quà, kiểm tra vệ sinh và vật tư.
 > - **Ca 2 (10h–20h):** tiếp nhận bàn giao, theo sát trải nghiệm khách trong ngày, kiểm tra việc khắc phục và tổng hợp việc tồn cuối ngày.
 > - **Việc tháng:** chia một người phụ trách chính, một người kiểm tra; có thể luân phiên để cân bằng khối lượng.
+
+## Sơ đồ 2 – LỄ TÂN HỎI ĐÁP MỘC (10 nhóm)
+1. SOP – Quy trình – Nội quy
+2. Công việc hôm nay – Nhắc việc
+3. Đặt lịch – Đón khách – Điều phối KTV
+4. Hồ sơ khách hàng – Nguồn khách
+5. Thu ngân – Hóa đơn – Liệu trình
+6. Chăm sóc khách hàng – Tái tục – Giới thiệu
+7. Xử lý tình huống với khách
+8. Bàn giao ca – Báo cáo – Báo sự cố
+9. Đào tạo – KPI – Phát triển cá nhân
+10. Yêu cầu cá nhân – Văn hóa – Quyền hạn & Bảo mật
+
+## Sơ đồ 3 – KHÁCH HÀNG LỄ TÂN
+Cấu trúc hồ sơ và bộ lọc **giống bên KTV** (xem `ktv-mindmaps.md`, sơ đồ 3), nhưng lễ tân có thêm cột **kịch bản mục tiêu → CSKH** và bộ chỉ số CSKH riêng.
+
+Ghi chú: *KTV và ban ngành khác ẩn SĐT, chỉ có lễ tân được thấy; không ai được xuất file trừ CEO.*
+
+### KHÁCH LẺ VIỆT (nút chọn thời gian, ví dụ 25/9/2026 – 28/11/2026)
+| Bộ lọc | Bước tiếp | Bước cuối |
+|---|---|---|
+| Bộ lọc 1-2-3… lần, số tiền, lọc 1 lần, nguồn khách | Khách 1 lần là khách mới | CSKH |
+| Khách lâu chưa quay lại (bộ lọc thời gian) | Kịch bản mục tiêu | CSKH |
+| Sinh nhật khách lẻ (bộ lọc thời gian tháng) | Kịch bản mục tiêu | CSKH |
+| Khách lẻ có phản hồi chưa hài lòng | Kịch bản mục tiêu | CSKH |
+| Khách lẻ giới thiệu khách → danh sách khách được giới thiệu / 1 KH lẻ | Kịch bản mục tiêu | CCSKH |
+
+### KHÁCH LIỆU TRÌNH VIỆT (có mã) – tìm mã KH
+1. Đã cọc, còn thiếu · 2. Đã hoàn thành · 3. Khách còn 2 buổi cuối · 4. Khách còn buổi cuối cùng · 5. Khách đã hết liệu trình
+- Sinh nhật khách liệu trình (bộ lọc thời gian tháng)
+- Khách liệu trình có phản hồi chưa hài lòng
+- **Bộ lọc thời gian:** khách lâu chưa quay lại của các tệp 1, 2, 3, 4, 5
+
+### KHÁCH LẺ / LIỆU TRÌNH NƯỚC NGOÀI
+Cùng bộ lọc như trên, dẫn tới **Kịch bản mục tiêu** và **Luồng chăm sóc AI**.
+
+### CSKH – BỘ LỌC THỜI GIAN (các chỉ số đo)
+- Liên hệ thành công tin nhắn, báo cáo AI
+- Liên hệ thành công qua gọi điện đúng hạn
+- Khách có phản hồi
+- Khách tới
+- Số tiền thu vào từ nguồn CSKH này
+- Kết quả KH đánh giá trải nghiệm
+- Tỉ lệ xử lí khiếu nại nhờ lễ tân
+- Cập nhật hồ sơ khách hàng cho AI – tỉ lệ cập nhật
+- Tỉ lệ hỏi khách cảm nhận trước khi khách về
+- Tỉ lệ khách hài lòng với lễ tân
+
+### Các danh sách việc cần làm (ô vàng)
+- Danh sách khách cần gọi CSKH
+- Danh sách khách VIP cần CSKH đặc biệt
+- Danh sách khách cần CSKH vì có tiền sử không hài lòng
+- Danh sách khách cần chuẩn bị sinh nhật ngày mai → **Danh sách cần xử lí khiếu nại** → **Danh sách khách cần bổ sung hồ sơ bộ nhớ cho AI**
+- Danh sách cần đặt lịch bây giờ
+
+## Sơ đồ 4 – LỄ TÂN CỦA TÔI
+Mới chỉ có tiêu đề, **nội dung chưa được vẽ**. Khi làm app, phần "Của tôi" của lễ tân tạm dùng cấu trúc 5 nút con của KTV (Hồ sơ · Lịch & Chấm công · Hiệu suất · Đào tạo · Thu nhập & Yêu cầu), bổ sung phần chốt ca và thu ngân.
