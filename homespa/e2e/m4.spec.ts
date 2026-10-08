@@ -40,7 +40,9 @@ test.describe('m4 Khách hàng (SENSITIVE)', () => {
   test('M4-05/08d Hồ sơ 9 trường đúng thứ tự; KTV địa chỉ Ẩn, sinh nhật không năm', async ({ page }) => {
     await openAs(page, 'KTV'); await openMine(page)
     await page.locator('[data-testid=cust-row]').first().click()
-    const txt = await page.locator('[role=dialog], .modal').last().innerText()
+    await page.getByRole('tab', { name: 'Hồ sơ' }).click()
+    const full = await page.locator('[role=dialog], .modal').last().innerText()
+    const txt = full.slice(Math.max(0, full.indexOf('1. Tên'))) // bỏ phần đầu (chip "Nguồn: ..." ở header)
     let last = -1
     for (const f of PROFILE) { const i = txt.indexOf(f); expect(i, f).toBeGreaterThan(last); last = i }
     expect(txt).toMatch(/Địa chỉ[\s\S]{0,20}Ẩn/)
@@ -53,6 +55,7 @@ test.describe('m4 Khách hàng (SENSITIVE)', () => {
     await expectNoPhone(page)
     await openMine(page); await expectNoPhone(page)
     await page.locator('[data-testid=cust-row]').first().click(); await expectNoPhone(page)
+    await page.getByRole('tab', { name: 'Hồ sơ' }).click(); await expectNoPhone(page)
     await page.getByRole('button', { name: 'Đóng' }).click()
     await goTab(page, 'Hôm nay'); await expectNoPhone(page)
     await openHomeItem(page, 'Công việc của kĩ thuật viên'); await expectNoPhone(page)
@@ -89,9 +92,19 @@ test.describe('m4 Khách hàng (SENSITIVE)', () => {
   test('M4-08c KTV: 0 chuỗi tiền ngoài Ngân sách', async ({ page }) => {
     await openAs(page, 'KTV'); await openMine(page)
     await page.locator('[data-testid=cust-row]').first().click()
-    const txt = (await domDump(page)).text
-    const lines = txt.split('\n').filter(l => (l.match(MONEY_RE) ?? []).length && !/Ngân sách/i.test(l))
-    expect(lines).toEqual([])
+    const bad = async () => (await domDump(page)).text.split('\n').filter(l => (l.match(MONEY_RE) ?? []).length && !/Ngân sách/i.test(l))
+    expect(await bad()).toEqual([])
+    await page.getByRole('tab', { name: 'Hồ sơ' }).click()
+    expect(await bad()).toEqual([])
+  })
+
+  test('M4-05b KTV vẫn thấy 3 tab cũ, không số tiền', async ({ page }) => {
+    await openAs(page, 'KTV'); await openMine(page)
+    await page.locator('[data-testid=cust-row]').first().click()
+    for (const n of ['Thông tin', 'Gói liệu trình', 'Chăm sóc & phản hồi']) await expect(page.getByRole('tab', { name: n })).toBeVisible()
+    await expect(page.getByRole('tab', { name: 'Hồ sơ' })).toBeVisible()
+    const t = (await page.locator('[role=dialog], .modal').last().innerText())
+    expect(t.split('\n').filter(l => (l.match(MONEY_RE) ?? []).length && !/Ngân sách/i.test(l))).toEqual([])
   })
 
   test('M4-07 Nút xuất: KTV không có, CEO có', async ({ page }) => {
