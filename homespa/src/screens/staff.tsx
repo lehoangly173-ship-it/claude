@@ -73,7 +73,7 @@ export function KtvHome({ sub }: { sub: string[] }) {
     <button className="node gold" onClick={() => go('home/work')}><span className="body"><span className="t" style={{ display: 'block' }}>Việc cần chú ý</span><span className="d" style={{ display: 'block' }}>{c.tasksOpen} nhiệm vụ · {c.zonesTodo.length} khu dọn chưa xong · {c.prodTodo} sản phẩm chờ xác nhận{s.bills.some(b => b.staffId === me.id) ? '' : ' · chưa tải ảnh bill'}</span></span><span className="badge">{attention}</span></button>
     <Nodes items={[
       { t: 'Ca, đổi ca & thứ tự tour', d: 'Lịch 4 tuần · ca của tôi · số tour', onClick: () => go('home/shift') },
-      { t: 'Nhiệm vụ dọn dẹp', d: myZones(s, me.id).length ? `${T.menu.cleaningDescPrefix} · khu vực của bạn là số ${myZones(s, me.id).join(', ')} · ảnh mẫu · checklist · điểm` : `${T.menu.cleaningDescPrefix} · khu vực · ảnh mẫu · checklist · điểm`, badge: c.zonesTodo.length, onClick: () => go('home/cleaning') },
+      { t: 'Nhiệm vụ dọn dẹp', d: myZones(s, me.id).length ? `Khu vực của bạn là số ${myZones(s, me.id).join(', ')} · ảnh mẫu · checklist · điểm` : `Khu vực · ảnh mẫu · checklist · điểm`, badge: c.zonesTodo.length, onClick: () => go('home/cleaning') },
       { t: 'Bảng điều phối / lịch hẹn', d: 'Khách và tour được giao cho tôi', onClick: () => go('home/board') },
       { t: T.menu.work, d: T.menu.workDesc, badge: c.tasksOpen, onClick: () => go('home/work') },
       { t: 'Thông báo quan trọng', d: 'Cập nhật · đào tạo · yêu cầu khách', badge: c.unread, onClick: () => go('home/notices') },

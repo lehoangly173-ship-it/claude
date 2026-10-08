@@ -5,7 +5,6 @@ export const T = {
     workDesc: 'Việc tiếp theo · dọn giường · việc được giao · tour',
     idea: 'Sáng kiến phát triển Home Spa',
     ideaDesc: 'khách hàng · cơ sở vật chất · tay nghề · tinh thần tập thể',
-    cleaningDescPrefix: 'Dọn dẹp',
   },
   idea: {
     unwired: 'Chưa nối',
@@ -28,6 +27,11 @@ export const T = {
     stdButton: 'Tiêu chuẩn mẫu',
     stdTitle: 'Tiêu chuẩn mẫu',
     stdFile: 'Tệp tài liệu: Chưa nối',
+    notReported: 'Chưa báo',
+    reportedAt: 'báo',
+    pointsUnit: 'điểm',
+    reason: 'lý do',
+    zoneNo: 'khu số',
     readTask: 'Tôi đã đọc nhiệm vụ',
   },
   product: {

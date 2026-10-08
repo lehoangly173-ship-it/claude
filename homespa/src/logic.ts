@@ -241,7 +241,7 @@ export function ktvCustomers(s: State, me: { id: string; name: string }) {
 }
 export const PHONE_RE = /(\+?84|0)\d{9}/
 /** Nội dung có dạng SĐT (bỏ khoảng trắng, chấm, gạch) */
-export const looksLikePhone = (t: string) => PHONE_RE.test(t.replace(/[\s.\-]/g, ''))
+export const looksLikePhone = (t: string) => PHONE_RE.test(t.replace(/[^\d+]/g, ''))
 const fold = (x: string) => x.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').toLowerCase()
 /** Gợi ý khách theo mã/tên trong tập của KTV; KHÔNG tìm theo SĐT, nhập SĐT → không gợi ý */
 export function buyerSuggestions(s: State, me: { id: string; name: string }, q: string) {

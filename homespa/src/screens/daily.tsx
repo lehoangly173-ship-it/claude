@@ -57,11 +57,11 @@ export function CleaningPage({ back }: P) {
   const zoneRow = (z: D.Zone) => { const r = zoneReport(s, z.no); const own = s.zoneOwner[z.no] === me.id; const locked = z.after != null && s.now < z.after
     return <button key={z.no} className="item" onClick={() => (boss && r?.status === 'Chờ kiểm tra' ? setCheck(r) : setOpen(z.no))} style={{ background: own ? 'var(--mint)' : undefined }}>
       <span className="av" style={{ borderRadius: 10 }}>{z.no}</span>
-      <div className="body"><div className="t">{z.name}{own && ' · của tôi'}</div><div className="d">{D.staffName(s.zoneOwner[z.no])}{z.after ? ` · sau ${D.hhmm(z.after)}` : ''}{r ? ` · báo ${D.hhmm(r.at)}` : ''}{r?.note ? ` · ${r.note}` : ''}</div></div>
+      <div className="body"><div className="t">{z.name}{own && ' · của tôi'}</div><div className="d">{D.staffName(s.zoneOwner[z.no])}{z.after ? ` · sau ${D.hhmm(z.after)}` : ''}{r ? ` · ${T.clean.reportedAt} ${D.hhmm(r.at)}` : ''}{r?.note ? ` · ${r.note}` : ''}</div></div>
       {r ? <Pill tone={r.status === 'Đạt' ? 'green' : r.status === 'Chưa đạt' ? 'red' : 'yellow'}>{r.status}{r.status === 'Đạt' ? ` +${r.points}` : ''}</Pill> : <Pill tone={locked ? 'grey' : 'brown'}>{locked ? 'Chưa đến giờ' : 'Chưa báo'}</Pill>}</button> }
   return <>
     <SubHead title="Nhiệm vụ dọn dẹp" sub={mine.length ? <>Khu vực của bạn là <b>số {mine.join(', ')}</b> — bấm vào khu để xem tiêu chuẩn, tải ảnh và gửi kiểm tra.</> : 'Bảng tổng quan dọn dẹp KTV – lễ tân'} onBack={back} />
-    <Tiles items={[...(boss ? [] : [{ v: cd.zones.length, l: T.clean.myZones, s: cd.zones.length ? `khu số ${cd.zones.join(', ')}` : undefined, color: 'deep' as const, onClick: () => setDetail('zones') }, { v: cd.points, l: T.clean.todayPoints, color: 'deep' as const, onClick: () => setDetail('points') }]), { v: cd.pending.length, l: T.clean.pending, color: 'deep' as const, onClick: () => setDetail('pending') }, { v: cd.redo.length, l: T.clean.redo, color: 'deep' as const, onClick: () => setDetail('redo') }]} />
+    <Tiles items={[...(boss ? [] : [{ v: cd.zones.length, l: T.clean.myZones, s: cd.zones.length ? `${T.clean.zoneNo} ${cd.zones.join(', ')}` : undefined, color: 'deep' as const, onClick: () => setDetail('zones') }, { v: cd.points, l: T.clean.todayPoints, color: 'deep' as const, onClick: () => setDetail('points') }]), { v: cd.pending.length, l: T.clean.pending, color: 'deep' as const, onClick: () => setDetail('pending') }, { v: cd.redo.length, l: T.clean.redo, color: 'deep' as const, onClick: () => setDetail('redo') }]} />
     {boss && pending.length > 0 && <Block title="Chờ kiểm tra ảnh" sub="Xem ảnh → Đạt (+điểm) hoặc Chưa đạt (ghi lý do để làm lại)">
       <div className="card list">{pending.map(r => <button key={r.id} className="item" onClick={() => setCheck(r)}><Thumb src={r.photo} /><div className="body"><div className="t">Khu {r.zone} · {D.ZONES[r.zone - 1].name}</div><div className="d">{D.staffName(r.staffId)} · {D.hhmm(r.at)}</div></div><span className="btn sm pri">Kiểm tra</span></button>)}</div></Block>}
     <Block color="mint" title={T.clean.morning}><div className="card list">{D.ZONES.filter(z => z.shift === 1).map(zoneRow)}</div></Block>
@@ -91,15 +91,15 @@ function CleanDetailModal({ kind, onClose, onOpenZone }: { kind: 'zones' | 'poin
   const title = { zones: T.clean.myZones, points: T.clean.todayPoints, pending: T.clean.pending, redo: T.clean.redo }[kind]
   const stat = (r: D.CleanReport) => `${r.status}${r.status === 'Đạt' ? ` +${r.points}` : ''}`
   const rep = (r: D.CleanReport, extra?: string) => <div key={r.id} className="detail-row" data-testid="detail-row"><span className="av" style={{ borderRadius: 10 }}>{r.zone}</span>
-    <div className="body"><div className="t">Khu {r.zone} · {D.ZONES[r.zone - 1].name}</div><div className="d">{D.staffName(r.staffId)} · báo {D.hhmm(r.at)}{extra}</div></div><Pill tone={r.status === 'Đạt' ? 'green' : r.status === 'Chưa đạt' ? 'red' : 'yellow'}>{stat(r)}</Pill></div>
+    <div className="body"><div className="t">Khu {r.zone} · {D.ZONES[r.zone - 1].name}</div><div className="d">{D.staffName(r.staffId)} · {T.clean.reportedAt} {D.hhmm(r.at)}{extra}</div></div><Pill tone={r.status === 'Đạt' ? 'green' : r.status === 'Chưa đạt' ? 'red' : 'yellow'}>{stat(r)}</Pill></div>
   return <><Modal title={title} onClose={onClose}>
     {kind === 'zones' && (d.zones.length ? d.zones.map(n => { const z = D.ZONES[n - 1], r = zoneReport(s, n)
       return <div key={n} className="detail-row" data-testid="detail-row"><span className="av" style={{ borderRadius: 10 }}>{n}</span>
-        <div className="body"><div className="t">{z.name}</div><div className="d">{r ? `${r.status} · báo ${D.hhmm(r.at)}` : 'Chưa báo'}</div></div>
+        <div className="body"><div className="t">{z.name}</div><div className="d">{r ? `${r.status} · ${T.clean.reportedAt} ${D.hhmm(r.at)}` : T.clean.notReported}</div></div>
         <button className="btn sm" onClick={() => setStd(n)}>{T.clean.stdButton}</button><button className="btn sm pri" onClick={() => onOpenZone(n)}>{T.clean.openZone}</button></div> }) : <Empty>{T.clean.emptyZones}</Empty>)}
-    {kind === 'points' && (d.mine.length ? <>{d.mine.map(r => rep(r, ` · ${r.points ?? 0} điểm`))}<div className="small strong">{T.clean.total}: {d.points}</div></> : <Empty>{T.clean.emptyPoints}</Empty>)}
+    {kind === 'points' && (d.mine.length ? <>{d.mine.map(r => rep(r, ` · ${r.points ?? 0} ${T.clean.pointsUnit}`))}<div className="small strong">{T.clean.total}: {d.points}</div></> : <Empty>{T.clean.emptyPoints}</Empty>)}
     {kind === 'pending' && (d.pending.length ? d.pending.map(r => rep(r)) : <Empty>{T.clean.emptyPending}</Empty>)}
-    {kind === 'redo' && (d.redo.length ? d.redo.map(r => rep(r, r.note ? ` · lý do: ${r.note}` : '')) : <Empty>{T.clean.emptyRedo}</Empty>)}
+    {kind === 'redo' && (d.redo.length ? d.redo.map(r => rep(r, r.note ? ` · ${T.clean.reason}: ${r.note}` : '')) : <Empty>{T.clean.emptyRedo}</Empty>)}
   </Modal>{std != null && <StdModal zone={std} onClose={() => setStd(null)} />}</>
 }
 function ZoneModal({ zone, onClose }: { zone: number; onClose: () => void }) {
@@ -165,9 +165,9 @@ export function NoticesPage({ back }: P) {
   return <>
     <SubHead title="Thông báo quan trọng" sub="Cập nhật mới · đào tạo · lịch yêu cầu khách · điểm số chung" onBack={back} right={<button className="btn deep" onClick={markAllRead}>Đã đọc hết</button>} />
     <Block color="deep" title="Ghim từ Home"><div className="card list">{D.ANNOUNCEMENTS.map(a => <div key={a.id} className="item"><Pill tone="green">{a.tag}</Pill><div className="body"><div className="t">{a.title}</div><div className="d">{a.by}</div></div></div>)}</div></Block>
-    <Block color="deep" title="Vừa xảy ra"><div className="card list">{list.map(n => { const read = n.readBy.includes(me.id); return <div key={n.id} className="item">{!read && <span className="sev cao" />}
-      <button className="body nbtn" onClick={() => { markRead(n.id); if (n.nav) go(n.nav) }}><div className="t" style={{ fontWeight: read ? 500 : 700 }}>{n.text}</div><div className="d">{n.cat} · {D.hhmm(n.min)} · {n.detail}</div></button>
-      <button className="btn sm" onClick={() => (read ? markUnread(n.id) : markRead(n.id))}>{read ? T.notice.markUnread : T.notice.markRead}</button><Icon n="arrow" /></div> })}{!list.length && <Empty>Chưa có thông báo</Empty>}</div></Block>
+    <Block color="deep" title="Vừa xảy ra"><div className="card list">{list.map(n => { const read = n.readBy.includes(me.id); return <div key={n.id} className="item" style={{ cursor: 'pointer' }} onClick={() => { markRead(n.id); if (n.nav) go(n.nav) }}>{!read && <span className="sev cao" />}
+      <div className="body"><div className="t" style={{ fontWeight: read ? 500 : 700 }}>{n.text}</div><div className="d">{n.cat} · {D.hhmm(n.min)} · {n.detail}</div></div>
+      <button className="btn sm" onClick={e => { e.stopPropagation(); (read ? markUnread(n.id) : markRead(n.id)) }}>{read ? T.notice.markUnread : T.notice.markRead}</button><Icon n="arrow" /></div> })}{!list.length && <Empty>Chưa có thông báo</Empty>}</div></Block>
   </>
 }
 
@@ -264,7 +264,7 @@ export function ProductsPage({ back }: P) {
         </>}
       </div>}
       {err && <div className="err small" role="alert">{err}</div>}
-      <button className="btn pri" disabled={isRec && !photo} onClick={save}>{isRec ? 'Ghi nhận & xác nhận phía lễ tân' : T.product.save}</button>
+      <button className="btn pri" disabled={!photo} onClick={save}>{isRec ? 'Ghi nhận & xác nhận phía lễ tân' : 'Ghi nhận & xác nhận phía KTV'}</button>
     </Block>}
     <Block title="Sổ đối chiếu"><div className="card list">{list.map(p => <div key={p.id} className="item"><Thumb src={p.photo} /><div className="body"><div className="t">{p.product} × {p.qty} · KTV {D.staffName(p.ktvId)}</div><div className="d">Lễ tân {p.recId ? D.staffName(p.recId) : 'chưa nhận'} · {D.hhmm(p.at)}</div>
       {p.purpose && <div className="d">{p.purpose === 'ban_khach' ? (canSeeBuyer(user.role, me.id, p) && p.buyerNote ? `${T.product.sellShort} · ${T.product.buyer}: ${p.buyerNote}` : T.product.sellShort) : T.product.facilityShort}</div>}</div>

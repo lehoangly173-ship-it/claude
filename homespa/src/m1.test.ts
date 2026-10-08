@@ -31,7 +31,7 @@ describe('U-M1-09 markRead / markUnread (theo từng người)', () => {
 
 describe('Ô "Bán cho ai" (C4, M1-11a)', () => {
   it('nhận ra SĐT kể cả có khoảng trắng/chấm/gạch', () => {
-    for (const v of ['0900 000 001', '0900000001', '0901234567', '0901.234.567', '+84 901 234 567', '090-123-4567']) expect(looksLikePhone(v), v).toBe(true)
+    for (const v of ['0900 000 001', '0900000001', '0901234567', '0901.234.567', '+84 901 234 567', '090-123-4567', '0900,000,001', '(0900)000001']) expect(looksLikePhone(v), v).toBe(true)
     for (const v of ['Lan', '125', 'KH 125', 'Nguyễn Thị Lan']) expect(looksLikePhone(v), v).toBe(false)
   })
   const s = { customers: D.SEED_CUSTOMERS, appts: D.SEED_APPTS } as unknown as State

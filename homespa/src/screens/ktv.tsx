@@ -22,7 +22,7 @@ export function MyWorkScreen() {
   const [result, setResult] = useState('')
   const counts = { all: mine.filter(a => a.status !== 'no_show').length, done: mine.filter(a => a.status === 'done' || a.status === 'paid').length, active: mine.filter(a => a.status === 'in_service').length }
   return <>
-    <PageHeader eyebrow={`${T.menu.work} · KTV ${me.name} · ${me.shift ? D.SHIFTS[me.shift].label : ''}`} title="Công việc của tôi" sub={<>Trạng thái: <Pill tone={st.tone} dot>{st.label}{st.until ? ` · ${D.hhmm(st.until)}` : ''}</Pill></>}
+    <PageHeader eyebrow={`KTV ${me.name} · ${me.shift ? D.SHIFTS[me.shift].label : ''}`} title="Công việc của tôi" sub={<>Trạng thái: <Pill tone={st.tone} dot>{st.label}{st.until ? ` · ${D.hhmm(st.until)}` : ''}</Pill></>}
       right={<button className="btn" onClick={() => setReport(true)}>⚠ Báo sự cố sớm</button>} />
     <div className="split">
       <div className="col" style={{ gap: 18 }}>
