@@ -3,9 +3,8 @@
 Mở Claude Code (claude.ai/code), chọn repo **lehoangly173-ship-it/claude**, rồi dán:
 
 ---
-Mình là Ly. Đây là dự án app nhân sự HOME SPA Flow của mình, code ở repo lehoangly173-ship-it/claude, thư mục homespa/.
-Làm theo file CLAUDE.md ở thư mục gốc repo: lấy bản mới nhất từ GitHub, đọc homespa/HANDOFF.md, rồi tóm tắt cho mình 3 dòng app đang ở bản nào và việc nên làm tiếp.
-Trả lời tiếng Việt, ngắn gọn.
+Mình là Ly. Đây là dự án app nhân sự HOME SPA Flow, repo lehoangly173-ship-it/claude, thư mục homespa/.
+Làm theo CLAUDE.md ở gốc repo. Gõ `/doi-agent trạng thái` rồi báo mình 3 dòng: app đang ở bản nào, việc nên làm tiếp.
 Việc mình muốn làm hôm nay: [ghi việc ở đây]
 ---
 

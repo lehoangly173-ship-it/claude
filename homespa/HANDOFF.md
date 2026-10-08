@@ -20,7 +20,7 @@ Quay lại bản cũ: deploy file `homespa/dist/index.html` của nhánh bản �
 ## Hai tài khoản Claude cùng làm (từ 08/10)
 - Claude lehoangly173@gmail.com ↔ GitHub `lehoangly173-ship-it` (chủ repo).
 - Claude levanly1703@gmail.com ↔ GitHub `levanly1703-cell` (cộng tác, quyền ghi).
-- Quy tắc: không làm 2 tài khoản cùng lúc; đầu phiên `git pull`, cuối phiên đẩy lên main + cập nhật HANDOFF.
+- Quy tắc: không làm 2 tài khoản cùng lúc; đầu phiên `git pull origin develop`, cuối phiên đẩy lên `develop` (không đẩy `main`; Ly duyệt bằng Merge pull request) + cập nhật HANDOFF.
 
 ## Deploy Expo (cách đã chạy 08/10, qua Expo connector)
 sandbox_create(@hayquen/homespa) → `git clone --depth 1 https://github.com/lehoangly173-ship-it/claude.git repo` → copy `homespa/dist/index.html` vào `~/site/dist/` → app.json `{"expo":{"name":"homespa","slug":"homespa","owner":"hayquen","extra":{"eas":{"projectId":"16f65a26-63a8-4b23-8d5f-3e610e2aa3cc"}}}}` + package.json → `npx eas-cli deploy --export-dir dist --alias flow --non-interactive` → sandbox_stop.
@@ -37,7 +37,7 @@ npm run dev            # chạy thử
 npx tsc -p . --noEmit  # kiểm tra kiểu
 npx vite build         # ra dist/index.html (1 file duy nhất, vite-plugin-singlefile)
 ```
-Deploy Expo: tạo sandbox EAS, clone repo, copy `homespa/dist/index.html` vào `site/dist/`, `app.json` có projectId trên, chạy `eas deploy --export-dir dist --alias flow`.
+Deploy Expo: xem mục "Deploy Expo" ở trên.
 
 ## Cấu trúc code (`homespa/src`)
 | File | Vai trò |
