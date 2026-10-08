@@ -2,8 +2,8 @@
 
 lane: M
 request: fix lan 1 KTV (5 dot) - homespa/docs/ktv-fix-lan-1.md
-step: plan
-IN-PROGRESS: doi-planner/overview
+step: gate1
+IN-PROGRESS: -
 branch: -
 base: develop
 last_gate_approved: -
@@ -12,9 +12,14 @@ last_version: -     # ban-N branch (no tags)
 ## Modules (from spec/00-overview.md)
 | # | module | sensitive | status | fix_rounds |
 |---|--------|-----------|--------|-----------|
+| 1 | m1-mau-nut-nho | no | spec | 0 |
+| 2 | m2-don-dep | no | spec | 0 |
+| 3 | m3-gop-y | no | spec | 0 |
+| 4 | m4-khach-hang | YES | spec | 0 |
+| 5 | m5-cua-toi | no | spec | 0 |
 
 ## Open questions for Ly
 -
 
 ## Next action
--
+Gate 1: Ly duyet docs/team/summary.md -> security SPEC (m4) -> qa Phase A (test-plan.md tu spec/test-plan-draft.md) -> module loop 1..5
