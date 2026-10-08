@@ -84,6 +84,8 @@ export type Customer = {
   source: string; firstVisit: string; visits: number; lastVisitDays: number; totalPaid: number
   vip?: boolean; health?: string; preference?: string; packages: Package[]; care: CareEntry[]
   address?: string; budget?: number; referredBy?: string; qrCare?: boolean
+  /** m4 (số liệu mẫu): có phản hồi chưa hài lòng · khách NN đã rời Đà Nẵng · tiến triển từng lần */
+  unhappy?: boolean; departed?: boolean; progress?: string[]
 }
 
 // ── Lịch phục vụ: vòng đời 1 lượt khách ──
@@ -166,29 +168,48 @@ const pkg = (p: Partial<Package> & Pick<Package, 'cardCode' | 'catalogId'>): Pac
 }
 
 export const SEED_CUSTOMERS: Customer[] = [
-  { id: 'c125', code: '125', name: 'Nguyễn Thị Lan', phone: '0901 234 567', group: 'VN', dob: '14/03/1988', source: 'Google Maps', firstVisit: daysAgo(160), visits: 8, lastVisitDays: 22, totalPaid: 5250000, vip: true, health: 'Cổ vai gáy căng, mất ngủ nhẹ', preference: 'Thích KTV Mai, lực vừa, trà gừng',
+  { id: 'c125', code: '125', name: 'Nguyễn Thị Lan', phone: '0900 000 001', group: 'VN', dob: '14/03/1988', address: 'Số liệu mẫu — 12 đường Mẫu A, Hải Châu', budget: 3500000, qrCare: true, progress: ['Lần 1: cổ vai gáy căng, khó ngủ', 'Lần 5: cổ vai bớt căng', 'Lần 9: ngủ tốt hơn'], source: 'Google Maps', firstVisit: daysAgo(160), visits: 8, lastVisitDays: 22, totalPaid: 5250000, vip: true, health: 'Cổ vai gáy căng, mất ngủ nhẹ', preference: 'Thích KTV Mai, lực vừa, trà gừng',
     packages: [pkg({ cardCode: 'LT-0231', catalogId: 'p10', used: 9, closer: 'Lam', payments: [{ at: daysAgo(118), amount: 3500000, method: 'Chuyển khoản', by: 'Lam', invoice: 'HD000121', kind: 'Thanh toán đủ' }] })],
     care: [{ at: daysAgo(30), by: 'Lam', text: 'Gọi nhắc lịch, khách hẹn tuần sau' }, { at: daysAgo(22), by: 'Mai', text: 'Sau buổi 9: cổ vai giảm rõ, ngủ tốt hơn' }] },
-  { id: 'c628', code: '628', name: 'Trần Thị Hà', phone: '0912 345 678', group: 'VN', source: 'Người giới thiệu', firstVisit: daysAgo(280), visits: 12, lastVisitDays: 9, totalPaid: 5700000, vip: true, health: 'Da đầu nhạy cảm',
+  { id: 'c628', code: '628', name: 'Trần Thị Hà', phone: '0900 000 002', group: 'VN', source: 'Người giới thiệu', firstVisit: daysAgo(280), visits: 12, lastVisitDays: 9, totalPaid: 5700000, vip: true, health: 'Da đầu nhạy cảm',
     packages: [pkg({ cardCode: 'LT-0180', catalogId: 'pm', valueUsed: 3100000, closer: 'Thảo', expiry: daysAhead(25), payments: [{ at: daysAgo(270), amount: 5000000, method: 'Tiền mặt', by: 'Thảo', invoice: 'HD000098', kind: 'Thanh toán đủ' }] })],
     care: [{ at: daysAgo(9), by: 'Vân', text: 'Khách hỏi gói gội 15 buổi' }] },
-  { id: 'c412', code: '412', name: 'Vũ Thị Kim', phone: '0933 777 888', group: 'VN', source: 'Facebook', firstVisit: daysAgo(40), visits: 3, lastVisitDays: 6, totalPaid: 1800000,
+  { id: 'c412', code: '412', name: 'Vũ Thị Kim', phone: '0900 000 003', group: 'VN', source: 'Facebook', firstVisit: daysAgo(40), visits: 3, lastVisitDays: 6, totalPaid: 1800000,
     packages: [pkg({ cardCode: 'LT-0210', catalogId: 'p10', used: 2, closer: 'Lam', payments: [{ at: daysAgo(40), amount: 1800000, method: 'Chuyển khoản', by: 'Lam', invoice: 'HD000140', kind: 'Cọc' }] })],
     care: [{ at: daysAgo(40), by: 'Lam', text: 'Cọc gói 10 buổi, hẹn đóng nốt trong tháng' }] },
-  { id: 'c305', code: '305', name: 'Lê Thị Mộng', phone: '0909 333 444', group: 'VN', source: 'TikTok', firstVisit: daysAgo(200), visits: 15, lastVisitDays: 63, totalPaid: 7400000, vip: true, health: 'Đau lưng dưới',
+  { id: 'c305', code: '305', name: 'Lê Thị Mộng', phone: '0900 000 004', group: 'VN', source: 'TikTok', firstVisit: daysAgo(200), visits: 15, lastVisitDays: 63, totalPaid: 7400000, vip: true, health: 'Đau lưng dưới',
     packages: [pkg({ cardCode: 'LT-0198', catalogId: 'p20', used: 23, closer: 'Thảo', payments: [{ at: daysAgo(200), amount: 7000000, method: 'Thẻ ngân hàng', by: 'Thảo', invoice: 'HD000077', kind: 'Thanh toán đủ' }] })],
     care: [{ at: daysAgo(63), by: 'Bảo', text: 'Hết buổi gói 20; khách phàn nàn chờ lâu cuối tuần' }] },
-  { id: 'c077', code: '77', name: 'Phạm Văn Tùng', phone: '0977 111 000', group: 'VN', source: 'Đi ngang', firstVisit: daysAgo(400), visits: 20, lastVisitDays: 48, totalPaid: 4500000,
+  { id: 'c077', code: '77', name: 'Phạm Văn Tùng', phone: '0900 000 005', group: 'VN', source: 'Đi ngang', firstVisit: daysAgo(400), visits: 20, lastVisitDays: 48, totalPaid: 4500000,
     packages: [pkg({ cardCode: 'LT-0077', catalogId: 'p15', used: 9, closer: 'Vân', payments: [{ at: daysAgo(300), amount: 4500000, method: 'Tiền mặt', by: 'Vân', invoice: 'Số dư đầu kỳ', kind: 'Thanh toán đủ' }] })], care: [] },
   { id: 'kl101', code: 'KL0101', name: 'Anna Schmidt', phone: '', group: 'NN', source: 'Google Maps', firstVisit: dateShort(), visits: 1, lastVisitDays: 0, totalPaid: 0, packages: [], care: [], preference: 'Khách nước ngoài, ưu tiên lực vừa' },
-  { id: 'kl042', code: 'KL0042', name: 'Trần Văn Minh', phone: '0918 222 333', group: 'VN', source: 'Facebook', firstVisit: daysAgo(70), visits: 2, lastVisitDays: 0, totalPaid: 600000, packages: [], care: [] },
-  { id: 'kl055', code: 'KL0055', name: 'Đỗ Thu Hoa', phone: '0939 555 666', group: 'VN', source: 'Zalo', firstVisit: daysAgo(15), visits: 2, lastVisitDays: 0, totalPaid: 570000, packages: [], care: [] },
-  { id: 'kl060', code: 'KL0060', name: 'Hoàng Minh Đức', phone: '0905 888 999', group: 'VN', source: 'Google Maps', firstVisit: dateShort(), visits: 0, lastVisitDays: 0, totalPaid: 0, packages: [], care: [] },
-  { id: 'kl061', code: 'KL0061', name: 'Ngô Bích Ngọc', phone: '0906 121 212', group: 'VN', source: 'Người giới thiệu', firstVisit: daysAgo(120), visits: 4, lastVisitDays: 0, totalPaid: 1400000, packages: [], care: [] },
+  { id: 'kl042', code: 'KL0042', name: 'Trần Văn Minh', phone: '0900 000 006', group: 'VN', budget: 600000, source: 'Facebook', firstVisit: daysAgo(70), visits: 2, lastVisitDays: 0, totalPaid: 600000, packages: [], care: [] },
+  { id: 'kl055', code: 'KL0055', name: 'Đỗ Thu Hoa', phone: '0900 000 007', group: 'VN', source: 'Zalo', firstVisit: daysAgo(15), visits: 2, lastVisitDays: 0, totalPaid: 570000, packages: [], care: [] },
+  { id: 'kl060', code: 'KL0060', name: 'Hoàng Minh Đức', phone: '0900 000 008', group: 'VN', source: 'Google Maps', firstVisit: dateShort(), visits: 0, lastVisitDays: 0, totalPaid: 0, packages: [], care: [] },
+  { id: 'kl061', code: 'KL0061', name: 'Ngô Bích Ngọc', phone: '0900 000 009', group: 'VN', budget: 800000, dob: '09/02/1991', address: 'Số liệu mẫu — 8 đường Mẫu B, Sơn Trà', qrCare: false, source: 'Người giới thiệu', firstVisit: daysAgo(120), visits: 4, lastVisitDays: 0, totalPaid: 1400000, packages: [], care: [] },
   { id: 'kl062', code: 'KL0062', name: 'David Lee', phone: '', group: 'NN', source: 'Website', firstVisit: dateShort(), visits: 0, lastVisitDays: 0, totalPaid: 0, packages: [], care: [] },
-  { id: 'kl064', code: 'KL0064', name: 'Châu Mỹ Linh', phone: '0908 565 656', group: 'VN', source: 'Instagram', firstVisit: daysAgo(30), visits: 1, lastVisitDays: 30, totalPaid: 320000, packages: [], care: [] },
-  { id: 'kl065', code: 'KL0065', name: 'Trịnh Gia Bảo', phone: '0909 676 767', group: 'VN', source: 'Đi ngang', firstVisit: dateShort(), visits: 0, lastVisitDays: 0, totalPaid: 0, packages: [], care: [] },
-  { id: 'kl063', code: 'KL0063', name: 'Bùi Thanh Tâm', phone: '0907 343 434', group: 'VN', source: 'Facebook', firstVisit: daysAgo(55), visits: 3, lastVisitDays: 41, totalPaid: 1050000, packages: [], care: [] },
+  { id: 'kl064', code: 'KL0064', name: 'Châu Mỹ Linh', phone: '0900 000 010', group: 'VN', source: 'Instagram', firstVisit: daysAgo(30), visits: 1, lastVisitDays: 30, totalPaid: 320000, packages: [], care: [] },
+  { id: 'kl065', code: 'KL0065', name: 'Trịnh Gia Bảo', phone: '0900 000 011', group: 'VN', source: 'Đi ngang', firstVisit: dateShort(), visits: 0, lastVisitDays: 0, totalPaid: 0, packages: [], care: [] },
+  { id: 'kl063', code: 'KL0063', name: 'Bùi Thanh Tâm', phone: '0900 000 012', group: 'VN', source: 'Facebook', firstVisit: daysAgo(55), visits: 3, lastVisitDays: 41, totalPaid: 1050000, packages: [], care: [] },
+  // m4 — khách mẫu cho mục Khách hàng của KTV (số liệu mẫu, SĐT giả 0900 000 0xx)
+  { id: 'm4a', code: 'KL0201', name: 'Phan Thu Trang', phone: '0900 000 013', group: 'VN', dob: '05/01/1992', source: 'Facebook', firstVisit: daysAgo(95), visits: 1, lastVisitDays: 95, totalPaid: 350000, budget: 500000, referredBy: 'kl061', unhappy: true, packages: [], care: [{ at: daysAgo(95), by: 'Mai', text: 'Buổi đầu: lưng mỏi, khách thấy lực hơi mạnh' }] },
+  { id: 'm4b', code: 'KL0202', name: 'Lý Minh Khoa', phone: '0900 000 014', group: 'VN', dob: '20/11/1985', source: 'Zalo', firstVisit: daysAgo(60), visits: 3, lastVisitDays: 35, totalPaid: 1050000, budget: 800000, referredBy: 'kl061', packages: [], care: [{ at: daysAgo(35), by: 'Mai', text: 'Lần 3: vai gáy nhẹ hơn' }] },
+  { id: 'm4c', code: 'KL0203', name: 'Đặng Thùy Dung', phone: '0900 000 015', group: 'VN', dob: '17/06/1990', source: 'Google Maps', firstVisit: daysAgo(150), visits: 2, lastVisitDays: 64, totalPaid: 700000, budget: 800000, qrCare: true, packages: [], care: [{ at: daysAgo(64), by: 'Mai', text: 'Lần 2: hết tê tay' }] },
+  { id: 'm4d', code: 'KL0204', name: 'Emma Wilson', phone: '', group: 'NN', dob: '02/07/1990', source: 'Website', firstVisit: daysAgo(12), visits: 1, lastVisitDays: 12, totalPaid: 500000, budget: 1200000, departed: true, packages: [], care: [{ at: daysAgo(12), by: 'Mai', text: 'Khách du lịch, thích lực vừa' }] },
+  { id: 'm4e', code: 'KL0205', name: 'Kenji Tanaka', phone: '', group: 'NN', source: 'Google Maps', firstVisit: daysAgo(10), visits: 2, lastVisitDays: 3, totalPaid: 700000, unhappy: true, packages: [], care: [{ at: daysAgo(3), by: 'Mai', text: 'Lần 2: muốn phòng yên tĩnh hơn' }] },
+  { id: 'm4f', code: '506', name: 'Hồ Ngọc Hân', phone: '0900 000 016', group: 'VN', dob: '28/09/1987', address: 'Số liệu mẫu — 30 đường Mẫu C, Thanh Khê', source: 'TikTok', firstVisit: daysAgo(20), visits: 3, lastVisitDays: 2, totalPaid: 1500000, budget: 3000000, qrCare: false, progress: ['Lần 1: vai gáy căng, ngủ kém', 'Lần 2: vai gáy bớt căng', 'Lần 3: ngủ sâu hơn'],
+    packages: [pkg({ cardCode: 'LT-0240', catalogId: 'p10', used: 3, closer: 'Mai', closerIds: ['mai'], buyDate: daysAgo(20), payments: [{ at: daysAgo(20), amount: 1500000, method: 'Chuyển khoản', by: 'Lam', invoice: 'HD000160', kind: 'Cọc' }] })],
+    care: [{ at: daysAgo(2), by: 'Mai', text: 'Lần 3: ngủ sâu hơn, hẹn tuần sau' }] },
+  { id: 'm4g', code: '507', name: 'Tôn Nữ Mai Anh', phone: '0900 000 017', group: 'VN', dob: '11/04/1983', source: 'Người giới thiệu', firstVisit: daysAgo(210), visits: 19, lastVisitDays: 40, totalPaid: 7000000, budget: 3500000,
+    packages: [pkg({ cardCode: 'LT-0244', catalogId: 'p10', used: 9, closer: 'Mai', closerIds: ['mai'], renewalOf: 'LT-0150', buyDate: daysAgo(70), payments: [{ at: daysAgo(70), amount: 3500000, method: 'Tiền mặt', by: 'Lam', invoice: 'HD000131', kind: 'Thanh toán đủ' }] })],
+    care: [{ at: daysAgo(40), by: 'Mai', text: 'Tái tục gói 10 buổi' }] },
+  { id: 'm4h', code: '508', name: 'Sophie Martin', phone: '', group: 'NN', source: 'Website', firstVisit: daysAgo(30), visits: 10, lastVisitDays: 5, totalPaid: 3500000, budget: 3500000, departed: true,
+    packages: [pkg({ cardCode: 'LT-0246', catalogId: 'p10', used: 10, closer: 'Mai', closerIds: ['mai'], buyDate: daysAgo(30), payments: [{ at: daysAgo(30), amount: 3500000, method: 'Thẻ ngân hàng', by: 'Lam', invoice: 'HD000152', kind: 'Thanh toán đủ' }] })],
+    care: [{ at: daysAgo(5), by: 'Mai', text: 'Còn buổi cuối, khách sắp về nước' }] },
+  { id: 'm4i', code: '509', name: 'Võ Thanh Hải', phone: '0900 000 018', group: 'VN', dob: '03/12/1979', source: 'Đi ngang', firstVisit: daysAgo(300), visits: 12, lastVisitDays: 75, totalPaid: 3500000,
+    packages: [pkg({ cardCode: 'LT-0170', catalogId: 'p10', used: 11, closer: 'Mai', closerIds: ['mai'], buyDate: daysAgo(160), payments: [{ at: daysAgo(160), amount: 3500000, method: 'Tiền mặt', by: 'Lam', invoice: 'HD000101', kind: 'Thanh toán đủ' }] })],
+    care: [{ at: daysAgo(75), by: 'Mai', text: 'Hết buổi gói 10' }] },
+  { id: 'm4j', code: 'KL0210', name: 'Mạc Thị Yến', phone: '0900 000 019', group: 'VN', source: 'Người giới thiệu', firstVisit: daysAgo(25), visits: 1, lastVisitDays: 25, totalPaid: 350000, budget: 500000, referredBy: 'kl061', packages: [], care: [{ at: daysAgo(25), by: 'Ngọc', text: 'Khách do chị Ngọc giới thiệu' }] },
 ]
 
 const A = (id: string, customerId: string, ktvId: string, bedId: string, serviceId: string, start: number, status: ApptStatus, extra: Partial<Appt> = {}): Appt =>

@@ -231,27 +231,8 @@ export function BoardPage({ back }: P) {
   </>
 }
 
-// ── 4. Khách hàng của KTV ──
-export function KtvCustomersPage({ back }: P) {
-  const { s, me, openCustomer } = useStore()
-  const [tab, setTab] = useState<'cared' | 'req' | 'closed'>('cared')
-  const [kind, setKind] = useState<'all' | 'le' | 'lt'>('all')
-  const [minTimes, setMinTimes] = useState(1)
-  const kc = ktvCustomers(s, me)
-  const caredIds = kc.cared, reqIds = kc.requested, closed = kc.closed
-  const base = tab === 'cared' ? s.customers.filter(c => caredIds.has(c.id)) : tab === 'req' ? s.customers.filter(c => reqIds.has(c.id)) : closed
-  const list = base.filter(c => (kind === 'all' || (kind === 'lt') === c.packages.length > 0) && c.visits >= minTimes).sort((a, b) => b.visits - a.visits)
-  const all = s.customers.filter(c => caredIds.has(c.id)).length
-  return <>
-    <SubHead title="Khách hàng của tôi" sub="SĐT khách được ẩn với KTV. Doanh thu theo tệp khách chỉ CEO xem." onBack={back} />
-    <Tiles items={[{ v: all, l: 'KH tôi đã chăm sóc' }, { v: reqIds.size, l: 'KH yêu cầu tôi', s: all ? `tỉ suất ${Math.round(reqIds.size / all * 100)}%` : undefined, tone: 'ok' }, { v: closed.length, l: 'KH tôi chốt liệu trình' }, { v: pointsOf(s, me.id), l: 'Điểm uy tín' }]} />
-    <Seg value={tab} onChange={setTab} items={[{ k: 'cared', label: 'Tôi đã chăm sóc' }, { k: 'req', label: 'Yêu cầu tôi' }, { k: 'closed', label: 'Tôi chốt liệu trình' }]} />
-    <div className="row"><Seg value={kind} onChange={setKind} items={[{ k: 'all', label: 'Tất cả' }, { k: 'le', label: 'Khách lẻ' }, { k: 'lt', label: 'Liệu trình' }]} />
-      <label className="row small muted">Số lần ≥<input className="inp num" type="number" min={1} value={minTimes} onChange={e => setMinTimes(Math.max(1, +e.target.value || 1))} style={{ width: 70 }} /></label></div>
-    <div className="card list">{list.map(c => { const p = c.packages[0]; return <button key={c.id} className="item" onClick={() => openCustomer(c.id)}><Av name={c.name} /><div className="body"><div className="t">{c.name} <span className="tiny muted">· mã {c.code}</span></div><div className="d">{c.visits} lần · {c.lastVisitDays ? `${c.lastVisitDays} ngày trước` : 'hôm nay'}{p ? ` · ${p.cardCode} còn ${D.pkgLeftLabel(p)}` : ' · khách lẻ'}{c.health ? ` · ${c.health}` : ''}</div></div>{c.vip && <Pill tone="yellow">VIP</Pill>}</button> })}
-      {!list.length && <Empty>Chưa có khách trong mục này</Empty>}</div>
-  </>
-}
+// ── 4. Khách hàng của KTV: chuyển sang screens/ktvCustomers.tsx (m4) ──
+export { KtvCustomersPage } from './ktvCustomers'
 
 // ── 5. Thông báo quan trọng ──
 export function NoticesPage({ back }: P) {

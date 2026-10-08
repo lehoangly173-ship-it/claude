@@ -2,7 +2,7 @@
 import { ReactNode, useState } from 'react'
 import { useStore, BUDGET_LIMIT } from '../store'
 import * as D from '../data'
-import { alerts, billRows, overview, pointsOf, ktvState, custSegment, zoneReport, inboxSuggestions } from '../logic'
+import { alerts, billRows, overview, pointsOf, ktvState, custSegment, zoneReport, inboxSuggestions, customersCsv } from '../logic'
 import { T } from '../i18n'
 import { Hero, Tiles, Nodes, Block, ChipGrid, SubHead, Pill, Empty, Seg, Av, NodeSpec, Icon, Delta } from '../ui'
 import { CEO_NODES, MKT_NODES, SpecRow } from '../specs'
@@ -187,6 +187,13 @@ function Initiatives() {
   const { s } = useStore()
   return <Block title="Sáng kiến & dự án đang chạy"><div className="card list">{s.initiatives.map(i => <div key={i.id} className="item"><div className="body"><div className="t">{i.kind}: {i.title}</div><div className="d">{D.staffName(i.ownerId)} · trước: {i.before}{i.after ? ` → sau: ${i.after}` : ''}</div><div className="bar" style={{ marginTop: 6 }}><i style={{ width: i.progress + '%' }} /></div></div><Pill tone={i.status === 'Đã kiểm chứng' ? 'green' : i.status.startsWith('Chờ') ? 'yellow' : 'grey'}>{i.status}</Pill></div>)}</div></Block>
 }
+/** m4: chỉ CEO xuất file khách (tải CSV trong trình duyệt) */
+function CeoExport() {
+  const { s, user } = useStore()
+  if (user.role !== 'ceo') return null
+  const run = () => { const url = URL.createObjectURL(new Blob(['\ufeff' + customersCsv(s.customers)], { type: 'text/csv;charset=utf-8' })); const a = document.createElement('a'); a.href = url; a.download = `khach-hang-${D.dateShort().replace(/\//g, '-')}.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000) }
+  return <div className="frow small"><button className="btn" onClick={run}>{T.cust.exportBtn}</button><span className="muted">{T.cust.exportNote}</span></div>
+}
 export function CeoCust({ sub }: { sub: string[] }) {
   const { go } = useStore()
   if (sub[0] === 'n4') return <SpecHub rows={NM('NM2').rows} sub={sub[1]} base="cust/n4" tag="④ Khách hàng" title={NM('NM2').title} intro={<button className="softbtn" onClick={() => go('cust/all')}>Mở danh sách khách & phản hồi</button>} />
@@ -197,6 +204,7 @@ export function CeoCust({ sub }: { sub: string[] }) {
     <Hero tag="Khách hàng" title="Khách hàng & nguồn khách" sub="Không ai được xuất file dữ liệu khách trừ CEO." />
     <Nodes items={[{ no: '④', t: NM('NM2').title, d: 'Khách mới/cũ · VIP · giữ chân · tái tục · giới thiệu', onClick: () => go('cust/n4') }, { no: '⑤', t: NM('NM3').title, d: 'Phân nhóm · nguồn · hành trình đến Home', onClick: () => go('cust/n5') }, { no: '⑥', t: NM('NM4').title, d: 'Nội dung · chiến dịch · ngân sách · hiệu quả', onClick: () => go('cust/n6') }]} />
     <button className="softbtn wide" onClick={() => go('cust/all')}>Danh sách khách, VIP, phản hồi, hiệu quả chương trình</button>
+    <CeoExport />
   </>
 }
 export function CeoMoc({ sub }: { sub: string[] }) {

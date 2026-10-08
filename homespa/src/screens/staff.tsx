@@ -290,7 +290,7 @@ export function ReceptionCustomers() {
       {flt === 'Lâu chưa quay lại' && <label className="row small muted">≥<input className="inp num" type="number" min={7} step={7} value={days} onChange={e => setDays(+e.target.value || 30)} style={{ width: 80 }} />ngày</label>}</div>
     <div className="card list">{list.map(c => <div key={c.id} className="item" style={{ alignItems: 'flex-start' }}><Av name={c.name} /><div className="body">
       <button className="link" onClick={() => openCustomer(c.id)} style={{ color: 'var(--ink)' }}>{c.name} <span className="tiny muted">· mã {c.code}</span></button>
-      <div className="d">{user.role === 'reception' ? c.phone || 'chưa có SĐT' : 'SĐT ẩn'} · {c.visits} lần · {c.lastVisitDays ? `${c.lastVisitDays} ngày trước` : 'hôm nay'} · {D.vnd(c.totalPaid)}{c.packages.map(p => ` · ${p.cardCode}: ${pkgState(p)}`).join('')}</div>
+      <div className="d">{user.role === 'reception' || user.role === 'ceo' ? c.phone || 'chưa có SĐT' : 'SĐT ẩn'} · {c.visits} lần · {c.lastVisitDays ? `${c.lastVisitDays} ngày trước` : 'hôm nay'} · {D.vnd(c.totalPaid)}{c.packages.map(p => ` · ${p.cardCode}: ${pkgState(p)}`).join('')}</div>
       <div className="small" style={{ color: 'var(--green)' }}>🎯 {script(c)}</div>
       {c.care[0] && <div className="tiny muted">Gần nhất: {c.care[0].at} · {c.care[0].by}: {c.care[0].text}</div>}
     </div>{user.role === 'reception' && <button className="btn sm pri" onClick={() => setCare(c)}>Ghi CSKH</button>}</div>)}

@@ -1,7 +1,8 @@
-import { ReactNode, useState, createContext, useContext } from 'react'
+import { ReactNode, useState, useEffect, createContext, useContext } from 'react'
 import { createPortal } from 'react-dom'
 import { useStore } from './store'
-import { Tone, cust } from './logic'
+import { Tone, cust, ktvCanOpen, dobNoYear } from './logic'
+import { T } from './i18n'
 import * as D from './data'
 
 const P: Record<string, string> = {
@@ -51,6 +52,7 @@ export function Seg<T extends string>({ value, onChange, items }: { value: T; on
   return <div className="seg" role="tablist">{items.map(i => <button key={i.k} role="tab" aria-selected={value === i.k} className={value === i.k ? 'on' : ''} onClick={() => onChange(i.k)}>{i.label}{i.badge ? <span className="badge">{i.badge}</span> : null}</button>)}</div>
 }
 export function Modal({ title, onClose, children, footer, wide }: { title: ReactNode; onClose: () => void; children: ReactNode; footer?: ReactNode; wide?: boolean }) {
+  useEffect(() => { const k = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }; document.addEventListener('keydown', k); return () => document.removeEventListener('keydown', k) }, [onClose])
   return <div className="overlay" onClick={onClose}><div className={`modal${wide ? ' wide' : ''}`} role="dialog" aria-modal="true" onClick={e => e.stopPropagation()}>
     <div className="mh"><h3>{title}</h3><button className="x" onClick={onClose} aria-label="Đóng">×</button></div>
     <div className="mb">{children}</div>{footer && <div className="mf">{footer}</div>}
@@ -100,7 +102,7 @@ export function ChipGrid({ items }: { items: { l: string; onClick: () => void; s
 }
 export function SubHead({ title, sub, onBack, right }: { title: string; sub?: ReactNode; onBack: () => void; right?: ReactNode }) {
   return <div className="subhead"><button className="back" onClick={onBack}><Icon n="back" />Quay lại</button>
-    <div className="row" style={{ alignItems: 'flex-end' }}><div style={{ minWidth: 0, flex: 1 }}><h1>{title}</h1>{sub && <p>{sub}</p>}</div>{right}</div></div>
+    <div className="frow" style={{ alignItems: 'flex-end' }}><div style={{ minWidth: 0, flex: 1 }}><h1>{title}</h1>{sub && <p>{sub}</p>}</div>{right}</div></div>
 }
 /** Ảnh minh chứng: chọn ảnh thật từ máy/điện thoại (giữ trong phiên chạy thử) */
 export function PhotoInput({ value, onChange, label = 'Tải ảnh lên' }: { value: string; onChange: (v: string) => void; label?: string }) {
@@ -123,13 +125,15 @@ export function CustomerModal({ customerId, onClose }: { customerId: string; onC
   const { s, addCare, user } = useStore()
   const c = cust(s, customerId)
   const [note, setNote] = useState('')
-  const [tab, setTab] = useState<'info' | 'pkg' | 'care'>('info')
+  const [tab, setTab] = useState<'info' | 'pkg' | 'care' | 'profile'>('info')
   const fb = s.feedback.filter(f => f.customerId === c.id)
   const visits = s.appts.filter(a => a.customerId === c.id && a.status !== 'cancelled')
   const canSeeMoney = user.role !== 'ktv'
+  if (user.role === 'ktv') return <KtvCustomerModal customerId={customerId} onClose={onClose} />
   return <Modal title={<>{c.name} <span className="muted small">· mã {c.code}</span></>} onClose={onClose} wide>
     <div className="row">{c.vip && <Pill tone="yellow">VIP</Pill>}<Pill tone="purple">{c.group === 'NN' ? 'Khách nước ngoài' : 'Khách Việt Nam'}</Pill><Pill>Nguồn: {c.source}</Pill><span className="muted small">{c.visits} lượt · lần cuối {c.lastVisitDays === 0 ? 'hôm nay' : `${c.lastVisitDays} ngày trước`}</span></div>
-    <Seg value={tab} onChange={setTab} items={[{ k: 'info', label: 'Thông tin' }, { k: 'pkg', label: `Gói liệu trình (${c.packages.length})` }, { k: 'care', label: 'Chăm sóc & phản hồi' }]} />
+    <Seg value={tab} onChange={setTab} items={[{ k: 'info', label: 'Thông tin' }, { k: 'pkg', label: `Gói liệu trình (${c.packages.length})` }, { k: 'care', label: 'Chăm sóc & phản hồi' }, { k: 'profile', label: T.cust.profileTab }]} />
+    {tab === 'profile' && <CustomerProfile customerId={c.id} />}
     {tab === 'info' && <div className="grid g2">
       <div className="col small"><span className="eyebrow">Liên hệ</span><span>SĐT: {user.role === 'reception' || user.role === 'ceo' ? c.phone || '—' : 'ẩn (chỉ lễ tân thấy)'}</span><span>Sinh nhật: {c.dob || '—'}</span><span>Khách từ: {c.firstVisit}</span>{canSeeMoney && <span>Tổng chi: <b className="num">{D.vnd(c.totalPaid)}</b></span>}</div>
       <div className="col small"><span className="eyebrow">Lưu ý khi phục vụ</span><span>Sức khỏe: {c.health || 'Không có lưu ý'}</span><span>Sở thích: {c.preference || '—'}</span></div>
@@ -145,5 +149,39 @@ export function CustomerModal({ customerId, onClose }: { customerId: string; onC
       {fb.map(f => <div key={f.id} className="row small"><Pill tone={f.rating >= 4 ? 'green' : f.rating === 3 ? 'yellow' : 'red'}>{f.rating}/5 · {f.group}</Pill><span>{f.text}</span><span className="muted">{f.daysAgo === 0 ? 'hôm nay' : `${f.daysAgo} ngày trước`} · {f.status}</span></div>)}
       {c.care.length ? c.care.map((x, i) => <div key={i} className="small"><b>{x.at}</b> · {x.by}: {x.text}</div>) : <span className="muted small">Chưa có ghi chú chăm sóc</span>}
     </div>}
+  </Modal>
+}
+
+/** m4 — Hồ sơ khách 9 trường. KTV: SĐT + địa chỉ "Ẩn" (không có trong DOM), sinh nhật không năm, tiền chỉ Ngân sách. */
+export function CustomerProfile({ customerId }: { customerId: string }) {
+  const { s, user } = useStore()
+  const c = cust(s, customerId), F = T.cust.fields, U = T.cust.unwired
+  const contact = user.role === 'reception' || user.role === 'ceo'
+  const dob = user.role === 'ktv' ? dobNoYear(c.dob) : c.dob
+  const hist: string[] = [...(c.progress ?? []), ...c.care.map(x => `${x.at} · ${x.by}: ${x.text}`),
+    ...c.packages.map(p => `${T.cust.closedCard(p.cardCode, p.name, p.buyDate)} · ${p.type === 'session' ? T.cust.left(D.pkgLeft(p)) : T.cust.moneyCard}`)]
+  const v = (x?: string | null) => x || U
+  const row = (i: number, val: ReactNode) => <div key={i} className="item"><div className="body"><span className="tiny muted">{i + 1}. {F[i]}:</span> <b>{val}</b></div></div>
+  return <div className="card list" data-testid="cust-profile">
+    {row(0, c.name)}
+    {row(1, contact ? v(c.address) : T.cust.hidden)}
+    {row(2, v(dob))}
+    {row(3, contact ? v(c.phone) : T.cust.hidden)}
+    <div className="item"><div className="body"><span className="tiny muted">5. {F[4]}:</span>{hist.length ? hist.map((h, i) => <div key={i} className="small">{h}</div>) : <> <b>{U}</b></>}</div></div>
+    {row(5, c.budget != null ? D.vnd(c.budget) : U)}
+    <div className="item"><div className="body"><span className="tiny muted">7. {F[6]}:</span> <b>{v(c.health)}</b><div className="tiny muted">{T.cust.selfEval}</div></div></div>
+    {row(7, v(c.source))}
+    {row(8, c.qrCare == null ? U : c.qrCare ? T.cust.qrYes : T.cust.qrNo)}
+  </div>
+}
+/** Hồ sơ khách cho KTV: chỉ khách thuộc tập G4 hoặc có tour hôm nay với mình */
+function KtvCustomerModal({ customerId, onClose }: { customerId: string; onClose: () => void }) {
+  const { s, me, addCare } = useStore()
+  const [note, setNote] = useState('')
+  if (!ktvCanOpen(s, me, customerId)) return <Modal title={T.cust.profile} onClose={onClose}><Empty>{T.cust.noAccess}</Empty></Modal>
+  const c = cust(s, customerId)
+  return <Modal title={<>{c.name} <span className="muted small">· mã {c.code}</span></>} onClose={onClose} wide>
+    <CustomerProfile customerId={c.id} />
+    <div className="frow"><input id="care-note" className="inp" style={{ flex: 1 }} placeholder="Ghi chú chăm sóc (VD: đã gọi hỏi thăm sau buổi 3)" value={note} onChange={e => setNote(e.target.value)} /><button className="btn pri" disabled={!note.trim()} onClick={() => { addCare(c.id, note.trim()); setNote('') }}>Lưu</button></div>
   </Modal>
 }
