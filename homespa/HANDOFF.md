@@ -12,8 +12,8 @@ Chủ dự án: **Ly** (trả lời bằng tiếng Việt, ngắn gọn, tiết 
 ## Các bản (đánh số theo yêu cầu của Ly)
 | Bản | Git tag | Commit | Nội dung |
 |---|---|---|---|
-| Bản 1 — bản chuẩn đầu tiên | `ban-1` | aafa1d7 | Bản đang chạy ở homespa--flow.expo.app (trước khi sửa 07/10) |
-| Bản 2 | `ban-2` | (commit có tag ban-2) | Menu "Hôm nay" bật ra trên máy tính + sửa logic các luồng |
+| Bản 1 — bản chuẩn đầu tiên | `ban-1` | aafa1d7 | Bản đang chạy ở homespa--flow.expo.app (trước khi sửa 07/10). Trang lưu: https://claude.ai/artifact/T2qvJupenjggrB9uajMXnT |
+| Bản 2 | `ban-2` | (commit có tag ban-2) | Menu "Hôm nay" bật ra trên máy tính + sửa logic các luồng. Trang xem thử: https://claude.ai/artifact/QQsdqNiCi2D137VqaXbT9Q |
 Mỗi lần sửa xong và Ly đồng ý → tạo bản tiếp theo: `git tag ban-N` + đẩy tag lên GitHub + ghi thêm dòng vào bảng này.
 Quay lại bản cũ: `git checkout ban-1` (chỉ xem) hoặc deploy file `homespa/dist/index.html` của tag đó lên Expo.
 
