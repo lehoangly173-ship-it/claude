@@ -1,4 +1,4 @@
-import { ReactNode, useState, useEffect, createContext, useContext } from 'react'
+import { ReactNode, useState, createContext, useContext } from 'react'
 import { createPortal } from 'react-dom'
 import { useStore } from './store'
 import { Tone, cust, ktvCanOpen, dobNoYear } from './logic'
@@ -52,7 +52,6 @@ export function Seg<T extends string>({ value, onChange, items }: { value: T; on
   return <div className="seg" role="tablist">{items.map(i => <button key={i.k} role="tab" aria-selected={value === i.k} className={value === i.k ? 'on' : ''} onClick={() => onChange(i.k)}>{i.label}{i.badge ? <span className="badge">{i.badge}</span> : null}</button>)}</div>
 }
 export function Modal({ title, onClose, children, footer, wide }: { title: ReactNode; onClose: () => void; children: ReactNode; footer?: ReactNode; wide?: boolean }) {
-  useEffect(() => { const k = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }; document.addEventListener('keydown', k); return () => document.removeEventListener('keydown', k) }, [onClose])
   return <div className="overlay" onClick={onClose}><div className={`modal${wide ? ' wide' : ''}`} role="dialog" aria-modal="true" onClick={e => e.stopPropagation()}>
     <div className="mh"><h3>{title}</h3><button className="x" onClick={onClose} aria-label="Đóng">×</button></div>
     <div className="mb">{children}</div>{footer && <div className="mf">{footer}</div>}
@@ -102,7 +101,7 @@ export function ChipGrid({ items }: { items: { l: string; onClick: () => void; s
 }
 export function SubHead({ title, sub, onBack, right }: { title: string; sub?: ReactNode; onBack: () => void; right?: ReactNode }) {
   return <div className="subhead"><button className="back" onClick={onBack}><Icon n="back" />Quay lại</button>
-    <div className="frow" style={{ alignItems: 'flex-end' }}><div style={{ minWidth: 0, flex: 1 }}><h1>{title}</h1>{sub && <p>{sub}</p>}</div>{right}</div></div>
+    <div className="row" style={{ alignItems: 'flex-end' }}><div style={{ minWidth: 0, flex: 1 }}><h1>{title}</h1>{sub && <p>{sub}</p>}</div>{right}</div></div>
 }
 /** Ảnh minh chứng: chọn ảnh thật từ máy/điện thoại (giữ trong phiên chạy thử) */
 export function PhotoInput({ value, onChange, label = 'Tải ảnh lên' }: { value: string; onChange: (v: string) => void; label?: string }) {

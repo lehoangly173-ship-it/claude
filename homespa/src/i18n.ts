@@ -170,6 +170,5 @@ export const T = {
     times: (n: number) => `${n} lần`,
     exportBtn: 'Xuất file khách hàng (CSV)',
     exportNote: 'Chỉ CEO được xuất file dữ liệu khách.',
-    phoneCol: 'SĐT',
   },
 } as const

@@ -3,7 +3,6 @@
 // Một việc chỉ nhập kết quả MỘT lần → tự cập nhật hồ sơ khách và chỉ số cá nhân.
 import { useMemo, useState } from 'react'
 import { useStore, BUDGET_LIMIT } from '../store'
-import { T } from '../i18n'
 import * as D from '../data'
 import { alerts, overview, cust, ktvState, custSegment, Alert, State, myZones, zoneReport, tourOrder, pointsOf } from '../logic'
 import { Icon, Pill, Stat, PageHeader, Seg, Modal, Empty, Sec, Av, Delta, Hero } from '../ui'
@@ -150,9 +149,8 @@ export function LeaderCustomers() {
   </>
 }
 function CustTable({ list, onOpen }: { list: D.Customer[]; onOpen: (id: string) => void }) {
-  const ceo = useStore().user.role === 'ceo' // m4: SĐT chỉ CEO (bảng này Leader cũng dùng)
-  return <div className="card tbl-wrap"><table className="resp"><thead><tr><th>Khách</th>{ceo && <th>{T.cust.phoneCol}</th>}<th>Nhóm</th><th>Lượt</th><th>Lần cuối</th><th>Thẻ</th><th>Nguồn</th></tr></thead><tbody>
-    {list.map(c => <tr key={c.id} onClick={() => onOpen(c.id)} style={{ cursor: 'pointer' }}><td className="strong">{c.name} {c.vip && <Pill tone="yellow">VIP</Pill>}</td>{ceo && <td className="num">{c.phone || '—'}</td>}<td><Pill tone={custSegment(c) === 'Lâu chưa đến' ? 'red' : custSegment(c) === 'Khách mới' ? 'purple' : 'green'}>{custSegment(c)}</Pill></td><td className="num">{c.visits}</td><td className="num">{c.lastVisitDays ? `${c.lastVisitDays} ngày` : 'hôm nay'}</td><td className="small">{c.packages.map(p => `${p.cardCode}: ${D.pkgLeftLabel(p)}`).join(', ') || '—'}</td><td className="small muted">{c.source}</td></tr>)}
+  return <div className="card tbl-wrap"><table className="resp"><thead><tr><th>Khách</th><th>Nhóm</th><th>Lượt</th><th>Lần cuối</th><th>Thẻ</th><th>Nguồn</th></tr></thead><tbody>
+    {list.map(c => <tr key={c.id} onClick={() => onOpen(c.id)} style={{ cursor: 'pointer' }}><td className="strong">{c.name} {c.vip && <Pill tone="yellow">VIP</Pill>}</td><td><Pill tone={custSegment(c) === 'Lâu chưa đến' ? 'red' : custSegment(c) === 'Khách mới' ? 'purple' : 'green'}>{custSegment(c)}</Pill></td><td className="num">{c.visits}</td><td className="num">{c.lastVisitDays ? `${c.lastVisitDays} ngày` : 'hôm nay'}</td><td className="small">{c.packages.map(p => `${p.cardCode}: ${D.pkgLeftLabel(p)}`).join(', ') || '—'}</td><td className="small muted">{c.source}</td></tr>)}
   </tbody></table></div>
 }
 
