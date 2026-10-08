@@ -1,6 +1,6 @@
 // Trang con dùng chung của "HÔM NAY" (KTV & Lễ tân) — theo sơ đồ NÚT MẸ 1.
 // Leader / CEO mở cùng trang này ở chế độ kiểm tra.
-import { useRef, useState, ChangeEvent } from 'react'
+import { useEffect, useRef, useState, ChangeEvent } from 'react'
 import { useStore } from '../store'
 import * as D from '../data'
 import { canSee, cust, myZones, zoneReport, tourOrder, billRows, ktvState, pointsOf, unreadCount, cleanDetail, zoneKey, ktvCustomers, buyerSuggestions, validateReceive, canSeeBuyer } from '../logic'
@@ -51,11 +51,21 @@ const statTone = (st: D.CleanReport['status']) => (st === 'Đạt' ? 'green' : s
 const AiLine = ({ r }: { r: D.CleanReport }) => r.ai ? <div className="small"><b>{r.ai.label}</b> · {r.ai.reason}<div className="tiny muted">{T.clean.aiSim}</div></div> : null
 export function CleaningPage({ back }: P) {
   const { s, me, user, checkClean } = useStore()
-  const [view, setView] = useState<CView>({ k: 'home' })
+  const [view, setViewRaw] = useState<CView>({ k: 'home' })
+  // Nút Back của điện thoại/trình duyệt: từ màn con quay về Mẹ (không rời trang)
+  const viewRef = useRef(view)
+  useEffect(() => { const pop = () => { viewRef.current = { k: 'home' }; setViewRaw({ k: 'home' }) }; window.addEventListener('popstate', pop); return () => window.removeEventListener('popstate', pop) }, [])
+  const setView = (v: CView) => {
+    const was = viewRef.current.k
+    if (was === 'home' && v.k !== 'home') window.history.pushState({ cleaning: 1 }, '')
+    if (was !== 'home' && v.k === 'home') { window.history.back(); return }
+    viewRef.current = v; setViewRaw(v)
+  }
   const [detail, setDetail] = useState<'zones' | 'points' | 'pending' | 'redo' | null>(null)
   const [check, setCheck] = useState<D.CleanReport | null>(null)
   const [note, setNote] = useState('')
   const [justSent, setJustSent] = useState<number | null>(null)
+  const [oldOpen, setOldOpen] = useState<number | null>(null)
   const mine = myZones(s, me.id)
   const boss = isBoss(user.role)
   const canCheck = boss || user.role === 'reception'
@@ -64,7 +74,7 @@ export function CleaningPage({ back }: P) {
   const cd = cleanDetail(s, user.role, me.id)
   const openZone = (zone: number, from: 'home' | 'zones' | 'redo', tab: 'photo' | 'std' = 'photo') => { setJustSent(null); setView({ k: 'zone', zone, tab, from }) }
   const zoneRow = (z: D.Zone) => { const r = zoneReport(s, z.no); const own = s.zoneOwner[z.no] === me.id; const locked = z.after != null && s.now < z.after
-    return <button key={z.no} className="item" onClick={() => (canCheck && r?.status === 'Chờ kiểm tra' ? setCheck(r) : openZone(z.no, 'home'))} style={{ background: own ? 'var(--mint)' : undefined }}>
+    return <button key={z.no} className="item" onClick={() => (canCheck && r?.status === 'Chờ kiểm tra' ? setCheck(r) : setOldOpen(z.no))} style={{ background: own ? 'var(--mint)' : undefined }}>
       <span className="av" style={{ borderRadius: 10 }}>{z.no}</span>
       <div className="body"><div className="t">{z.name}{own && ' · của tôi'}</div><div className="d">{D.staffName(s.zoneOwner[z.no])}{z.after ? ` · sau ${D.hhmm(z.after)}` : ''}{r ? ` · ${T.clean.reportedAt} ${D.hhmm(r.at)}` : ''}{r?.note ? ` · ${r.note}` : ''}</div></div>
       {r ? <Pill tone={statTone(r.status)}>{r.status}{r.status === 'Đạt' ? ` +${r.points}` : ''}</Pill> : <Pill tone={locked ? 'grey' : 'brown'}>{locked ? 'Chưa đến giờ' : 'Chưa báo'}</Pill>}</button> }
@@ -105,7 +115,8 @@ export function CleaningPage({ back }: P) {
         <button className="btn sm pri" onClick={() => checkClean(r.id, true, '')}>{T.clean.pass}</button><button className="btn sm" onClick={() => setCheck(r)}>Kiểm tra</button></div>)}</div></Block>}
     <Block color="mint" title={T.clean.morning}><div className="card list">{D.ZONES.filter(z => z.shift === 1).map(zoneRow)}</div></Block>
     <Block color="mint" title={T.clean.afternoon} sub="Giặt khăn 4 lần: chỉ báo cáo được sau mốc giờ"><div className="card list">{D.ZONES.filter(z => z.shift === 2).map(zoneRow)}</div></Block>
-    {detail && <CleanDetailModal kind={detail} onClose={() => setDetail(null)} onOpenZone={n => { setDetail(null); openZone(n, 'home') }} />}
+    {detail && <CleanDetailModal kind={detail} onClose={() => setDetail(null)} onOpenZone={n => { setDetail(null); setOldOpen(n) }} />}
+    {oldOpen != null && <ZoneModal zone={oldOpen} onClose={() => setOldOpen(null)} />}
     {check && <Modal title={`Kiểm tra khu ${check.zone} · ${D.staffName(check.staffId)}`} onClose={() => setCheck(null)} footer={<><button className="btn danger" disabled={!note.trim()} onClick={() => { checkClean(check.id, false, note.trim()); setCheck(null); setNote('') }}>Chưa đạt</button><button className="btn pri" onClick={() => { checkClean(check.id, true, note.trim()); setCheck(null); setNote('') }}>Đạt · +{D.ZONE_POINTS} điểm</button></>}>
       <div className="row"><Thumb src={check.photo} /><span className="small">{check.photo.startsWith('blob:') ? 'Ảnh vừa tải lên' : `Ảnh: ${check.photo}`} · {D.hhmm(check.at)}</span></div>
       <AiLine r={check} />
@@ -156,6 +167,27 @@ function CleanDetailModal({ kind, onClose, onOpenZone }: { kind: 'zones' | 'poin
     {kind === 'redo' && (d.redo.length ? d.redo.map(r => rep(r, r.note ? ` · ${T.clean.reason}: ${r.note}` : '')) : <Empty>{T.clean.emptyRedo}</Empty>)}
   </Modal>{std != null && <StdModal zone={std} onClose={() => setStd(null)} />}</>
 }
+function ZoneModal({ zone, onClose }: { zone: number; onClose: () => void }) {
+  const { s, me, submitClean, say, setZoneRead, toggleZoneCheck } = useStore()
+  const z = D.ZONES[zone - 1]
+  const [photo, setPhoto] = useState('')
+  const [showStd, setShowStd] = useState(false)
+  const key = zoneKey(zone, me.id)
+  const checks = s.zoneChecks[key] ?? z.std.map(() => false)
+  const r = zoneReport(s, zone)
+  const own = s.zoneOwner[zone] === me.id
+  const canSend = own && (!r || r.status === 'Chưa đạt')
+  return <><Modal title={`Khu vực số ${zone} — ${z.name}`} onClose={onClose} footer={canSend && <button className="btn pri" onClick={() => { const e = submitClean(zone, photo, checks); if (e) say('⚠ ' + e); else onClose() }}>Gửi kiểm tra</button>}>
+    <div className="small muted">Phụ trách hôm nay: <b>{D.staffName(s.zoneOwner[zone])}</b>{z.after ? ` · báo cáo sau ${D.hhmm(z.after)}` : ''}</div>
+    {r && <div className={r.status === 'Đạt' ? 'ok small' : r.status === 'Chưa đạt' ? 'err small' : 'warn small'}>Lần báo gần nhất {D.hhmm(r.at)} · {r.status}{r.points ? ` · +${r.points} điểm` : ''}{r.note ? ` · ${r.note}` : ''}</div>}
+    <div className="col" style={{ gap: 2 }}><div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><span className="eyebrow" style={{ marginRight: 'auto' }}>Tiêu chuẩn & việc cần làm</span><button className="btn sm" onClick={() => setShowStd(true)}>{T.clean.stdButton}</button></div>
+      {own && <label className="check"><input type="checkbox" checked={!!s.zoneRead[key]} onChange={e => setZoneRead(zone, e.target.checked)} />{T.clean.readTask}</label>}
+      {z.std.map((x, i) => <label key={i} className="check"><input type="checkbox" disabled={!canSend} checked={checks[i]} onChange={() => toggleZoneCheck(zone, i, z.std.length)} />{x}</label>)}</div>
+    <div className="note">Ảnh mẫu: chụp toàn cảnh khu vực, đủ sáng, thấy rõ các điểm trong tiêu chuẩn. Ảnh là căn cứ chấm điểm.</div>
+    {canSend ? <PhotoInput value={photo} onChange={setPhoto} label="Tải ảnh khu vực đã dọn" /> : !own ? <div className="small muted">Khu này không phải của bạn hôm nay.</div> : <div className="small muted">Đã gửi — chờ kết quả kiểm tra.</div>}
+  </Modal>{showStd && <StdModal zone={zone} onClose={() => setShowStd(false)} />}</>
+}
+
 /** Chắt của một khu: "Ảnh minh chứng" (Chụp ảnh · Tải ảnh · Gửi báo cáo) và "Tiêu chuẩn và checklist" (Xem ảnh Home · Tích checklist) */
 function ZoneView({ zone, tab, setTab, justSent, onSent, back }: { zone: number; tab: 'photo' | 'std'; setTab: (t: 'photo' | 'std') => void; justSent: boolean; onSent: () => void; back: () => void }) {
   const { s, me, submitClean, say, toggleZoneCheck } = useStore()
