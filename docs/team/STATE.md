@@ -1,9 +1,9 @@
 # STATE — doi-agent v3 (keep ≤40 lines; history goes to log.md)
 
-lane: -            # S | M | L
-request: -
-step: idle         # plan | spec-security | gate1 | testplan | ui-batch-N | gate2 | module:<name> | milestone | gate3 | done
-IN-PROGRESS: -     # <agent>/<module> — set before each agent call, clear after
+lane: M
+request: fix lan 1 KTV (5 dot) - homespa/docs/ktv-fix-lan-1.md
+step: plan
+IN-PROGRESS: doi-planner/overview
 branch: -
 base: develop
 last_gate_approved: -
