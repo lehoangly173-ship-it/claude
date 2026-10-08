@@ -2,7 +2,7 @@ import { test, expect, type Page } from '@playwright/test'
 import { openAs, switchRole, openHomeItem, goTab } from './helpers'
 
 const KINDS = ['Ý kiến về cơ sở vật chất', 'Nhân sự / cấp trên', 'Khách hàng – dịch vụ', 'Ý kiến khác']
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => { const d = new Date(); const z = (n: number) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}` }
 
 async function send(page: Page, kind: string, text: string) {
   await page.getByRole('button', { name: new RegExp(kind) }).click()
@@ -37,7 +37,8 @@ test.describe('m3 góp ý / sáng kiến', () => {
       await expect(send).toBeDisabled()
       await date.fill(today())
       await expect(send).toBeEnabled()
-      await page.goBack().catch(() => {})
+      await page.getByRole('button', { name: /Quay lại/ }).first().click()
+      await openHomeItem(page, 'Sáng kiến phát triển Home Spa')
     }
   })
 
