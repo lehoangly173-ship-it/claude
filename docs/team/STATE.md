@@ -3,7 +3,7 @@
 lane: M
 request: fix lan 1 KTV (5 dot) - homespa/docs/ktv-fix-lan-1.md
 step: module:m4
-IN-PROGRESS: doi-reviewer/m4
+IN-PROGRESS: doi-builder/m4-fix1
 branch: team/m4-khach-hang
 base: develop
 last_gate_approved: gate1
@@ -15,7 +15,7 @@ last_version: -     # ban-N branch (no tags)
 | 1 | m1-mau-nut-nho | no | merged | 0 |
 | 2 | m2-don-dep | no | merged | 1 |
 | 3 | m3-gop-y | YES | spec | 0 |
-| 4 | m4-khach-hang | YES | building | 0 |
+| 4 | m4-khach-hang | YES | fixing | 1 |
 | 5 | m5-cua-toi | YES | spec | 0 |
 
 ## Open questions for Ly
