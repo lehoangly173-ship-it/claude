@@ -16,7 +16,7 @@ export async function switchRole(page: Page, role: RoleName, staff?: string) {
   if (staff) await page.getByLabel('Xem với người').selectOption({ label: staff })
 }
 
-export const tab = (page: Page, name: string) => page.locator('nav, .tabbar, [role=tablist]').getByText(name, { exact: true }).first()
+export const tab = (page: Page, name: string) => page.locator('nav.tabbar').getByText(name, { exact: true }).last()
 export const goTab = (page: Page, name: string) => tab(page, name).click()
 
 /** Từ tab Hôm nay bấm nút mẹ theo chữ. */
@@ -28,7 +28,8 @@ export async function openHomeItem(page: Page, text: string | RegExp) {
 export function watchErrors(page: Page) {
   const errs: string[] = []
   page.on('pageerror', e => errs.push(String(e)))
-  page.on('console', m => { if (m.type() === 'error') errs.push(m.text()) })
+  // bỏ lỗi mạng ngoài (font) do sandbox
+  page.on('console', m => { if (m.type() === 'error' && !/net::ERR_(TUNNEL|INTERNET|NAME|CONNECTION)/.test(m.text())) errs.push(m.text()) })
   return errs
 }
 

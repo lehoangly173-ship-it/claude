@@ -39,9 +39,9 @@ test.describe('m1 màu + chuyển mục + nút nhỏ', () => {
 
   test('M1-05 Tab KTV đúng 4 tab theo thứ tự', async ({ page }) => {
     await openAs(page, 'KTV')
-    const bar = page.locator('nav.tabbar, .tabbar, nav').last()
-    const txt = (await bar.innerText()).split('\n').map(x => x.trim()).filter(Boolean)
-    expect(txt).toEqual(['Hôm nay', 'Khách hàng', 'Hỏi Mộc', 'Của tôi'])
+    const bar = page.locator('nav.tabbar').last()
+    const txt = (await bar.locator('button').allInnerTexts()).map(x => x.split('\n')[0].trim().toLowerCase())
+    expect(txt).toEqual(['hôm nay', 'khách hàng', 'hỏi mộc', 'của tôi'])
     await expect(page.getByText('Công việc', { exact: true })).toHaveCount(0)
   })
 
@@ -68,11 +68,13 @@ test.describe('m1 màu + chuyển mục + nút nhỏ', () => {
       await tile.click()
       const modal = page.locator('[role=dialog], .modal').last()
       await expect(modal).toBeVisible()
-      if (label === 'Điểm hôm nay') continue // số là tổng điểm, không phải số dòng
-      const rows = await modal.locator('[data-testid=detail-row], .row, li').count()
-      n === 0 ? await expect(modal.getByText(/Chưa có|Trống/).first()).toBeVisible() : expect(rows).toBe(n)
+      if (label !== 'Điểm hôm nay') { // số của ô Điểm là tổng điểm, không phải số dòng
+        const rows = await modal.locator('[data-testid=detail-row], .row, li').count()
+        n === 0 ? await expect(modal.getByText(/Chưa có|Trống/).first()).toBeVisible() : expect(rows).toBe(n)
+      }
       await page.keyboard.press('Escape')
-      await modal.getByRole('button', { name: /Đóng|×/ }).first().click({ trial: false }).catch(() => {})
+      if (await modal.isVisible()) await modal.getByRole('button', { name: /Đóng|×/ }).first().click()
+      await expect(modal).toBeHidden()
     }
   })
 
@@ -131,7 +133,8 @@ test.describe('m1 màu + chuyển mục + nút nhỏ', () => {
     await openAs(page, 'Leader/Manager')
     await page.goto('/')
     await switchRole(page, 'Leader/Manager')
-    await openHomeItem(page, /Đối chiếu/).catch(() => {})
+    await openHomeItem(page, /Đối chiếu/i)
+    await expect(page.getByText(/Lượt xuất\/nhận hôm nay/i).first()).toBeVisible()
     await expect(page.getByText(/Chụp\/đính kèm hóa đơn|Bán cho ai/)).toHaveCount(0)
   })
 
