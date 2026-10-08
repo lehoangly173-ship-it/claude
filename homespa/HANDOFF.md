@@ -10,12 +10,20 @@ Chủ dự án: **Ly** (trả lời bằng tiếng Việt, ngắn gọn, tiết 
 - Bản web: https://homespa--flow.expo.app (Expo account `hayquen`, project `@hayquen/homespa`, projectId `16f65a26-63a8-4b23-8d5f-3e610e2aa3cc`).
 
 ## Các bản (đánh số theo yêu cầu của Ly)
-| Bản | Git tag | Commit | Nội dung |
+| Bản | Nhánh GitHub | Commit | Nội dung |
 |---|---|---|---|
-| Bản 1 — bản chuẩn đầu tiên | `ban-1` | aafa1d7 | Bản đang chạy ở homespa--flow.expo.app (trước khi sửa 07/10). Trang lưu: https://claude.ai/artifact/T2qvJupenjggrB9uajMXnT |
-| Bản 2 | `ban-2` | (commit có tag ban-2) | Menu "Hôm nay" bật ra trên máy tính + sửa logic các luồng. Trang xem thử: https://claude.ai/artifact/QQsdqNiCi2D137VqaXbT9Q |
-Mỗi lần sửa xong và Ly đồng ý → tạo bản tiếp theo: `git tag ban-N` + đẩy tag lên GitHub + ghi thêm dòng vào bảng này.
-Quay lại bản cũ: `git checkout ban-1` (chỉ xem) hoặc deploy file `homespa/dist/index.html` của tag đó lên Expo.
+| Bản 1 — bản chuẩn đầu tiên | `ban-1` | aafa1d7 | Bản trước khi sửa 07/10. Trang lưu: https://claude.ai/artifact/T2qvJupenjggrB9uajMXnT |
+| Bản 2 | `ban-2` | 2112c49 | Đang chạy ở homespa--flow.expo.app (deploy 08/10). | Menu "Hôm nay" bật ra trên máy tính + sửa logic các luồng. Trang xem thử: https://claude.ai/artifact/QQsdqNiCi2D137VqaXbT9Q |
+Mỗi lần sửa xong và Ly đồng ý → tạo bản tiếp theo bằng NHÁNH (proxy chặn đẩy tag): `git push origin HEAD:refs/heads/ban-N` + ghi thêm dòng vào bảng này.
+Quay lại bản cũ: deploy file `homespa/dist/index.html` của nhánh bản đó lên Expo.
+
+## Hai tài khoản Claude cùng làm (từ 08/10)
+- Claude lehoangly173@gmail.com ↔ GitHub `lehoangly173-ship-it` (chủ repo).
+- Claude levanly1703@gmail.com ↔ GitHub `levanly1703-cell` (cộng tác, quyền ghi).
+- Quy tắc: không làm 2 tài khoản cùng lúc; đầu phiên `git pull`, cuối phiên đẩy lên main + cập nhật HANDOFF.
+
+## Deploy Expo (cách đã chạy 08/10, qua Expo connector)
+sandbox_create(@hayquen/homespa) → `git clone --depth 1 https://github.com/lehoangly173-ship-it/claude.git repo` → copy `homespa/dist/index.html` vào `~/site/dist/` → app.json `{"expo":{"name":"homespa","slug":"homespa","owner":"hayquen","extra":{"eas":{"projectId":"16f65a26-63a8-4b23-8d5f-3e610e2aa3cc"}}}}` + package.json → `npx eas-cli deploy --export-dir dist --alias flow --non-interactive` → sandbox_stop.
 
 ## Cập nhật 07/10 (phiên mới)
 - Máy tính: bấm "Hôm nay" ở thanh trái → menu bật ra chứa nút mẹ/nhóm nút (cơ chế `MenuCtx` trong ui.tsx: `Nodes`/`ChipGrid` của trang gốc Hôm nay tự chuyển vào menu). Điện thoại giữ nguyên.
