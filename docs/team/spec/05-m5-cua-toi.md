@@ -1,5 +1,5 @@
 # m5-cua-toi — Mục "CỦA TÔI" của KTV + Hiệu suất (G)
-sensitive: no (dữ liệu cá nhân chỉ của chính KTV; tiền lương hiện "Chưa nối"/số liệu mẫu, không lộ cho người khác)
+sensitive: yes (dữ liệu cá nhân + thu nhập chỉ của chính KTV và CEO; tiền lương hiện "Chưa nối"/số liệu mẫu)
 
 ## Mục đích
 Tab Của tôi (KTV) từ 5 nút thành 8 nút theo sơ đồ G. Chỉ KTV đó thấy dữ liệu của mình (CEO xem chế độ riêng hiện có, không đổi).
@@ -8,7 +8,7 @@ Tab Của tôi (KTV) từ 5 nút thành 8 nút theo sơ đồ G. Chỉ KTV đó 
 1 Hồ sơ cá nhân · 2 Lịch làm việc của tôi · 3 Chấm công của tôi · 4 Hiệu suất KTV · 5 KPI – Điểm uy tín · 6 Đào tạo & phát triển · 7 Thu nhập của tôi · 8 Yêu cầu & lịch sử cá nhân.
 
 ## Từng màn
-1. **Hồ sơ** (biểu mẫu, giả định G11): họ tên, mã NV, ảnh đại diện (PhotoInput), chi nhánh/bộ phận, ngày vào làm, thông tin cơ bản; nút Lưu. Trống → "Chưa nối".
+1. **Hồ sơ** (biểu mẫu, giả định G11): CHỈ các trường: họ tên, mã NV, ảnh đại diện (PhotoInput), chi nhánh/bộ phận, ngày vào làm, SĐT nội bộ (tùy chọn); nút Lưu. Không thu CCCD/số tài khoản ngân hàng ở bản demo (không có ô nhập tự do "thông tin cơ bản"). Trống → "Chưa nối".
 2. **Lịch làm việc**: ca hôm nay; chuyển Tuần/Tháng (Seg) từ `rosterCell`; lịch đổi ca; ngày nghỉ đã đăng ký (leaves đã duyệt).
 3. **Chấm công**: giờ vào/ra, đi trễ/về sớm, ngày công, lịch sử chấm công, nút "Yêu cầu điều chỉnh chấm công" (tạo yêu cầu, trạng thái Chờ duyệt). Số liệu tháng chưa có → "Chưa nối"/số liệu mẫu.
 4. **Hiệu suất KTV** — 5 nhóm (giả định G9), mỗi nhóm một Block, mỗi chỉ số một dòng số hoặc "Chưa nối":
@@ -25,6 +25,7 @@ Tab Của tôi (KTV) từ 5 nút thành 8 nút theo sơ đồ G. Chỉ KTV đó 
 
 ## Tiêu chí nghiệm thu
 - M5-01 Của tôi (KTV) hiện đúng 8 nút theo thứ tự; vai trò khác không đổi số nút so với trước.
+- M5-02a Hồ sơ chỉ có đúng 6 trường liệt kê; không có ô CCCD/tài khoản ngân hàng/ô tự do. Thu nhập (mục 7) chỉ KTV đó + CEO thấy: Lễ tân/Leader/KTV khác 0 số thu nhập trong DOM.
 - M5-02 Hồ sơ: lưu form → mở lại còn dữ liệu; thiếu họ tên không cho lưu; ngày vào làm trống hiện "Chưa nối".
 - M5-03 Lịch: chuyển Tuần/Tháng đổi số ô (7 / 28); ngày nghỉ đã duyệt hiện OFF khớp trang 4 tuần.
 - M5-04 Chấm công: quét vào ca → giờ vào hiện và "Hôm nay của tôi" cập nhật ngay; gửi yêu cầu điều chỉnh xuất hiện ở mục 8 trạng thái Chờ duyệt.

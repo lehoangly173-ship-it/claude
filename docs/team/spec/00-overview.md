@@ -8,10 +8,10 @@ KTV dùng app gọn hơn: màu rõ việc quan trọng, bấm vào số ra chi t
 ## Vai trò và quyền
 | Vai trò | Quyền trong lane này |
 |---|---|
-| KTV | Chỉ xem/ghi dữ liệu CỦA MÌNH. SĐT khách bị ẩn. Không xuất file. |
-| Lễ tân | Thấy SĐT khách; kiểm tra ảnh dọn dẹp; xác nhận sản phẩm. |
-| Leader | Xem chế độ kiểm tra (các trang Hôm nay dùng chung); kiểm tra ảnh. |
-| CEO | Thấy SĐT; DUY NHẤT được xuất file. |
+| KTV | Chỉ xem/ghi dữ liệu CỦA MÌNH. SĐT và địa chỉ khách bị ẩn. Không xuất file. Tiền khách: chỉ Ngân sách, không tổng đã trả/giá thẻ/còn thiếu. |
+| Lễ tân | Thấy SĐT + địa chỉ khách; kiểm tra ảnh dọn dẹp; xác nhận sản phẩm. Tiền khách: chỉ "còn thiếu" (để nhắc đóng), không tổng chi/doanh thu (G12). |
+| Leader | Xem chế độ kiểm tra (các trang Hôm nay dùng chung); kiểm tra ảnh. Không thấy SĐT. Tiền khách: như Lễ tân (G12). |
+| CEO | Thấy SĐT + địa chỉ + mọi số tiền; DUY NHẤT được xuất file; xem góp ý về cấp trên. |
 Trang `dailySub` dùng chung nhiều vai trò: sửa không được làm hỏng bản Lễ tân/Leader/CEO.
 
 ## Bảng module (5 đợt, theo mục H)
@@ -19,7 +19,7 @@ Trang `dailySub` dùng chung nhiều vai trò: sửa không được làm hỏng
 |---|---|---|---|---|
 | 1 | m1-mau-nut-nho | 01-m1-mau-nut-nho.md | B màu, C6 chuyển mục, C1–C5, nút 11 | no |
 | 2 | m2-don-dep | 02-m2-don-dep.md | D luồng Dọn dẹp KTV + AI giả lập | no |
-| 3 | m3-gop-y | 03-m3-gop-y.md | E đóng góp ý kiến | no |
+| 3 | m3-gop-y | 03-m3-gop-y.md | E đóng góp ý kiến | no (góp ý về cấp trên: chỉ CEO xem) |
 | 4 | m4-khach-hang | 04-m4-khach-hang.md | F khách VN + khách nước ngoài | SENSITIVE (SĐT, xuất file, phân quyền) |
 | 5 | m5-cua-toi | 05-m5-cua-toi.md | G 8 nhóm Của tôi + Hiệu suất KTV | no |
 Thứ tự bắt buộc 1→5 (m3 dùng nút 11 của m1; m5 dùng dữ liệu góp ý của m3 và điểm từ m2).
@@ -29,9 +29,10 @@ Thứ tự bắt buộc 1→5 (m3 dùng nút 11 của m1; m5 dùng dữ liệu g
 - R2 Mỗi số một nguồn: tính từ `store` (hàm trong `logic.ts`), đổi ở đâu cập nhật ngay mọi nơi (badge Hôm nay, tile, danh sách).
 - R3 Chưa có dữ liệu thật → "Chưa nối"; số tự dựng → "số liệu mẫu". Không bịa số.
 - R4 AI kiểm tra dọn dẹp chỉ GIẢ LẬP, luôn có nhãn "Giả lập — Chưa nối AI thật"; AI không tự cộng/trừ điểm.
-- R5 SĐT khách chỉ Lễ tân + CEO (KTV: không có trong DOM). Chỉ CEO có nút xuất.
+- R5 SĐT khách chỉ Lễ tân + CEO (KTV: không có trong DOM, thuộc tính, tooltip, `tel:`; cũng không dùng SĐT để tìm/lọc/sắp xếp). Chỉ CEO có nút xuất. Doanh thu/tổng chi chỉ CEO; Lễ tân/Leader chỉ "còn thiếu" (G12).
+- R8 Dữ liệu mẫu dùng SĐT giả rõ ràng (dạng `0900 000 0xx`), nhãn "số liệu mẫu". Không nhập SĐT/địa chỉ khách thật vào `data.ts` hay app demo.
 - R6 UI states: có dữ liệu mẫu nên loading/offline = N/A; bắt buộc có trạng thái trống (`<Empty>`) và không đủ quyền (chữ "Bạn không có quyền xem mục này").
-- R7 Mở rộng sau: giữ hình dữ liệu dễ chuyển Supabase (id, createdAt, staffId); chưa viết bảng/RLS.
+- R7 Mở rộng sau: giữ hình dữ liệu dễ chuyển Supabase (id, createdAt, staffId); chưa viết bảng/RLS. ĐIỀU KIỆN TRƯỚC KHI DÙNG DỮ LIỆU THẬT: phải có Supabase Auth + RLS (cột phone/address chỉ role reception/ceo, qua view hoặc bảng tách riêng; khách lọc theo staffId cho ktv; xuất file chỉ qua hàm server kiểm role ceo). Dải "Demo — chuyển vai trò" chỉ tồn tại ở bản demo, bỏ khi có đăng nhập thật.
 
 ## Dữ liệu mẫu (hình, thêm vào data.ts/store.tsx)
 - `Notif`: đã có `readBy` (đọc/chưa đọc theo người).
@@ -55,6 +56,10 @@ Planner tự chọn:
 - G9 Nhãn nhóm Hiệu suất đọc từ chữ nhỏ trong ảnh (⚠): dùng đúng chữ trong file fix; điểm chưa có công thức → "Chưa nối".
 - G10 "Đã đọc/chưa đọc" là theo từng KTV (readBy), bấm đảo được hai chiều.
 - G11 Hồ sơ cá nhân: "điền biểu mẫu khi nhập app" = form lưu vào store (chưa lưu máy chủ); ngày vào làm do CEO nhập → KTV thấy "Chưa nối" nếu trống.
+- G12 (từ review bảo mật) Lễ tân/Leader chỉ thấy số tiền "còn thiếu" của khách, không thấy tổng chi/giá thẻ. Code hiện có cho họ thấy nhiều hơn (`canSeeMoney = role !== 'ktv'`): đổi hành vi này CẦN Ly chốt; Ly có thể đổi. Trong lane này, chỉ mục Khách hàng mới của KTV bị ràng buộc cứng; màn Lễ tân/Leader hiện có giữ nguyên cho tới khi Ly chốt.
+- G13 Địa chỉ khách: KTV thấy "Ẩn" (như SĐT; Lễ tân + CEO thấy). Sinh nhật cho KTV chỉ ngày/tháng, không năm. Ly chưa chốt — Ly có thể đổi.
+- G14 Tệp "Đã cọc còn thiếu"/"Đã hoàn thành" cho KTV chỉ hiện nhãn, không số tiền (KTV được biết tình trạng để nhắc khách). Nếu Ly không muốn, hai tệp chỉ dành Lễ tân/CEO. Ly có thể đổi.
+- G15 Góp ý loại "Nhân sự / cấp trên": chỉ người gửi + CEO xem (Leader không thấy); loại khác Leader + CEO.
 
 ## Phi chức năng
 - `scripts/team/check.sh` xanh (tsc + build). Bundle một file không tăng > 60 KB gzip tổng lane.
@@ -62,4 +67,4 @@ Planner tự chọn:
 - Mọi nút mới có `aria-label`/chữ đọc được; không thông tin chỉ nhờ màu (luôn có chữ/nhãn).
 
 ## Ngoài phạm vi
-Backend/đăng nhập/RLS thật, AI thật, tải file thật lên máy chủ, xuất file (chỉ CEO, giữ như hiện có), công thức điểm Hiệu suất thật, sửa màn Lễ tân/Leader/CEO ngoài việc không được làm hỏng chúng, refactor chữ cũ sang i18n.
+Backend/đăng nhập/RLS thật (và vì vậy KHÔNG nhập dữ liệu khách thật, xem R7/R8), AI thật, tải file thật lên máy chủ, xuất file (chỉ CEO, giữ như hiện có), công thức điểm Hiệu suất thật, sửa màn Lễ tân/Leader/CEO ngoài việc không được làm hỏng chúng, refactor chữ cũ sang i18n.

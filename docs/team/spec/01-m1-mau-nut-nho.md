@@ -1,5 +1,5 @@
 # m1-mau-nut-nho — Màu + chuyển mục + nút nhỏ (B, C1–C5, C6, nút 11)
-sensitive: no
+sensitive: no (riêng ô "Bán cho ai" + ảnh hóa đơn có quyền xem hạn chế, xem C4)
 
 ## Mục đích
 Chỉnh màu theo 3 nhóm, đổi vị trí mục, làm các nút bấm-ra-chi-tiết nhỏ. Dựng i18n.ts đầu tiên.
@@ -20,7 +20,9 @@ Chỉnh màu theo 3 nhóm, đổi vị trí mục, làm các nút bấm-ra-chi-t
 
 **C3:** trong `ZoneModal` mỗi khu có nút "Tiêu chuẩn mẫu" → Modal xem tiêu chuẩn + dòng "Tệp tài liệu: Chưa nối". Ô tích "Tôi đã đọc nhiệm vụ" (lưu theo khu/ngày/KTV). Ô tích từng việc cần làm lưu vào store (không mất khi đóng modal).
 
-**C4:** `ProductsPage`: 2 ô bấm được → danh sách sản phẩm cụ thể (tên, SL, KTV, giờ, ai xác nhận). Thêm "MỤC ĐÍCH NHẬN SẢN PHẨM" (chọn 1: Bán cho khách hàng / Dùng cho cơ sở). Nếu bán: ô "Bán cho ai" (bắt buộc) + nút tải hóa đơn (`PhotoInput`, bắt buộc). Lưu vào ProductLog.
+**C4:** `ProductsPage`: 2 ô bấm được → danh sách sản phẩm cụ thể (tên, SL, KTV, giờ, ai xác nhận). Thêm "MỤC ĐÍCH NHẬN SẢN PHẨM" (chọn 1: Bán cho khách hàng / Dùng cho cơ sở). Nếu bán: ô "Bán cho ai" (bắt buộc) + nút "Chụp/đính kèm hóa đơn" (`PhotoInput`, bắt buộc; không dùng chữ "Tải file"). Lưu vào ProductLog.
+  - "Bán cho ai": chọn khách theo mã/tên trong tập G4 của KTV (cho gõ tên nếu khách mới), placeholder "Tên hoặc mã KH — không ghi SĐT"; không tìm theo SĐT; nếu nội dung nhập khớp mẫu SĐT (bỏ khoảng trắng/chấm/gạch, `/(\+?84|0)\d{9}/`) → chặn lưu, báo "Không ghi SĐT".
+  - Xem người mua + ảnh hóa đơn: chỉ KTV tạo + Lễ tân + CEO. KTV khác/Leader chỉ thấy chữ "Bán cho khách".
 
 **C5 nút 11:** thêm "Sáng kiến phát triển Home Spa" vào Nodes (mô tả: khách hàng · cơ sở vật chất · tay nghề · tinh thần tập thể), trang `home/idea` — m1 dựng trang khung + chữ "Chưa nối" cho đến khi m3 xong; ghi chú "dữ liệu sau này dùng chấm điểm uy tín".
 
@@ -36,6 +38,8 @@ Chỉnh màu theo 3 nhóm, đổi vị trí mục, làm các nút bấm-ra-chi-t
 - M1-09 Bấm "Đã đọc" một thông báo: badge Hôm nay giảm 1 ngay; bấm "Chưa đọc": tăng lại 1.
 - M1-10 "Tiêu chuẩn mẫu" xuất hiện ở mọi khu; mở được; ô "đã đọc" và ô tích việc còn nguyên sau khi đóng-mở lại.
 - M1-11 Chọn "Bán cho khách" mà thiếu "Bán cho ai" hoặc hóa đơn → không lưu, báo lỗi; chọn "Dùng cho cơ sở" → không hiện 2 ô đó.
+- M1-11a "Bán cho ai": gõ SĐT (kể cả có khoảng trắng `0900 000 001`) → chặn lưu; gợi ý chỉ theo mã/tên trong tập G4 (gõ SĐT mẫu → 0 gợi ý). Nút hóa đơn tên "Chụp/đính kèm hóa đơn", không có chữ "Tải file".
+- M1-11b Đối chiếu: KTV khác và Leader không thấy người mua/ảnh hóa đơn (DOM chỉ "Bán cho khách"); KTV tạo, Lễ tân, CEO thấy.
 - M1-12 Màn Lễ tân/Leader/CEO mở trang dùng chung vẫn chạy, không lỗi console.
 - M1-13 Chữ mới nằm trong `i18n.ts`; check.sh xanh.
 
