@@ -2,7 +2,7 @@
 // nên một thay đổi (chia tour, thu tiền, xong việc) cập nhật mọi nơi cùng lúc.
 import { createContext, useContext, useState, ReactNode } from 'react'
 import * as D from './data'
-import { State, ktvConflict, bedConflict, custConflict, cust, shiftInvoices, CLEAN_MIN, canSee } from './logic'
+import { State, markReadIn, markUnreadIn, zoneKey, ktvConflict, bedConflict, custConflict, cust, shiftInvoices, CLEAN_MIN, canSee } from './logic'
 
 export type User = { role: D.Role; staffId: string }
 const DEFAULT_USER: Record<D.Role, string> = { reception: 'lam', ktv: 'mai', leader: 'thao', ceo: 'quyen', marketing: 'khoa' }
@@ -42,6 +42,7 @@ const initial = (): State => ({
     { id: 'pt2', staffId: 'mai', delta: 3, reason: 'Khách khen trên Google', by: 'lam', at: 9 * 60 + 20, status: 'Chờ duyệt', source: 'Lễ tân ghi nhận' },
   ],
   opsChecks: [],
+  zoneRead: {}, zoneChecks: {},
 })
 
 type Ctx = ReturnType<typeof useStoreValue>
@@ -347,6 +348,7 @@ function useStoreValue() {
       if (!checks.every(Boolean)) return 'Chưa tick đủ các việc của khu vực'
       mutate(d => {
         d.cleanReports.unshift({ id: id(d, 'cr'), zone, staffId: me.id, photo, checks, at: d.now, status: 'Chờ kiểm tra' })
+        delete d.zoneChecks[zoneKey(zone, me.id)] // gửi xong thì làm lại từ đầu nếu bị Chưa đạt
         notify(d, { cat: 'Dọn dẹp', text: `${me.name} báo xong khu ${zone} — ${z.name}`, detail: 'Chờ kiểm tra ảnh & chấm điểm', roles: ['leader'], nav: 'checklist' })
       })
       say('Đã gửi báo cáo — chờ kiểm tra'); return null
@@ -374,8 +376,8 @@ function useStoreValue() {
       // Lễ tân chỉ ghi nhận; điểm do Leader/CEO duyệt
       if (ok) d.points.unshift({ id: id(d, 'pt'), staffId: r.staffId, delta: 1, reason: `Đánh giá ${r.platform} đã xác nhận`, by: me.id, at: d.now, status: me.role === 'leader' || me.role === 'ceo' ? 'Đã duyệt' : 'Chờ duyệt', source: 'Review' })
     }),
-    addProduct: (product: string, qty: number, ktvId: string, photo: string) => {
-      mutate(d => { const recSide = me.role === 'reception'; d.productLogs.unshift({ id: id(d, 'pl'), product, qty, ktvId: recSide ? ktvId : me.id, recId: recSide ? me.id : '', photo, at: d.now, ktvOk: !recSide, recOk: recSide }) })
+    addProduct: (product: string, qty: number, ktvId: string, photo: string, extra?: Pick<D.ProductLog, 'purpose' | 'buyerNote' | 'invoicePhoto'>) => {
+      mutate(d => { const recSide = me.role === 'reception'; d.productLogs.unshift({ id: id(d, 'pl'), product, qty, ktvId: recSide ? ktvId : me.id, recId: recSide ? me.id : '', photo, at: d.now, ktvOk: !recSide, recOk: recSide, ...extra }) })
       say('Đã ghi — chờ bên còn lại bấm xác nhận')
     },
     confirmProduct: (pid: string) => mutate(d => { const p = d.productLogs.find(x => x.id === pid)!; if (me.role === 'reception') { p.recOk = true; p.recId = me.id } else if (p.ktvId === me.id) p.ktvOk = true }),
@@ -417,7 +419,10 @@ function useStoreValue() {
     },
     setZoneOwner: (zone: number, staffId: string) => mutate(d => { d.zoneOwner[zone] = staffId }),
     logCare: (customerId: string, e: Omit<D.CareEntry, 'at' | 'by'>) => mutate(d => { cust(d, customerId).care.unshift({ ...e, at: D.stamp(d.now), by: me.name }) }),
-    markRead: (nid: string) => mutate(d => { const n = d.notifs.find(x => x.id === nid); if (n && !n.readBy.includes(me.id)) n.readBy.push(me.id) }),
+    markRead: (nid: string) => mutate(d => markReadIn(d, nid, me.id)),
+    markUnread: (nid: string) => mutate(d => markUnreadIn(d, nid, me.id)),
+    setZoneRead: (zone: number, v: boolean) => mutate(d => { d.zoneRead[zoneKey(zone, me.id)] = v }),
+    toggleZoneCheck: (zone: number, i: number, len: number) => mutate(d => { const k = zoneKey(zone, me.id); const a = d.zoneChecks[k] ?? Array(len).fill(false); a[i] = !a[i]; d.zoneChecks[k] = a }),
     markAllRead: () => mutate(d => { d.notifs.forEach(n => { if (canSee(n, user.role, me.id) && !n.readBy.includes(me.id)) n.readBy.push(me.id) }) }),
   }
   return { s, user, setUser, me, toast, say, page, go, profile, openCustomer, draftBill, setDraftBill, ...actions, CLEAN_MIN }

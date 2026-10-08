@@ -2,9 +2,10 @@
 import { ReactNode, useState, useRef } from 'react'
 import { useStore } from '../store'
 import * as D from '../data'
-import { canSee, cust, myZones, zoneReport, tourOrder, billRows, overview, alerts, pointsOf, expectedByMethod, ktvState, lastCloseAt } from '../logic'
+import { unreadCount, cust, myZones, zoneReport, tourOrder, billRows, overview, alerts, pointsOf, expectedByMethod, ktvState, lastCloseAt } from '../logic'
 import { Hero, Tiles, Nodes, Block, ChipGrid, SubHead, Pill, Empty, Modal, Seg, Av, PhotoInput, NodeSpec, Icon } from '../ui'
-import { ShiftTourPage, CleaningPage, BoardPage, KtvCustomersPage, NoticesPage, BillsPage, ReviewsPage, ProductsPage, LeavePage, IncidentPage, LeaveModal } from './daily'
+import { ShiftTourPage, CleaningPage, BoardPage, KtvCustomersPage, NoticesPage, BillsPage, ReviewsPage, ProductsPage, LeavePage, IncidentPage, LeaveModal, IdeaPage } from './daily'
+import { T } from '../i18n'
 import { OverviewScreen, ScheduleScreen, QueueScreen, BedsScreen } from './ops'
 import { CashierScreen } from './cashier'
 import { MyWorkScreen } from './ktv'
@@ -25,6 +26,7 @@ export function dailySub(key: string | undefined, back: () => void): ReactNode |
     case 'products': return <ProductsPage back={back} />
     case 'leave': return <LeavePage back={back} />
     case 'incident': return <IncidentPage back={back} />
+    case 'idea': return <IdeaPage back={back} />
     case 'close': return <ClosesView back={back} />
   }
   return null
@@ -35,7 +37,7 @@ function useCounts() {
   const zonesTodo = myZones(s, me.id).filter(n => { const r = zoneReport(s, n); return !r || r.status === 'Chưa đạt' })
   const prodTodo = s.productLogs.filter(p => (user.role === 'reception' ? !p.recOk : p.ktvId === me.id && !p.ktvOk)).length
   const tasksOpen = s.tasks.filter(t => t.ownerId === me.id && (t.status === 'open' || t.status === 'doing')).length
-  const unread = s.notifs.filter(n => canSee(n, user.role, me.id) && !n.readBy.includes(me.id)).length
+  const unread = unreadCount(s, user.role, me.id)
   const reviewsTodo = s.reviews.filter(r => r.status === 'Chờ đối soát').length
   const billIssues = billRows(s).filter(r => r.issue).length
   return { zonesTodo, prodTodo, tasksOpen, unread, reviewsTodo, billIssues }
@@ -54,6 +56,7 @@ export function KtvHome({ sub }: { sub: string[] }) {
   const c = useCounts()
   const page = dailySub(sub[0], () => go('home'))
   if (page) return <>{page}</>
+  if (sub[0] === 'work') return <KtvWork sub={sub.slice(1)} />
   const order = tourOrder(s), pos = order.indexOf(me.id)
   const mine = s.appts.filter(a => a.ktvId === me.id && !['cancelled', 'no_show'].includes(a.status))
   const done = mine.filter(a => a.status === 'done' || a.status === 'paid').length
@@ -64,29 +67,30 @@ export function KtvHome({ sub }: { sub: string[] }) {
       <span className="hbtn">{st.label}{st.until ? ` · ${D.hhmm(st.until)}` : ''}</span>
     </Hero>
     <div className="tiles">
-      <button className="tile" onClick={() => go('home/shift')}><span className="l">CA CỦA TÔI</span><span className="v" style={{ fontSize: 18 }}>{me.shift ? (me.shift === 1 ? 'Ca sáng 08–18' : 'Ca chiều 10–20') : 'Chưa có ca được duyệt'}</span><span className="s" style={{ color: 'var(--green)' }}>Lịch 4 tuần / đổi ca →</span></button>
-      <div className="tile"><span className="l">THỨ TỰ TOUR</span><span className="v serif" style={{ color: 'var(--green)' }}>#{pos >= 0 ? pos + 1 : '–'}</span><span className="s">{done}/{mine.length} tour hoàn tất</span></div>
+      <button className="tile mint" onClick={() => go('home/shift')}><span className="l">CA CỦA TÔI</span><span className="v" style={{ fontSize: 18 }}>{me.shift ? (me.shift === 1 ? 'Ca sáng 08–18' : 'Ca chiều 10–20') : 'Chưa có ca được duyệt'}</span><span className="s" style={{ color: 'var(--green)' }}>Lịch 4 tuần / đổi ca →</span></button>
+      <div className="tile mint"><span className="l">THỨ TỰ TOUR</span><span className="v serif" style={{ color: 'var(--green)' }}>#{pos >= 0 ? pos + 1 : '–'}</span><span className="s">{done}/{mine.length} tour hoàn tất</span></div>
     </div>
-    <button className="node" onClick={() => go('work')}><span className="body"><span className="t" style={{ display: 'block' }}>Việc cần chú ý</span><span className="d" style={{ display: 'block' }}>{c.tasksOpen} nhiệm vụ · {c.zonesTodo.length} khu dọn chưa xong · {c.prodTodo} sản phẩm chờ xác nhận{s.bills.some(b => b.staffId === me.id) ? '' : ' · chưa tải ảnh bill'}</span></span><span className="badge">{attention}</span></button>
+    <button className="node gold" onClick={() => go('home/work')}><span className="body"><span className="t" style={{ display: 'block' }}>Việc cần chú ý</span><span className="d" style={{ display: 'block' }}>{c.tasksOpen} nhiệm vụ · {c.zonesTodo.length} khu dọn chưa xong · {c.prodTodo} sản phẩm chờ xác nhận{s.bills.some(b => b.staffId === me.id) ? '' : ' · chưa tải ảnh bill'}</span></span><span className="badge">{attention}</span></button>
     <Nodes items={[
       { t: 'Ca, đổi ca & thứ tự tour', d: 'Lịch 4 tuần · ca của tôi · số tour', onClick: () => go('home/shift') },
-      { t: 'Nhiệm vụ dọn dẹp', d: myZones(s, me.id).length ? `Khu vực của bạn là số ${myZones(s, me.id).join(', ')} · ảnh mẫu · checklist · điểm` : 'Khu vực · ảnh mẫu · checklist · điểm', badge: c.zonesTodo.length, onClick: () => go('home/cleaning') },
+      { t: 'Nhiệm vụ dọn dẹp', d: myZones(s, me.id).length ? `${T.menu.cleaningDescPrefix} · khu vực của bạn là số ${myZones(s, me.id).join(', ')} · ảnh mẫu · checklist · điểm` : `${T.menu.cleaningDescPrefix} · khu vực · ảnh mẫu · checklist · điểm`, badge: c.zonesTodo.length, onClick: () => go('home/cleaning') },
       { t: 'Bảng điều phối / lịch hẹn', d: 'Khách và tour được giao cho tôi', onClick: () => go('home/board') },
-      { t: 'Khách hàng', d: 'Đã chăm sóc · yêu cầu KTV · liệu trình · dữ liệu mẫu', onClick: () => go('home/cust') },
+      { t: T.menu.work, d: T.menu.workDesc, badge: c.tasksOpen, onClick: () => go('home/work') },
       { t: 'Thông báo quan trọng', d: 'Cập nhật · đào tạo · yêu cầu khách', badge: c.unread, onClick: () => go('home/notices') },
       { t: 'Bill Money', d: 'Ảnh bill · đối soát tour · xác nhận', onClick: () => go('home/bills') },
       { t: 'Đánh giá Google, Facebook', d: 'Minh chứng riêng cho từng tour', onClick: () => go('home/reviews') },
       { t: 'Đối chiếu sản phẩm', d: 'Ảnh · xác nhận hai bên · báo cáo tháng', badge: c.prodTodo, onClick: () => go('home/products') },
       { t: 'Xin nghỉ phép', d: 'Gửi đơn · theo dõi kết quả', onClick: () => go('home/leave') },
       { t: 'Báo cáo sự cố', d: 'Mô tả · ảnh · trạng thái xử lý', onClick: () => go('home/incident') },
+      { t: T.menu.idea, d: T.menu.ideaDesc, onClick: () => go('home/idea') },
     ]} />
     <QrButton />
   </>
 }
 
 export function KtvWork({ sub }: { sub: string[] }) {
-  if (sub[0] === 'beds') return <><BackBtn to="work" /><BedsScreen /></>
-  return <MyWorkScreen />
+  if (sub[0] === 'beds') return <><BackBtn to="home/work" /><BedsScreen /></>
+  return <><BackBtn to="home" /><MyWorkScreen /></>
 }
 
 // ═══════════════ LỄ TÂN ═══════════════
