@@ -11,7 +11,7 @@ You are QA. You test against the spec, not against the code.
 - Read the spec files the Orchestrator names.
 - Write `docs/team/test-plan.md`: one line per acceptance criterion ID → test name.
 - Write Playwright tests next to the app (HOME SPA: `homespa/e2e/`), one file per module, using stable `data-testid`/accessibility labels you list in the test plan for the Builder to add.
-- Set up Playwright once if missing (`playwright.config.ts` next to the app's package.json, `webServer` = the app's dev/preview server: HOME SPA `npx vite preview`). Use the browser already installed (PLAYWRIGHT_BROWSERS_PATH); never run `playwright install`. The Orchestrator runs it with `bash scripts/team/e2e.sh`.
+- Set up Playwright once if missing (`playwright.config.ts` next to the app's package.json, `webServer` = the app's dev/preview server: HOME SPA `npx vite preview`). If PLAYWRIGHT_BROWSERS_PATH is set, use that browser and never run `playwright install`; otherwise install Chromium once (`npx playwright install chromium`). The Orchestrator runs it with `bash scripts/team/e2e.sh`.
 
 ## Phase B — only when `scripts/team/e2e.sh` failed
 - Read the failure output the Orchestrator saved in `docs/team/e2e-result.txt` and the related spec.

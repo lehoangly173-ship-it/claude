@@ -23,6 +23,9 @@ if ls .eslintrc* eslint.config.* >/dev/null 2>&1; then run lint npx eslint . --q
 if [ -f jest.config.js ] || [ -f jest.config.ts ] || grep -q '"jest"' package.json 2>/dev/null; then
   run unit npx jest --silent --passWithNoTests
 fi
-if ls vite.config.* >/dev/null 2>&1; then run build npx vite build --logLevel error; fi
+# Build into a temp folder so the tracked dist/ (released version) is never changed by a check.
+if ls vite.config.* >/dev/null 2>&1; then
+  tmpout=$(mktemp -d); run build npx vite build --logLevel error --outDir "$tmpout" --emptyOutDir; rm -rf "$tmpout"
+fi
 if [ "$ran" -eq 0 ]; then echo "CHECK FAIL — no checks configured (need tsconfig.json and Jest at least)"; exit 1; fi
 if [ "$fail" -eq 0 ]; then echo "CHECK PASS ($ran checks)"; else echo "CHECK FAIL$out"; exit 1; fi

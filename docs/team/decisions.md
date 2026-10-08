@@ -5,7 +5,8 @@
 - No backend yet: data is demo/sample in `homespa/src/data.ts` + `store.tsx`. Label sample numbers "số liệu mẫu"; not connected → "Chưa nối".
 - Text: existing screens have Vietnamese text inline. New text goes in one shared text file (create `homespa/src/i18n.ts` on first need); do not refactor old screens just for i18n unless asked.
 - Checks: `scripts/team/check.sh` = typecheck + vite build. Builder adds Jest only when logic tests are needed (ask first: new dependency).
-- Preview: `scripts/team/preview.sh` builds dist; deploy to https://homespa--flow.expo.app per homespa/HANDOFF.md only after Ly agrees. Do not commit `homespa/dist/` in team/* branches (rebuild at release).
+- Preview: `scripts/team/preview.sh` builds `homespa/dist/`; deploy it the HANDOFF.md way but with `--alias team` → https://homespa--team.expo.app (team preview). Never deploy a team preview to `--alias flow` (live version Ly shows staff); `flow` is updated only after release and Ly agrees. Do not commit `homespa/dist/` in team/* branches (rebuild at release).
+- Release checklist for HOME SPA while it has no backend (demo data): "every table has RLS", "privacy policy and terms" = N/A until Supabase is connected; all other items apply.
 - Later (only when Ly asks): move to Expo + Supabase per the default below.
 
 ## Default for new apps
