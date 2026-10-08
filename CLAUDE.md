@@ -21,6 +21,7 @@ App nhân sự **Home Spa – Clinic Dr Quyên** (Đà Nẵng). Code ở `homesp
 
 ## Làm việc
 - Đội agent chạy bằng `/doi-agent` (agent ở `.claude/agents/`, trạng thái ở `docs/team/STATE.md`). Đội đã tự kiểm tra bằng `check.sh` và người soát lỗi, đừng chạy lại.
+- Ở phiên cloud: `gh pr create` bị chặn → tạo PR bằng `gh api repos/lehoangly173-ship-it/claude/pulls ...`; không đẩy được tag → lưu bản bằng nhánh (`ban-N`, `chuan-YYYYMMDD`).
 - Việc sửa trực tiếp (không qua đội): trước khi báo xong chạy `cd homespa && npx tsc -p . --noEmit && npx vite build`, thử các luồng bằng trình duyệt headless; việc lớn thì nhờ một agent rà soát độc lập.
 
 ## Cuối phiên

@@ -51,14 +51,14 @@ Split screens into batches of 3–5. For each batch: builder (build these screen
 ## Gates (never skip, never assume approval)
 Send Ly ≤10 lines: what is done, what was checked, risks in plain words, decisions needed, preview link.
 - Gate 1: `docs/team/summary.md` + open questions. Wait for "duyệt" or changes.
-- Gate 2 / Gate M: `bash scripts/team/preview.sh "<what>"` → send the link. Wait for "duyệt".
+- Gate 2 / Gate M: `bash scripts/team/preview.sh "<what>"` → deploy as written in docs/team/decisions.md (Preview line; never overwrite the live version) → send the link. Wait for "duyệt".
 After each gate and every 3 modules, update STATE.md and tell Ly: "Để tiết kiệm, gõ /clear rồi /doi-agent tiếp tục."
 
 ## Release (`phát hành`, Gate 3)
 1. Make sure Milestone passed after the last change.
 2. Checklist (all must be yes): all tests pass; security audit has no critical/high; every table has RLS; no secrets in the app; privacy policy and terms exist; preview tested by Ly.
-3. Open a pull request develop → main (`gh pr create`) with a Vietnamese summary. Tell Ly: "Bạn bấm Merge trên GitHub là duyệt phát hành."
-4. After Ly merges: tag `chuan-YYYYMMDD` on main and push the tag. Store submit or production update only if Ly asks, and the command will ask her to approve.
+3. Open a pull request develop → main with a Vietnamese summary. `gh pr create` fails in cloud sessions (GraphQL blocked) → use `gh api repos/<owner>/<repo>/pulls -f base=main -f head=develop -f title=... -f body=...`. Tell Ly: "Bạn bấm Merge trên GitHub là duyệt phát hành." Merge yourself only if Ly explicitly asks (the command asks her to approve).
+4. After the merge: save the standard version as a branch (the proxy blocks pushing tags): `git push origin origin/main:refs/heads/chuan-YYYYMMDD`, and in HOME SPA also follow the "Bản" table in homespa/HANDOFF.md. Store submit or production update only if Ly asks, and the command will ask her to approve.
 
 ## Token rules
 - Only STATE.md, agent replies and script outputs enter your context. Never open code, specs, diffs or reviews unless Ly asks.
