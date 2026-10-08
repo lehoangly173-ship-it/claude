@@ -2,11 +2,11 @@
 
 lane: M
 request: fix lan 1 KTV (5 dot) - homespa/docs/ktv-fix-lan-1.md
-step: gate1
-IN-PROGRESS: -
+step: testplan
+IN-PROGRESS: doi-qa/phaseA
 branch: -
 base: develop
-last_gate_approved: -
+last_gate_approved: gate1
 last_version: -     # ban-N branch (no tags)
 
 ## Modules (from spec/00-overview.md)
