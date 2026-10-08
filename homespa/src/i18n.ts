@@ -119,7 +119,7 @@ export const T = {
   // m4: mục Khách hàng của KTV
   cust: {
     tabTitle: 'Khách hàng',
-    tabSub: 'Khách của tôi và khách Home Spa liên quan tới tôi',
+    tabSub: 'SĐT và địa chỉ khách được ẩn với KTV',
     mine: 'Khách hàng của tôi',
     mineDesc: 'Tôi đã chăm sóc · yêu cầu tôi · tôi chốt liệu trình',
     all: 'Khách Home Spa',

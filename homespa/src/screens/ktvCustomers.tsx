@@ -53,7 +53,7 @@ export function KtvCustomersPage({ back }: P) {
   const all = s.customers.filter(c => caredIds.has(c.id)).length
   return <>
     <SubHead title="Khách hàng của tôi" sub="SĐT khách được ẩn với KTV. Doanh thu theo tệp khách chỉ CEO xem." onBack={back} />
-    <Tiles items={[{ v: all, l: 'KH tôi đã chăm sóc' }, { v: reqIds.size, l: 'KH yêu cầu tôi', s: all ? `tỉ suất ${Math.round(reqIds.size / all * 100)}%` : undefined, tone: 'ok' }, { v: closed.length, l: 'KH tôi chốt liệu trình' }, { v: pointsOf(s, me.id), l: 'Điểm uy tín' }]} />
+    <Tiles items={[{ v: all, l: 'KH tôi đã chăm sóc', onClick: () => setTab('cared') }, { v: reqIds.size, l: 'KH yêu cầu tôi', s: all ? `tỉ suất ${Math.round(reqIds.size / all * 100)}%` : undefined, tone: 'ok', onClick: () => setTab('req') }, { v: closed.length, l: 'KH tôi chốt liệu trình', onClick: () => setTab('closed') }, { v: pointsOf(s, me.id), l: 'Điểm uy tín' }]} />
     <Seg value={tab} onChange={setTab} items={[{ k: 'cared', label: 'Tôi đã chăm sóc' }, { k: 'req', label: 'Yêu cầu tôi' }, { k: 'closed', label: 'Tôi chốt liệu trình' }]} />
     {tab === 'closed' && <div className="frow">
       <button className={`btn sm${closedSub === 'le' ? ' pri' : ''}`} aria-pressed={closedSub === 'le'} onClick={() => setClosedSub(closedSub === 'le' ? 'all' : 'le')}>{C.closedLe} <span className="badge">{split.le.length}</span></button>
