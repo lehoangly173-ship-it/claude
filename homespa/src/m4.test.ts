@@ -127,3 +127,11 @@ describe('M4-08d / M4-07', () => {
   it('SĐT mẫu là số giả 0900 000 0xx (R8)', () => { for (const c of D.SEED_CUSTOMERS) if (c.phone) expect(c.phone).toMatch(/^0900 000 0\d\d$/) })
   it('CSV của CEO có SĐT', () => expect(customersCsv(D.SEED_CUSTOMERS.slice(0, 1))).toContain('0900 000 001'))
 })
+
+import { canSeePhone } from './logic'
+describe('M4-13 quyền SĐT', () => {
+  it('chỉ Lễ tân + CEO', () => {
+    expect(canSeePhone('ceo')).toBe(true); expect(canSeePhone('reception')).toBe(true)
+    for (const r of ['ktv', 'leader', 'marketing'] as const) expect(canSeePhone(r)).toBe(false)
+  })
+})

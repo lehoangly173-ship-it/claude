@@ -413,3 +413,5 @@ export function customersCsv(list: Customer[]) {
   const head = ['Mã KH', 'Tên', 'SĐT', 'Nhóm', 'Nguồn', 'Số lần', 'Lần cuối (ngày trước)', 'Ngân sách', 'Tổng đã trả']
   return [head, ...list.map(c => [c.code, c.name, c.phone, c.group, c.source, c.visits, c.lastVisitDays, c.budget ?? '', c.totalPaid])].map(r => r.map(q).join(',')).join('\n')
 }
+/** R5: SĐT khách chỉ Lễ tân + CEO */
+export const canSeePhone = (role: import('./data').Role) => role === 'reception' || role === 'ceo'
