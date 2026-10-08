@@ -12,7 +12,7 @@ export default defineConfig({
     launchOptions: { executablePath: process.env.PW_CHROMIUM_PATH || undefined },
   },
   webServer: {
-    command: 'npx vite build && npx vite preview --port 4173 --strictPort',
+    command: 'npx vite build --outDir .e2e-dist --emptyOutDir && npx vite preview --outDir .e2e-dist --port 4173 --strictPort',
     url: 'http://localhost:4173',
     reuseExistingServer: true,
     timeout: 120_000,

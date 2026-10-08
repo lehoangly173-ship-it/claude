@@ -6,6 +6,7 @@ import * as D from '../data'
 import { cust, ktvState } from '../logic'
 import { Pill, PageHeader, Sec, Empty, Modal } from '../ui'
 import { ApptPill } from './ops'
+import { T } from '../i18n'
 
 export function MyWorkScreen() {
   const { s, me, setApptStatus, bedReady, openCustomer, startTask, completeTask, addTask } = useStore()

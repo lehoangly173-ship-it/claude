@@ -346,3 +346,25 @@ textarea.inp { resize: vertical; min-height: 70px }
   .fm-hint { display: inline-flex; align-self: flex-start; align-items: center; gap: 8px; border: 1.5px solid var(--green-2); background: var(--card); color: var(--green); border-radius: 12px; padding: 10px 14px; font-weight: 600 }
   .fm-hint:hover { background: var(--mint) }
 }
+
+/* ── m1: 3 nhóm màu dùng chung (xanh nhạt = vừa · xanh đậm = ô số/nhãn nhấn · vàng = quan trọng) ── */
+.tile.mint, .node.mint, .bh.mint { background: var(--mint); border-color: var(--mint-2); color: var(--mint-ink) }
+.tile.mint .l, .tile.mint .s { color: var(--mint-ink) }
+.tile.gold, .node.gold { background: color-mix(in srgb, var(--gold) 28%, var(--card)); border-color: var(--gold) }
+.tile.gold .l, .tile.gold .s { color: var(--gold-ink) }
+.tile.deep, .bh.deep, .btn.deep, .deep.bar { background: var(--green); border-color: var(--green); color: #fff }
+.tile.deep .l, .tile.deep .s, .tile.deep .v, .bh.deep h2, .bh.deep p { color: #fff }
+.tile.deep .s { opacity: .85 }
+button.tile.deep:hover, .btn.deep:hover { background: var(--green-dark); border-color: var(--green-dark) }
+.block > .bh.deep, .block > .bh.mint { padding: 10px 14px; border-radius: 12px; align-items: center }
+.deep.bar { border-radius: 10px; padding: 6px 10px; font-weight: 700 }
+.nbtn { border: 0; background: none; text-align: left; padding: 0; color: inherit; font: inherit; cursor: pointer }
+.detail-row { display: flex; gap: 10px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line-2) }
+.detail-row:first-child { border-top: 0 }
+.detail-row > .body { flex: 1; min-width: 0 }
+.suggest { list-style: none; margin: 4px 0 0; padding: 4px; border: 1px solid var(--line); border-radius: 12px; background: var(--card) }
+.suggest li { padding: 8px 10px; border-radius: 8px; cursor: pointer }
+.suggest li:hover { background: var(--mint) }
+.radio { display: flex; gap: 8px; align-items: center; padding: 10px 12px; border: 1.5px solid var(--line); border-radius: 12px; font-weight: 600; cursor: pointer }
+.radio:has(input:checked) { border-color: var(--green-2); background: var(--mint) }
+.radio input { accent-color: var(--green); width: 18px; height: 18px }

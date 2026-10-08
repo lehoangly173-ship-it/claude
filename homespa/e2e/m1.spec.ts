@@ -1,6 +1,11 @@
 import { test, expect } from '@playwright/test'
 import { openAs, switchRole, goTab, openHomeItem, watchErrors } from './helpers'
 
+// ảnh xác minh sản phẩm (bắt buộc sẵn có, nút Ghi nhận mới bật)
+async function addProductPhoto(page: import('@playwright/test').Page) {
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64')
+  await page.locator('input[type=file]').first().setInputFiles({ name: 'sp.png', mimeType: 'image/png', buffer: png })
+}
 const MENU11 = ['Ca', 'Dọn dẹp', 'Bảng điều phối', 'Công việc của kĩ thuật viên', 'Thông báo', 'Bill Money', 'Đánh giá', 'Đối chiếu', 'Nghỉ phép', 'Sự cố', 'Sáng kiến phát triển Home Spa']
 
 test.describe('m1 màu + chuyển mục + nút nhỏ', () => {
@@ -22,7 +27,7 @@ test.describe('m1 màu + chuyển mục + nút nhỏ', () => {
 
   test('M1-03 Dọn dẹp: 4 ô deep, thanh Ca sáng mint', async ({ page }) => {
     await openAs(page, 'KTV')
-    await openHomeItem(page, /Dọn dẹp/)
+    await openHomeItem(page, /dọn dẹp/i)
     expect(await page.locator('.deep').count()).toBeGreaterThanOrEqual(4)
     await expect(page.locator('.mint', { hasText: 'Ca sáng 08:00–18:00' }).first()).toBeVisible()
   })
@@ -39,9 +44,9 @@ test.describe('m1 màu + chuyển mục + nút nhỏ', () => {
 
   test('M1-05 Tab KTV đúng 4 tab theo thứ tự', async ({ page }) => {
     await openAs(page, 'KTV')
-    const bar = page.locator('nav.tabbar, .tabbar, nav').last()
-    const txt = (await bar.innerText()).split('\n').map(x => x.trim()).filter(Boolean)
-    expect(txt).toEqual(['Hôm nay', 'Khách hàng', 'Hỏi Mộc', 'Của tôi'])
+    const bar = page.locator('nav.tabbar').last()
+    const txt = (await bar.locator('button').allInnerTexts()).map(x => x.split('\n')[0].trim().toLowerCase())
+    expect(txt).toEqual(['hôm nay', 'khách hàng', 'hỏi mộc', 'của tôi'])
     await expect(page.getByText('Công việc', { exact: true })).toHaveCount(0)
   })
 
@@ -50,7 +55,8 @@ test.describe('m1 màu + chuyển mục + nút nhỏ', () => {
     for (const t of MENU11) await expect(page.getByRole('button', { name: t }).first(), t).toBeVisible()
     await expect(page.locator('.page').getByRole('button', { name: /^\s*\d*\s*Khách hàng/ })).toHaveCount(0)
     await openHomeItem(page, 'Công việc của kĩ thuật viên')
-    await expect(page.getByText(/Công việc của kĩ thuật viên/).first()).toBeVisible()
+    // MyWorkScreen có tiêu đề "Công việc của tôi" (giao diện cũ giữ nguyên)
+    await expect(page.getByText('Công việc của tôi').first()).toBeVisible()
   })
 
   test('M1-07 Tab Khách hàng mở được danh sách', async ({ page }) => {
@@ -61,18 +67,20 @@ test.describe('m1 màu + chuyển mục + nút nhỏ', () => {
 
   test('M1-08 4 ô Dọn dẹp mở Modal, số = số dòng', async ({ page }) => {
     await openAs(page, 'KTV')
-    await openHomeItem(page, /Dọn dẹp/)
+    await openHomeItem(page, /dọn dẹp/i)
     for (const label of ['Khu của tôi', 'Điểm hôm nay', 'Chờ kiểm tra', 'Cần làm lại']) {
       const tile = page.locator('.deep', { hasText: label }).first()
       const n = Number(((await tile.innerText()).match(/\d+/) ?? ['0'])[0])
       await tile.click()
       const modal = page.locator('[role=dialog], .modal').last()
       await expect(modal).toBeVisible()
-      if (label === 'Điểm hôm nay') continue // số là tổng điểm, không phải số dòng
-      const rows = await modal.locator('[data-testid=detail-row], .row, li').count()
-      n === 0 ? await expect(modal.getByText(/Chưa có|Trống/).first()).toBeVisible() : expect(rows).toBe(n)
+      if (label !== 'Điểm hôm nay') { // số của ô Điểm là tổng điểm, không phải số dòng
+        const rows = await modal.locator('[data-testid=detail-row], .row, li').count()
+        n === 0 ? await expect(modal.getByText(/Chưa có|Trống/).first()).toBeVisible() : expect(rows).toBe(n)
+      }
       await page.keyboard.press('Escape')
-      await modal.getByRole('button', { name: /Đóng|×/ }).first().click({ trial: false }).catch(() => {})
+      if (await modal.isVisible()) await modal.getByRole('button', { name: /Đóng|×/ }).first().click()
+      await expect(modal).toBeHidden()
     }
   })
 
@@ -90,38 +98,51 @@ test.describe('m1 màu + chuyển mục + nút nhỏ', () => {
     await expect(bell).toBeVisible()
   })
 
-  test('M1-10 Tiêu chuẩn mẫu: mọi khu có nút, tích còn sau khi mở lại', async ({ page }) => {
-    await openAs(page, 'KTV')
-    await openHomeItem(page, /Dọn dẹp/)
-    await page.getByText(/Khu của tôi/).first().click()
-    await expect(page.getByRole('button', { name: 'Tiêu chuẩn mẫu' }).first()).toBeVisible()
-    await page.getByRole('button', { name: 'Tiêu chuẩn mẫu' }).first().click()
+  test('M1-10 Tiêu chuẩn mẫu: mở được; ô đã đọc + ô tích còn sau khi mở lại', async ({ page }) => {
+    await openAs(page, 'KTV', 'Hiền') // Hiền: khu 3 chưa báo nên tích được
+    await openHomeItem(page, /dọn dẹp/i)
+    const zone = page.locator('button.item', { hasText: 'của tôi' }).first()
+    await zone.click()
+    const modal = page.locator('.modal').filter({ hasText: 'Phụ trách hôm nay' })
+    await expect(modal.getByRole('button', { name: 'Tiêu chuẩn mẫu' })).toBeVisible()
+    await modal.getByRole('button', { name: 'Tiêu chuẩn mẫu' }).click()
     await expect(page.getByText('Tệp tài liệu: Chưa nối')).toBeVisible()
+    await page.getByRole('button', { name: 'Đóng' }).last().click()
+    const read = modal.getByLabel('Tôi đã đọc nhiệm vụ')
+    const tick = modal.locator('label.check input[type=checkbox]').nth(1)
+    await read.check(); await tick.check()
+    await modal.getByRole('button', { name: 'Đóng' }).click()
+    await expect(modal).toBeHidden()
+    await zone.click()
+    await expect(modal.getByLabel('Tôi đã đọc nhiệm vụ')).toBeChecked()
+    await expect(modal.locator('label.check input[type=checkbox]').nth(1)).toBeChecked()
   })
 
   test('M1-11 Đối chiếu: bán cho khách thiếu thông tin bị chặn; dùng cho cơ sở ẩn 2 ô', async ({ page }) => {
     await openAs(page, 'KTV')
     await openHomeItem(page, /Đối chiếu/)
     await expect(page.getByText('MỤC ĐÍCH NHẬN SẢN PHẨM')).toBeVisible()
+    await addProductPhoto(page)
     await page.getByText('Bán cho khách hàng').click()
     await expect(page.getByPlaceholder('Tên hoặc mã KH — không ghi SĐT')).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Chụp/đính kèm hóa đơn' })).toBeVisible()
-    await page.getByRole('button', { name: /Lưu|Xác nhận|Gửi/ }).last().click()
+    await expect(page.getByText('Chụp/đính kèm hóa đơn', { exact: false })).toBeVisible()
+    await page.getByRole('button', { name: /Ghi nhận/ }).last().click()
     await expect(page.getByText(/bắt buộc|Thiếu|Vui lòng/i).first()).toBeVisible()
     await page.getByText('Dùng cho cơ sở').click()
     await expect(page.getByPlaceholder('Tên hoặc mã KH — không ghi SĐT')).toHaveCount(0)
-    await expect(page.getByRole('button', { name: 'Chụp/đính kèm hóa đơn' })).toHaveCount(0)
+    await expect(page.getByText('Chụp/đính kèm hóa đơn', { exact: false })).toHaveCount(0)
   })
 
   test('M1-11a Bán cho ai: SĐT bị chặn, 0 gợi ý, không có chữ "Tải file"', async ({ page }) => {
     await openAs(page, 'KTV')
     await openHomeItem(page, /Đối chiếu/)
+    await addProductPhoto(page)
     await page.getByText('Bán cho khách hàng').click()
     const box = page.getByPlaceholder('Tên hoặc mã KH — không ghi SĐT')
     for (const v of ['0900 000 001', '0900000001', '0901234567']) {
       await box.fill(v)
       await expect(page.locator('[role=option], datalist option, .suggest li')).toHaveCount(0)
-      await page.getByRole('button', { name: /Lưu|Xác nhận|Gửi/ }).last().click()
+      await page.getByRole('button', { name: /Ghi nhận/ }).last().click()
       await expect(page.getByText('Không ghi SĐT').first()).toBeVisible()
     }
     await expect(page.getByText('Tải file')).toHaveCount(0)
@@ -131,7 +152,8 @@ test.describe('m1 màu + chuyển mục + nút nhỏ', () => {
     await openAs(page, 'Leader/Manager')
     await page.goto('/')
     await switchRole(page, 'Leader/Manager')
-    await openHomeItem(page, /Đối chiếu/).catch(() => {})
+    await openHomeItem(page, /Đối chiếu/i)
+    await expect(page.getByText(/Lượt xuất\/nhận hôm nay/i).first()).toBeVisible()
     await expect(page.getByText(/Chụp\/đính kèm hóa đơn|Bán cho ai/)).toHaveCount(0)
   })
 

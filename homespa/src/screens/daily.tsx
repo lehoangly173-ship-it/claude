@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import { useStore } from '../store'
 import * as D from '../data'
-import { canSee, cust, myZones, zoneReport, tourOrder, billRows, ktvState, pointsOf } from '../logic'
+import { canSee, cust, myZones, zoneReport, tourOrder, billRows, ktvState, pointsOf, unreadCount, cleanDetail, zoneKey, ktvCustomers, buyerSuggestions, validateReceive, canSeeBuyer } from '../logic'
+import { T } from '../i18n'
 import { Pill, Empty, Modal, SubHead, Block, Tiles, PhotoInput, Thumb, Seg, Av, Icon } from '../ui'
 import { ApptPill } from './ops'
 
@@ -23,17 +24,17 @@ export function ShiftTourPage({ back }: P) {
     <SubHead title="Ca, đổi ca & thứ tự tour" sub="Lịch 4 tuần · ca của tôi · số thứ tự tour hôm nay" onBack={back}
       right={(user.role === 'ktv' || user.role === 'reception') && <button className="btn pri" onClick={() => setAsk(true)}>Xin đổi ca</button>} />
     {me.shift && <div className="tiles">
-      <div className="tile"><span className="l">Ca của tôi hôm nay</span><span className="v" style={{ fontSize: 19 }}>{me.shift === 1 ? 'Ca sáng' : 'Ca chiều'}</span><span className="s">{D.SHIFTS[me.shift].label}</span></div>
-      {me.role === 'ktv' && <div className="tile"><span className="l">Thứ tự tour</span><span className="v">#{pos + 1}</span><span className="s">trong {order.length} KTV · tự xoay khi nhận khách</span></div>}
-      <div className="tile"><span className="l">Chấm công</span><span className="v" style={{ fontSize: 19 }}>{s.attendance[me.id]?.in != null ? D.hhmm(s.attendance[me.id].in!) : 'Chưa'}</span><span className="s">{s.attendance[me.id]?.in == null ? 'chưa quét QR' : s.attendance[me.id].in! > D.SHIFTS[me.shift].start ? `trễ ${s.attendance[me.id].in! - D.SHIFTS[me.shift].start} phút` : 'đúng giờ'}</span></div>
+      <div className="tile mint"><span className="l">Ca của tôi hôm nay</span><span className="v" style={{ fontSize: 19 }}>{me.shift === 1 ? 'Ca sáng' : 'Ca chiều'}</span><span className="s">{D.SHIFTS[me.shift].label}</span></div>
+      {me.role === 'ktv' && <div className="tile mint"><span className="l">Thứ tự tour</span><span className="v">#{pos + 1}</span><span className="s">trong {order.length} KTV · tự xoay khi nhận khách</span></div>}
+      <div className="tile mint"><span className="l">Chấm công</span><span className="v" style={{ fontSize: 19 }}>{s.attendance[me.id]?.in != null ? D.hhmm(s.attendance[me.id].in!) : 'Chưa'}</span><span className="s">{s.attendance[me.id]?.in == null ? 'chưa quét QR' : s.attendance[me.id].in! > D.SHIFTS[me.shift].start ? `trễ ${s.attendance[me.id].in! - D.SHIFTS[me.shift].start} phút` : 'đúng giờ'}</span></div>
     </div>}
     <Block title="Lịch chia tour hôm nay" sub="Khách yêu cầu đích danh không làm mất lượt. Thứ tự do hệ thống xoay theo quy luật CEO cài đặt.">
-      <div className="grid g2">{([1, 2] as const).map(sh => <div key={sh} className="card pad col"><b>{sh === 1 ? 'SÁNG · 08:00–18:00' : 'CHIỀU · 10:00–20:00'}</b>
+      <div className="grid g2">{([1, 2] as const).map(sh => <div key={sh} className="card pad col"><div className="deep bar">{sh === 1 ? 'SÁNG 08:00–18:00' : 'CHIỀU 10:00–20:00'}</div>
         {s.rotation[sh].map(id => { const k = s.staff.find(x => x.id === id)!; const st = ktvState(s, id)
           return <div key={id} className="row small" style={{ background: id === me.id ? 'var(--mint)' : undefined, borderRadius: 10, padding: '4px 6px' }}><span className="num strong" style={{ width: 22 }}>{order.indexOf(id) + 1}</span><span style={{ flex: 1 }}>{k.name}{id === me.id && ' (tôi)'}</span><Pill tone={st.tone} dot>{st.label}</Pill></div> })}
         <div className="tiny muted">Lễ tân: {recs.filter(r => r.shift === sh).map(r => r.name).join(', ') || '—'}</div></div>)}</div>
     </Block>
-    <Block title="Bảng chia ca 4 tuần" sub="S = sáng · C = chiều · OFF = nghỉ đã duyệt · đổi ca đã duyệt tự đảo S↔C" right={<Seg value={String(week)} onChange={v => setWeek(+v)} items={[0, 1, 2, 3].map(w => ({ k: String(w), label: `Tuần ${w + 1}` }))} />}>
+    <Block color="deep" title="Bảng chia ca 4 tuần" sub="S = sáng · C = chiều · OFF = nghỉ đã duyệt · đổi ca đã duyệt tự đảo S↔C" right={<Seg value={String(week)} onChange={v => setWeek(+v)} items={[0, 1, 2, 3].map(w => ({ k: String(w), label: `Tuần ${w + 1}` }))} />}>
       <div className="tbl-wrap"><table className="roster"><thead><tr><th>Nhân viên</th>{Array.from({ length: 7 }, (_, i) => <th key={i}>{D.dayLabel(week * 7 + i)}</th>)}</tr></thead>
         <tbody>{people.map(p => <tr key={p.id} style={{ background: p.id === me.id ? 'var(--mint)' : undefined }}><td className="strong">{p.name}<span className="tiny muted"> · {p.role === 'ktv' ? 'KTV' : 'LT'}</span></td>
           {Array.from({ length: 7 }, (_, i) => { const off = week * 7 + i; const lv = s.leaves.find(l => (l.staffId === p.id || (l.kind === 'Đổi ca' && l.withId === p.id)) && l.status === 'Đã duyệt' && l.date === D.daysAhead(off)); const base = D.rosterCell(p, off); const c = !lv ? base : lv.kind === 'Nghỉ phép' ? 'OFF' : base === 'S' ? 'C' : base === 'C' ? 'S' : base; return <td key={i}><span className={`cell ${c}`}>{c}</span></td> })}</tr>)}</tbody></table></div>
@@ -46,25 +47,27 @@ export function ShiftTourPage({ back }: P) {
 export function CleaningPage({ back }: P) {
   const { s, me, user, checkClean } = useStore()
   const [open, setOpen] = useState<number | null>(null)
+  const [detail, setDetail] = useState<'zones' | 'points' | 'pending' | 'redo' | null>(null)
   const [check, setCheck] = useState<D.CleanReport | null>(null)
   const [note, setNote] = useState('')
   const mine = myZones(s, me.id)
   const boss = isBoss(user.role)
   const pending = s.cleanReports.filter(r => r.status === 'Chờ kiểm tra')
-  const todayPts = s.cleanReports.filter(r => r.staffId === me.id).reduce((t, r) => t + (r.points ?? 0), 0)
+  const cd = cleanDetail(s, user.role, me.id)
   const zoneRow = (z: D.Zone) => { const r = zoneReport(s, z.no); const own = s.zoneOwner[z.no] === me.id; const locked = z.after != null && s.now < z.after
     return <button key={z.no} className="item" onClick={() => (boss && r?.status === 'Chờ kiểm tra' ? setCheck(r) : setOpen(z.no))} style={{ background: own ? 'var(--mint)' : undefined }}>
       <span className="av" style={{ borderRadius: 10 }}>{z.no}</span>
-      <div className="body"><div className="t">{z.name}{own && ' · của tôi'}</div><div className="d">{D.staffName(s.zoneOwner[z.no])}{z.after ? ` · sau ${D.hhmm(z.after)}` : ''}{r ? ` · báo ${D.hhmm(r.at)}` : ''}{r?.note ? ` · ${r.note}` : ''}</div></div>
+      <div className="body"><div className="t">{z.name}{own && ' · của tôi'}</div><div className="d">{D.staffName(s.zoneOwner[z.no])}{z.after ? ` · sau ${D.hhmm(z.after)}` : ''}{r ? ` · ${T.clean.reportedAt} ${D.hhmm(r.at)}` : ''}{r?.note ? ` · ${r.note}` : ''}</div></div>
       {r ? <Pill tone={r.status === 'Đạt' ? 'green' : r.status === 'Chưa đạt' ? 'red' : 'yellow'}>{r.status}{r.status === 'Đạt' ? ` +${r.points}` : ''}</Pill> : <Pill tone={locked ? 'grey' : 'brown'}>{locked ? 'Chưa đến giờ' : 'Chưa báo'}</Pill>}</button> }
   return <>
     <SubHead title="Nhiệm vụ dọn dẹp" sub={mine.length ? <>Khu vực của bạn là <b>số {mine.join(', ')}</b> — bấm vào khu để xem tiêu chuẩn, tải ảnh và gửi kiểm tra.</> : 'Bảng tổng quan dọn dẹp KTV – lễ tân'} onBack={back} />
-    <Tiles items={[...(boss ? [] : [{ v: mine.length ? `số ${mine.join(', ')}` : '—', l: 'Khu của tôi' }, { v: todayPts, l: 'Điểm dọn dẹp hôm nay', tone: 'ok' as const }]), { v: pending.length, l: 'Chờ kiểm tra' }, { v: s.cleanReports.filter(r => r.status === 'Chưa đạt' && zoneReport(s, r.zone)?.id === r.id).length, l: 'Cần làm lại', tone: s.cleanReports.some(r => r.status === 'Chưa đạt') ? 'warn' : undefined }]} />
+    <Tiles items={[...(boss ? [] : [{ v: cd.zones.length, l: T.clean.myZones, s: cd.zones.length ? `${T.clean.zoneNo} ${cd.zones.join(', ')}` : undefined, color: 'deep' as const, onClick: () => setDetail('zones') }, { v: cd.points, l: T.clean.todayPoints, color: 'deep' as const, onClick: () => setDetail('points') }]), { v: cd.pending.length, l: T.clean.pending, color: 'deep' as const, onClick: () => setDetail('pending') }, { v: cd.redo.length, l: T.clean.redo, color: 'deep' as const, onClick: () => setDetail('redo') }]} />
     {boss && pending.length > 0 && <Block title="Chờ kiểm tra ảnh" sub="Xem ảnh → Đạt (+điểm) hoặc Chưa đạt (ghi lý do để làm lại)">
       <div className="card list">{pending.map(r => <button key={r.id} className="item" onClick={() => setCheck(r)}><Thumb src={r.photo} /><div className="body"><div className="t">Khu {r.zone} · {D.ZONES[r.zone - 1].name}</div><div className="d">{D.staffName(r.staffId)} · {D.hhmm(r.at)}</div></div><span className="btn sm pri">Kiểm tra</span></button>)}</div></Block>}
-    <Block title="Ca sáng · 08:00–18:00"><div className="card list">{D.ZONES.filter(z => z.shift === 1).map(zoneRow)}</div></Block>
-    <Block title="Ca chiều · 10:00–20:00" sub="Giặt khăn 4 lần: chỉ báo cáo được sau mốc giờ"><div className="card list">{D.ZONES.filter(z => z.shift === 2).map(zoneRow)}</div></Block>
+    <Block color="mint" title={T.clean.morning}><div className="card list">{D.ZONES.filter(z => z.shift === 1).map(zoneRow)}</div></Block>
+    <Block color="mint" title={T.clean.afternoon} sub="Giặt khăn 4 lần: chỉ báo cáo được sau mốc giờ"><div className="card list">{D.ZONES.filter(z => z.shift === 2).map(zoneRow)}</div></Block>
     {open != null && <ZoneModal zone={open} onClose={() => setOpen(null)} />}
+    {detail && <CleanDetailModal kind={detail} onClose={() => setDetail(null)} onOpenZone={n => { setDetail(null); setOpen(n) }} />}
     {check && <Modal title={`Kiểm tra khu ${check.zone} · ${D.staffName(check.staffId)}`} onClose={() => setCheck(null)} footer={<><button className="btn danger" disabled={!note.trim()} onClick={() => { checkClean(check.id, false, note.trim()); setCheck(null); setNote('') }}>Chưa đạt</button><button className="btn pri" onClick={() => { checkClean(check.id, true, note.trim()); setCheck(null); setNote('') }}>Đạt · +{D.ZONE_POINTS} điểm</button></>}>
       <div className="row"><Thumb src={check.photo} /><span className="small">{check.photo.startsWith('blob:') ? 'Ảnh vừa tải lên' : `Ảnh: ${check.photo}`} · {D.hhmm(check.at)}</span></div>
       {D.ZONES[check.zone - 1].std.map((x, i) => <div key={i} className="small">{check.checks[i] ? '✓' : '✗'} {x}</div>)}
@@ -72,22 +75,52 @@ export function CleaningPage({ back }: P) {
     </Modal>}
   </>
 }
+/** Modal xem tiêu chuẩn mẫu của một khu (tệp tài liệu thật chưa nối) */
+function StdModal({ zone, onClose }: { zone: number; onClose: () => void }) {
+  const z = D.ZONES[zone - 1]
+  return <Modal title={`${T.clean.stdTitle} — khu ${zone}: ${z.name}`} onClose={onClose}>
+    <div className="col" style={{ gap: 6 }}>{z.std.map((x, i) => <div key={i} className="small">• {x}</div>)}</div>
+    <div className="note">{T.clean.stdFile}</div>
+  </Modal>
+}
+/** Chi tiết 4 ô số của trang Dọn dẹp: số trên ô = số dòng trong Modal */
+function CleanDetailModal({ kind, onClose, onOpenZone }: { kind: 'zones' | 'points' | 'pending' | 'redo'; onClose: () => void; onOpenZone: (n: number) => void }) {
+  const { s, me, user } = useStore()
+  const [std, setStd] = useState<number | null>(null)
+  const d = cleanDetail(s, user.role, me.id)
+  const title = { zones: T.clean.myZones, points: T.clean.todayPoints, pending: T.clean.pending, redo: T.clean.redo }[kind]
+  const stat = (r: D.CleanReport) => `${r.status}${r.status === 'Đạt' ? ` +${r.points}` : ''}`
+  const rep = (r: D.CleanReport, extra?: string) => <div key={r.id} className="detail-row" data-testid="detail-row"><span className="av" style={{ borderRadius: 10 }}>{r.zone}</span>
+    <div className="body"><div className="t">Khu {r.zone} · {D.ZONES[r.zone - 1].name}</div><div className="d">{D.staffName(r.staffId)} · {T.clean.reportedAt} {D.hhmm(r.at)}{extra}</div></div><Pill tone={r.status === 'Đạt' ? 'green' : r.status === 'Chưa đạt' ? 'red' : 'yellow'}>{stat(r)}</Pill></div>
+  return <><Modal title={title} onClose={onClose}>
+    {kind === 'zones' && (d.zones.length ? d.zones.map(n => { const z = D.ZONES[n - 1], r = zoneReport(s, n)
+      return <div key={n} className="detail-row" data-testid="detail-row"><span className="av" style={{ borderRadius: 10 }}>{n}</span>
+        <div className="body"><div className="t">{z.name}</div><div className="d">{r ? `${r.status} · ${T.clean.reportedAt} ${D.hhmm(r.at)}` : T.clean.notReported}</div></div>
+        <button className="btn sm" onClick={() => setStd(n)}>{T.clean.stdButton}</button><button className="btn sm pri" onClick={() => onOpenZone(n)}>{T.clean.openZone}</button></div> }) : <Empty>{T.clean.emptyZones}</Empty>)}
+    {kind === 'points' && (d.mine.length ? <>{d.mine.map(r => rep(r, ` · ${r.points ?? 0} ${T.clean.pointsUnit}`))}<div className="small strong">{T.clean.total}: {d.points}</div></> : <Empty>{T.clean.emptyPoints}</Empty>)}
+    {kind === 'pending' && (d.pending.length ? d.pending.map(r => rep(r)) : <Empty>{T.clean.emptyPending}</Empty>)}
+    {kind === 'redo' && (d.redo.length ? d.redo.map(r => rep(r, r.note ? ` · ${T.clean.reason}: ${r.note}` : '')) : <Empty>{T.clean.emptyRedo}</Empty>)}
+  </Modal>{std != null && <StdModal zone={std} onClose={() => setStd(null)} />}</>
+}
 function ZoneModal({ zone, onClose }: { zone: number; onClose: () => void }) {
-  const { s, me, submitClean, say } = useStore()
+  const { s, me, submitClean, say, setZoneRead, toggleZoneCheck } = useStore()
   const z = D.ZONES[zone - 1]
   const [photo, setPhoto] = useState('')
-  const [checks, setChecks] = useState(z.std.map(() => false))
+  const [showStd, setShowStd] = useState(false)
+  const key = zoneKey(zone, me.id)
+  const checks = s.zoneChecks[key] ?? z.std.map(() => false)
   const r = zoneReport(s, zone)
   const own = s.zoneOwner[zone] === me.id
   const canSend = own && (!r || r.status === 'Chưa đạt')
-  return <Modal title={`Khu vực số ${zone} — ${z.name}`} onClose={onClose} footer={canSend && <button className="btn pri" onClick={() => { const e = submitClean(zone, photo, checks); if (e) say('⚠ ' + e); else onClose() }}>Gửi kiểm tra</button>}>
+  return <><Modal title={`Khu vực số ${zone} — ${z.name}`} onClose={onClose} footer={canSend && <button className="btn pri" onClick={() => { const e = submitClean(zone, photo, checks); if (e) say('⚠ ' + e); else onClose() }}>Gửi kiểm tra</button>}>
     <div className="small muted">Phụ trách hôm nay: <b>{D.staffName(s.zoneOwner[zone])}</b>{z.after ? ` · báo cáo sau ${D.hhmm(z.after)}` : ''}</div>
     {r && <div className={r.status === 'Đạt' ? 'ok small' : r.status === 'Chưa đạt' ? 'err small' : 'warn small'}>Lần báo gần nhất {D.hhmm(r.at)} · {r.status}{r.points ? ` · +${r.points} điểm` : ''}{r.note ? ` · ${r.note}` : ''}</div>}
-    <div className="col" style={{ gap: 2 }}><span className="eyebrow">Tiêu chuẩn & việc cần làm</span>
-      {z.std.map((x, i) => <label key={i} className="check"><input type="checkbox" disabled={!canSend} checked={checks[i]} onChange={() => setChecks(c => c.map((v, j) => (j === i ? !v : v)))} />{x}</label>)}</div>
+    <div className="col" style={{ gap: 2 }}><div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><span className="eyebrow" style={{ marginRight: 'auto' }}>Tiêu chuẩn & việc cần làm</span><button className="btn sm" onClick={() => setShowStd(true)}>{T.clean.stdButton}</button></div>
+      {own && <label className="check"><input type="checkbox" checked={!!s.zoneRead[key]} onChange={e => setZoneRead(zone, e.target.checked)} />{T.clean.readTask}</label>}
+      {z.std.map((x, i) => <label key={i} className="check"><input type="checkbox" disabled={!canSend} checked={checks[i]} onChange={() => toggleZoneCheck(zone, i, z.std.length)} />{x}</label>)}</div>
     <div className="note">Ảnh mẫu: chụp toàn cảnh khu vực, đủ sáng, thấy rõ các điểm trong tiêu chuẩn. Ảnh là căn cứ chấm điểm.</div>
     {canSend ? <PhotoInput value={photo} onChange={setPhoto} label="Tải ảnh khu vực đã dọn" /> : !own ? <div className="small muted">Khu này không phải của bạn hôm nay.</div> : <div className="small muted">Đã gửi — chờ kết quả kiểm tra.</div>}
-  </Modal>
+  </Modal>{showStd && <StdModal zone={zone} onClose={() => setShowStd(false)} />}</>
 }
 
 // ── 3. Bảng điều phối / lịch hẹn (KTV xem) ──
@@ -109,9 +142,8 @@ export function KtvCustomersPage({ back }: P) {
   const [tab, setTab] = useState<'cared' | 'req' | 'closed'>('cared')
   const [kind, setKind] = useState<'all' | 'le' | 'lt'>('all')
   const [minTimes, setMinTimes] = useState(1)
-  const caredIds = new Set([...s.appts.filter(a => a.ktvId === me.id && ['in_service', 'done', 'paid'].includes(a.status)).map(a => a.customerId), ...s.customers.filter(c => c.packages.some(p => p.usage.some(u => u.ktv === me.name)) || c.care.some(x => x.by === me.name)).map(c => c.id)])
-  const reqIds = new Set(s.appts.filter(a => a.ktvId === me.id && a.requested).map(a => a.customerId))
-  const closed = s.customers.filter(c => c.packages.some(p => p.closerIds?.includes(me.id) || p.closer === me.name || p.closer === me.id))
+  const kc = ktvCustomers(s, me)
+  const caredIds = kc.cared, reqIds = kc.requested, closed = kc.closed
   const base = tab === 'cared' ? s.customers.filter(c => caredIds.has(c.id)) : tab === 'req' ? s.customers.filter(c => reqIds.has(c.id)) : closed
   const list = base.filter(c => (kind === 'all' || (kind === 'lt') === c.packages.length > 0) && c.visits >= minTimes).sort((a, b) => b.visits - a.visits)
   const all = s.customers.filter(c => caredIds.has(c.id)).length
@@ -128,12 +160,14 @@ export function KtvCustomersPage({ back }: P) {
 
 // ── 5. Thông báo quan trọng ──
 export function NoticesPage({ back }: P) {
-  const { s, me, user, markRead, markAllRead, go } = useStore()
+  const { s, me, user, markRead, markUnread, markAllRead, go } = useStore()
   const list = s.notifs.filter(n => canSee(n, user.role, me.id))
   return <>
-    <SubHead title="Thông báo quan trọng" sub="Cập nhật mới · đào tạo · lịch yêu cầu khách · điểm số chung" onBack={back} right={<button className="btn" onClick={markAllRead}>Đã đọc hết</button>} />
-    <Block title="Ghim từ Home"><div className="card list">{D.ANNOUNCEMENTS.map(a => <div key={a.id} className="item"><Pill tone="green">{a.tag}</Pill><div className="body"><div className="t">{a.title}</div><div className="d">{a.by}</div></div></div>)}</div></Block>
-    <Block title="Vừa xảy ra"><div className="card list">{list.map(n => { const read = n.readBy.includes(me.id); return <button key={n.id} className="item" onClick={() => { markRead(n.id); if (n.nav) go(n.nav) }}>{!read && <span className="sev cao" />}<div className="body"><div className="t" style={{ fontWeight: read ? 500 : 700 }}>{n.text}</div><div className="d">{n.cat} · {D.hhmm(n.min)} · {n.detail}</div></div><Icon n="arrow" /></button> })}{!list.length && <Empty>Chưa có thông báo</Empty>}</div></Block>
+    <SubHead title="Thông báo quan trọng" sub="Cập nhật mới · đào tạo · lịch yêu cầu khách · điểm số chung" onBack={back} right={<button className="btn deep" onClick={markAllRead}>Đã đọc hết</button>} />
+    <Block color="deep" title="Ghim từ Home"><div className="card list">{D.ANNOUNCEMENTS.map(a => <div key={a.id} className="item"><Pill tone="green">{a.tag}</Pill><div className="body"><div className="t">{a.title}</div><div className="d">{a.by}</div></div></div>)}</div></Block>
+    <Block color="deep" title="Vừa xảy ra"><div className="card list">{list.map(n => { const read = n.readBy.includes(me.id); return <div key={n.id} className="item" style={{ cursor: 'pointer' }} onClick={() => { markRead(n.id); if (n.nav) go(n.nav) }}>{!read && <span className="sev cao" />}
+      <div className="body"><div className="t" style={{ fontWeight: read ? 500 : 700 }}>{n.text}</div><div className="d">{n.cat} · {D.hhmm(n.min)} · {n.detail}</div></div>
+      <button className="btn sm" onClick={e => { e.stopPropagation(); (read ? markUnread(n.id) : markRead(n.id)) }}>{read ? T.notice.markUnread : T.notice.markRead}</button><Icon n="arrow" /></div> })}{!list.length && <Empty>Chưa có thông báo</Empty>}</div></Block>
   </>
 }
 
@@ -194,23 +228,62 @@ export function ProductsPage({ back }: P) {
   const { s, me, user, addProduct, confirmProduct } = useStore()
   const [f, setF] = useState({ product: D.PRODUCTS[0] as string, qty: 1, ktvId: D.ktvs()[0]?.id ?? '' })
   const [photo, setPhoto] = useState('')
-  const isRec = user.role === 'reception'
-  const list = user.role === 'ktv' ? s.productLogs.filter(p => p.ktvId === me.id) : s.productLogs
-  const open = list.filter(p => !(p.ktvOk && p.recOk)).length
+  const [purpose, setPurpose] = useState<D.ProductLog['purpose']>()
+  const [buyer, setBuyer] = useState('')
+  const [invoice, setInvoice] = useState('')
+  const [err, setErr] = useState('')
+  const [detail, setDetail] = useState<'all' | 'open' | null>(null)
+  const isRec = user.role === 'reception', isKtv = user.role === 'ktv'
+  const list = isKtv ? s.productLogs.filter(p => p.ktvId === me.id) : s.productLogs
+  const openList = list.filter(p => !(p.ktvOk && p.recOk))
+  const sugg = isKtv && purpose === 'ban_khach' ? buyerSuggestions(s, me, buyer) : []
+  const save = () => {
+    if (!isKtv) { addProduct(f.product, f.qty, f.ktvId, photo); setPhoto(''); return }
+    const e = validateReceive({ purpose, buyer, invoice, photo })
+    if (e) { setErr(e); return }
+    addProduct(f.product, f.qty, f.ktvId, photo, purpose === 'ban_khach' ? { purpose, buyerNote: buyer.trim(), invoicePhoto: invoice } : { purpose })
+    setPhoto(''); setPurpose(undefined); setBuyer(''); setInvoice(''); setErr('')
+  }
+  const who = (p: D.ProductLog) => `${T.product.confirmedBy}: ${p.ktvOk ? `${T.product.byKtv} ${D.staffName(p.ktvId)}` : `${T.product.byKtv} ${T.product.nobody}`} · ${p.recOk ? `${T.product.byRec} ${D.staffName(p.recId)}` : `${T.product.byRec} ${T.product.nobody}`}`
   return <>
     <SubHead title={isRec ? 'Đối chiếu sản phẩm, kiểm kho' : 'Đối chiếu sản phẩm'} sub="Dầu, cao hổ, sữa chua… Bấm xác nhận 2 bên (KTV & lễ tân). Chưa đủ 2 bên → bộ ảnh là điểm chốt để truy cứu." onBack={back} />
-    <Tiles items={[{ v: list.length, l: 'Lượt xuất/nhận hôm nay' }, { v: open, l: 'Chưa đủ 2 bên xác nhận', tone: open ? 'warn' : 'ok' }]} />
-    {(user.role === 'ktv' || isRec) && <Block title={isRec ? 'Xuất sản phẩm cho KTV' : 'Ghi nhận sản phẩm tôi nhận'}>
+    <Tiles items={[{ v: list.length, l: T.product.total, color: 'deep', onClick: () => setDetail('all') }, { v: openList.length, l: T.product.open, color: 'deep', onClick: () => setDetail('open') }]} />
+    {(isKtv || isRec) && <Block title={isRec ? 'Xuất sản phẩm cho KTV' : 'Ghi nhận sản phẩm tôi nhận'}>
       <div className="grid g3"><label className="f">Sản phẩm<select id="pr-p" className="inp" value={f.product} onChange={e => setF({ ...f, product: e.target.value })}>{D.PRODUCTS.map(p => <option key={p}>{p}</option>)}</select></label>
         <label className="f">Số lượng<input id="pr-q" className="inp num" type="number" min={1} value={f.qty} onChange={e => setF({ ...f, qty: Math.max(1, +e.target.value || 1) })} /></label>
         {isRec && <label className="f">KTV nhận<select id="pr-k" className="inp" value={f.ktvId} onChange={e => setF({ ...f, ktvId: e.target.value })}>{D.ktvs().map(k => <option key={k.id} value={k.id}>{k.name}</option>)}</select></label>}</div>
-      <PhotoInput value={photo} onChange={setPhoto} label="Ảnh xác minh sản phẩm" />
-      <button className="btn pri" disabled={!photo} onClick={() => { addProduct(f.product, f.qty, f.ktvId, photo); setPhoto('') }}>Ghi nhận & xác nhận phía {isRec ? 'lễ tân' : 'KTV'}</button>
+      <PhotoInput value={photo} onChange={v => { setPhoto(v); setErr('') }} label="Ảnh xác minh sản phẩm" />
+      {isKtv && <div className="col" style={{ gap: 8 }}>
+        <span className="eyebrow">{T.product.purposeTitle}</span>
+        <label className="radio"><input type="radio" name="pr-purpose" checked={purpose === 'ban_khach'} onChange={() => { setPurpose('ban_khach'); setErr('') }} />{T.product.sell}</label>
+        <label className="radio"><input type="radio" name="pr-purpose" checked={purpose === 'dung_co_so'} onChange={() => { setPurpose('dung_co_so'); setErr('') }} />{T.product.facility}</label>
+        {purpose === 'ban_khach' && <>
+          <label className="f">{T.product.buyerLabel}<input id="pr-buyer" className="inp" autoComplete="off" value={buyer} placeholder={T.product.buyerPlaceholder} onChange={e => { setBuyer(e.target.value); setErr('') }} /></label>
+          {sugg.length > 0 && <ul className="suggest">{sugg.map(c => <li key={c.id} role="option" aria-selected={false} onClick={() => setBuyer(`${c.name} (${c.code})`)}>{c.name} <span className="tiny muted">· mã {c.code}</span></li>)}</ul>}
+          <PhotoInput value={invoice} onChange={v => { setInvoice(v); setErr('') }} label={T.product.invoiceButton} />
+        </>}
+      </div>}
+      {err && <div className="err small" role="alert">{err}</div>}
+      <button className="btn pri" disabled={!photo} onClick={save}>{isRec ? 'Ghi nhận & xác nhận phía lễ tân' : 'Ghi nhận & xác nhận phía KTV'}</button>
     </Block>}
-    <Block title="Sổ đối chiếu"><div className="card list">{list.map(p => <div key={p.id} className="item"><Thumb src={p.photo} /><div className="body"><div className="t">{p.product} × {p.qty} · KTV {D.staffName(p.ktvId)}</div><div className="d">Lễ tân {p.recId ? D.staffName(p.recId) : 'chưa nhận'} · {D.hhmm(p.at)}</div></div>
+    <Block title="Sổ đối chiếu"><div className="card list">{list.map(p => <div key={p.id} className="item"><Thumb src={p.photo} /><div className="body"><div className="t">{p.product} × {p.qty} · KTV {D.staffName(p.ktvId)}</div><div className="d">Lễ tân {p.recId ? D.staffName(p.recId) : 'chưa nhận'} · {D.hhmm(p.at)}</div>
+      {p.purpose && <div className="d">{p.purpose === 'ban_khach' ? (canSeeBuyer(user.role, me.id, p) && p.buyerNote ? `${T.product.sellShort} · ${T.product.buyer}: ${p.buyerNote}` : T.product.sellShort) : T.product.facilityShort}</div>}</div>
+      {p.purpose === 'ban_khach' && p.invoicePhoto && canSeeBuyer(user.role, me.id, p) && <Thumb src={p.invoicePhoto} />}
       <Pill tone={p.ktvOk ? 'green' : 'yellow'}>KTV {p.ktvOk ? '✓' : 'chờ'}</Pill><Pill tone={p.recOk ? 'green' : 'yellow'}>LT {p.recOk ? '✓' : 'chờ'}</Pill>
-      {((isRec && !p.recOk) || (user.role === 'ktv' && p.ktvId === me.id && !p.ktvOk)) && <button className="btn sm pri" onClick={() => confirmProduct(p.id)}>Xác nhận</button>}</div>)}{!list.length && <Empty>Chưa có lượt nào</Empty>}</div>
+      {((isRec && !p.recOk) || (isKtv && p.ktvId === me.id && !p.ktvOk)) && <button className="btn sm pri" onClick={() => confirmProduct(p.id)}>Xác nhận</button>}</div>)}{!list.length && <Empty>Chưa có lượt nào</Empty>}</div>
       <div className="tiny muted">Ảnh sản phẩm giữ 6 tháng – 1 năm rồi reset, báo cáo tổng giữ lại 1 lần.</div></Block>
+    {detail && <Modal title={detail === 'all' ? T.product.total : T.product.open} onClose={() => setDetail(null)}>
+      {(detail === 'all' ? list : openList).map(p => <div key={p.id} className="detail-row" data-testid="detail-row"><div className="body"><div className="t">{p.product} × {p.qty}</div><div className="d">KTV {D.staffName(p.ktvId)} · {D.hhmm(p.at)}</div><div className="d">{who(p)}</div></div></div>)}
+      {!(detail === 'all' ? list : openList).length && <Empty>{detail === 'all' ? T.product.emptyTotal : T.product.emptyOpen}</Empty>}
+    </Modal>}
+  </>
+}
+
+// ── 11. Sáng kiến phát triển Home Spa (trang khung; m3 hoàn thiện luồng góp ý) ──
+export function IdeaPage({ back }: P) {
+  return <>
+    <SubHead title={T.menu.idea} sub={T.menu.ideaDesc} onBack={back} />
+    <div className="card pad col"><div><Pill>{T.idea.unwired}</Pill></div><div className="note">{T.idea.note}</div></div>
   </>
 }
 

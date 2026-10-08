@@ -4,17 +4,19 @@ import { ReactNode, useEffect, useState } from 'react'
 import { useStore, defaultStaffFor } from './store'
 import * as D from './data'
 import { Icon, CustomerModal, MenuCtx } from './ui'
-import { canSee } from './logic'
+import { unreadCount } from './logic'
 import { MKT_NODES } from './specs'
-import { KtvHome, KtvWork, ReceptionHome, OpsHub, ReceptionCustomers, MyPage } from './screens/staff'
+import { KtvHome, ReceptionHome, OpsHub, ReceptionCustomers, MyPage } from './screens/staff'
 import { LeaderHome, TeamTab, MarketingHome, MarketingCust, MarketingMine, CeoHome, CeoCust, CeoMoc, CeoMine } from './screens/roles'
 import { LeaderCustomers, MocScreen, MineScreen } from './screens/leader'
+import { KtvCustomersPage } from './screens/daily'
 
+function KtvCustTab() { const { go } = useStore(); return <KtvCustomersPage back={() => go('home')} /> }
 type Tab = { id: string; label: string; icon: string }
 const H: Tab = { id: 'home', label: 'Hôm nay', icon: 'home' }, C: Tab = { id: 'cust', label: 'Khách hàng', icon: 'users' }
 const M: Tab = { id: 'moc', label: 'Hỏi Mộc', icon: 'chat' }, ME: Tab = { id: 'me', label: 'Của tôi', icon: 'me' }
 export const TABS: Record<D.Role, Tab[]> = {
-  ktv: [H, { id: 'work', label: 'Công việc', icon: 'work' }, M, ME],
+  ktv: [H, C, M, ME],
   reception: [H, { id: 'ops', label: 'Vận hành', icon: 'ops' }, C, M, ME],
   leader: [H, { id: 'team', label: 'Đội ngũ', icon: 'team' }, C, M, ME],
   marketing: [H, C, M, ME],
@@ -28,12 +30,12 @@ function route(role: D.Role, page: string): string[] {
   const p = parts[0], base = p.split(':')[0]
   if (OPS.includes(base)) {
     if (role === 'reception') return ['ops', p]
-    if (role === 'ktv') return base === 'beds' ? ['work', 'beds'] : ['home', 'board']
+    if (role === 'ktv') return base === 'beds' ? ['home', 'work', 'beds'] : ['home', 'board']
     return ['home', 'ops', p]
   }
   const map: Record<string, string[]> = {
-    notifs: ['home', 'notices'], mywork: role === 'ktv' ? ['work'] : ['home'], mytasks: ['home', 'tasks'], today: ['home'],
-    customers: role === 'ktv' ? ['home', 'cust'] : ['cust', ...(role === 'ceo' ? ['all'] : [])], approvals: ['moc'], mine: ['me'], checklist: ['home', 'cleaning'], programs: ['cust'],
+    notifs: ['home', 'notices'], mywork: role === 'ktv' ? ['home', 'work'] : ['home'], work: role === 'ktv' ? ['home', 'work'] : ['home'], mytasks: ['home', 'tasks'], today: ['home'],
+    customers: role === 'ktv' ? ['cust'] : ['cust', ...(role === 'ceo' ? ['all'] : [])], approvals: ['moc'], mine: ['me'], checklist: ['home', 'cleaning'], programs: ['cust'],
   }
   return map[p] ?? ['home']
 }
@@ -41,7 +43,7 @@ function route(role: D.Role, page: string): string[] {
 function screenFor(role: D.Role, r: string[]): ReactNode {
   const [tab, ...sub] = r
   switch (role) {
-    case 'ktv': return tab === 'work' ? <KtvWork sub={sub} /> : tab === 'moc' ? <MocScreen groups={D.MOC_GROUPS.ktv} /> : tab === 'me' ? <MyPage sub={sub} /> : <KtvHome sub={sub} />
+    case 'ktv': return tab === 'cust' ? <KtvCustTab /> : tab === 'moc' ? <MocScreen groups={D.MOC_GROUPS.ktv} /> : tab === 'me' ? <MyPage sub={sub} /> : <KtvHome sub={sub} />
     case 'reception': return tab === 'ops' ? <OpsHub sub={sub[0]} base="ops" /> : tab === 'cust' ? <ReceptionCustomers /> : tab === 'moc' ? <MocScreen groups={D.MOC_GROUPS.reception} /> : tab === 'me' ? <MyPage sub={sub} /> : <ReceptionHome sub={sub} />
     case 'leader': return tab === 'team' ? <TeamTab sub={sub} /> : tab === 'cust' ? <LeaderCustomers /> : tab === 'moc' ? <MocScreen /> : tab === 'me' ? <MineScreen /> : <LeaderHome sub={sub} />
     case 'marketing': return tab === 'cust' ? <MarketingCust sub={sub} /> : tab === 'moc' ? <MocScreen groups={MKT_NODES.M3.rows.map(r => ({ t: `${r.no}. ${r.t}`, q: r.t }))} /> : tab === 'me' ? <MarketingMine sub={sub} /> : <MarketingHome sub={sub} />
@@ -64,7 +66,7 @@ export default function App() {
   const { s, user, setUser, me, page, go, profile, openCustomer, toast, advance, reset } = useStore()
   const r = route(user.role, page)
   const tabs = TABS[user.role]
-  const unread = s.notifs.filter(n => canSee(n, user.role, me.id) && !n.readBy.includes(me.id)).length
+  const unread = unreadCount(s, user.role, me.id)
   const badge: Record<string, number> = {
     moc: user.role === 'ceo' ? s.approvals.filter(a => a.status === 'Chờ duyệt').length + s.points.filter(p => p.status === 'Chờ duyệt').length + s.reviews.filter(r => r.status === 'Chờ đối soát').length : 0,
     ops: user.role === 'reception' ? s.queue.length + s.appts.filter(a => a.status === 'done').length : 0,

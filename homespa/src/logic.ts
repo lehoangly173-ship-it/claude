@@ -1,7 +1,8 @@
 // Các phép tính dẫn xuất (không lưu) — mọi con số trên màn hình đều tính từ đây,
 // để Tổng quan, Sơ đồ giường, Hàng chờ, Leader... luôn khớp nhau.
+import { T } from './i18n'
 import {
-  Appt, BEDS, Bed, Customer, ktvs, SHIFTS, Staff, svc, bedZoneFor, pkgLeft, pkgOwed, hhmm, Feedback, Invoice, Task,
+  daysAhead, Appt, BEDS, Bed, Customer, ktvs, SHIFTS, Staff, svc, bedZoneFor, pkgLeft, pkgOwed, hhmm, Feedback, Invoice, Task,
 } from './data'
 
 export type State = {
@@ -33,6 +34,8 @@ export type State = {
   shiftCloses: import('./data').ShiftClose[]
   points: import('./data').PointEntry[]
   opsChecks: import('./data').OpsCheck[]
+  zoneRead: Record<string, boolean> // "Tôi đã đọc nhiệm vụ" theo khu/ngày/KTV (xem zoneKey)
+  zoneChecks: Record<string, boolean[]> // ô tích từng việc theo khu/ngày/KTV
 }
 
 const LIVE: Appt['status'][] = ['booked', 'checked_in', 'in_service']
@@ -202,3 +205,60 @@ export const expectedByMethod = (s: State) => {
   shiftInvoices(s).forEach(i => i.payments.forEach(p => { r[p.method] += p.amount }))
   return r
 }
+
+// ── m1: thông báo đọc/chưa đọc (theo từng người) ──
+type NotifBox = { notifs: import('./data').Notif[] }
+export function markReadIn(d: NotifBox, nid: string, staffId: string) {
+  const n = d.notifs.find(x => x.id === nid); if (n && !n.readBy.includes(staffId)) n.readBy.push(staffId)
+}
+export function markUnreadIn(d: NotifBox, nid: string, staffId: string) {
+  const n = d.notifs.find(x => x.id === nid); if (n) n.readBy = n.readBy.filter(x => x !== staffId)
+}
+/** Số thông báo chưa đọc — một nguồn cho badge Hôm nay, chuông và nút số 5 */
+export const unreadCount = (s: NotifBox, role: import('./data').Role, staffId: string) => s.notifs.filter(n => canSee(n, role, staffId) && !n.readBy.includes(staffId)).length
+
+// ── m1: Dọn dẹp — 4 ô số bấm ra chi tiết ──
+export const zoneKey = (zone: number, staffId: string) => `${daysAhead(0)}|${zone}|${staffId}`
+export function cleanDetail(s: State, role: import('./data').Role, meId: string) {
+  const scoped = role === 'ktv' ? s.cleanReports.filter(r => r.staffId === meId) : s.cleanReports // KTV chỉ thấy báo cáo của mình
+  const mine = s.cleanReports.filter(r => r.staffId === meId)
+  return {
+    zones: myZones(s, meId),
+    mine,
+    points: mine.reduce((t, r) => t + (r.points ?? 0), 0),
+    pending: scoped.filter(r => r.status === 'Chờ kiểm tra'),
+    redo: scoped.filter(r => r.status === 'Chưa đạt' && zoneReport(s, r.zone)?.id === r.id),
+  }
+}
+
+// ── m1: khách của KTV (G4) và ô "Bán cho ai" ──
+export function ktvCustomers(s: State, me: { id: string; name: string }) {
+  const cared = new Set([...s.appts.filter(a => a.ktvId === me.id && ['in_service', 'done', 'paid'].includes(a.status)).map(a => a.customerId), ...s.customers.filter(c => c.packages.some(p => p.usage.some(u => u.ktv === me.name)) || c.care.some(x => x.by === me.name)).map(c => c.id)])
+  const requested = new Set(s.appts.filter(a => a.ktvId === me.id && a.requested).map(a => a.customerId))
+  const closed = s.customers.filter(c => c.packages.some(p => p.closerIds?.includes(me.id) || p.closer === me.name || p.closer === me.id))
+  const all = s.customers.filter(c => cared.has(c.id) || requested.has(c.id) || closed.some(x => x.id === c.id))
+  return { cared, requested, closed, all }
+}
+export const PHONE_RE = /(\+?84|0)\d{9}/
+/** Nội dung có dạng SĐT (bỏ khoảng trắng, chấm, gạch) */
+export const looksLikePhone = (t: string) => PHONE_RE.test(t.replace(/[^\d+]/g, ''))
+const fold = (x: string) => x.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').toLowerCase()
+/** Gợi ý khách theo mã/tên trong tập của KTV; KHÔNG tìm theo SĐT, nhập SĐT → không gợi ý */
+export function buyerSuggestions(s: State, me: { id: string; name: string }, q: string) {
+  const k = fold(q.trim())
+  if (!k || looksLikePhone(q)) return []
+  return ktvCustomers(s, me).all.filter(c => fold(c.name).includes(k) || fold(c.code).includes(k)).slice(0, 5)
+}
+/** Kiểm tra form nhận sản phẩm của KTV; trả về câu báo lỗi hoặc null */
+export function validateReceive(f: { purpose?: 'ban_khach' | 'dung_co_so'; buyer: string; invoice: string; photo: string }): string | null {
+  if (f.purpose === 'ban_khach' && looksLikePhone(f.buyer)) return T.product.errPhone
+  if (!f.purpose) return T.product.errPurpose
+  if (f.purpose === 'ban_khach') {
+    if (!f.buyer.trim()) return T.product.errBuyer
+    if (!f.invoice) return T.product.errInvoice
+  }
+  if (!f.photo) return T.product.errPhoto
+  return null
+}
+/** Người mua + ảnh hóa đơn: chỉ KTV tạo, Lễ tân, CEO */
+export const canSeeBuyer = (role: import('./data').Role, viewerId: string, p: { ktvId: string }) => role === 'reception' || role === 'ceo' || (role === 'ktv' && p.ktvId === viewerId)

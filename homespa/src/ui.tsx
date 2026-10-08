@@ -63,11 +63,12 @@ export const Sec = ({ eyebrow, title, right, children }: { eyebrow?: string; tit
 export function Hero({ tag, title, sub, children }: { tag: string; title: ReactNode; sub?: ReactNode; children?: ReactNode }) {
   return <div className="hero"><span className="tag">{tag}</span><h1>{title}</h1>{sub && <p>{sub}</p>}{children && <div className="hrow">{children}</div>}</div>
 }
-export type TileT = { v: ReactNode; l: string; s?: string; tone?: 'warn' | 'ok'; onClick?: () => void }
+export type Color = 'mint' | 'deep' | 'gold' // xanh nhạt = vừa · xanh đậm = ô số/nhãn nhấn · vàng = quan trọng
+export type TileT = { v: ReactNode; l: string; s?: string; tone?: 'warn' | 'ok'; color?: Color; onClick?: () => void }
 export function Tiles({ items, soft }: { items: TileT[]; soft?: boolean }) {
   return <div className={`tiles${soft ? ' soft' : ''}`}>{items.map((t, i) => {
     const inner = <><span className="v num">{t.v}</span><span className="l">{t.l}</span>{t.s && <span className="s">{t.s}</span>}</>
-    const cls = `tile${t.tone ? ` ${t.tone}-t` : ''}`
+    const cls = `tile${t.tone ? ` ${t.tone}-t` : ''}${t.color ? ` ${t.color}` : ''}`
     return t.onClick ? <button key={i} className={cls} onClick={t.onClick}>{inner}</button> : <div key={i} className={cls}>{inner}</div>
   })}</div>
 }
@@ -79,8 +80,8 @@ function useMenuPortal(content: (close: () => void) => ReactNode) {
   if (!m) return null
   return createPortal(<div className="fm-group">{g && <div className="fm-h">{g}</div>}{content(m.close)}</div>, m.host)
 }
-export function Block({ title, sub, right, children }: { title: ReactNode; sub?: ReactNode; right?: ReactNode; children: ReactNode }) {
-  return <section className="block"><div className="bh"><div style={{ minWidth: 0 }}><h2>{title}</h2>{sub && <p>{sub}</p>}</div>{right && <div className="right">{right}</div>}</div><GroupCtx.Provider value={typeof title === 'string' ? title : null}>{children}</GroupCtx.Provider></section>
+export function Block({ title, sub, right, children, color }: { title: ReactNode; sub?: ReactNode; right?: ReactNode; children: ReactNode; color?: Color }) {
+  return <section className="block"><div className={`bh${color ? ` ${color}` : ''}`}><div style={{ minWidth: 0 }}><h2>{title}</h2>{sub && <p>{sub}</p>}</div>{right && <div className="right">{right}</div>}</div><GroupCtx.Provider value={typeof title === 'string' ? title : null}>{children}</GroupCtx.Provider></section>
 }
 export type NodeT = { no?: ReactNode; t: string; d?: string; badge?: number; alert?: boolean; onClick: () => void }
 export function Nodes({ items }: { items: NodeT[] }) {
