@@ -245,7 +245,7 @@ export function ktvCustomers(s: State, me: { id: string; name: string }) {
 export const PHONE_RE = /(\+?84|0)\d{9}/
 /** Nội dung có dạng SĐT (bỏ khoảng trắng, chấm, gạch) */
 export const looksLikePhone = (t: string) => PHONE_RE.test(t.replace(/[^\d+]/g, ''))
-const fold = (x: string) => x.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').toLowerCase()
+const fold = (x: string) => x.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd')
 /** Gợi ý khách theo mã/tên trong tập của KTV; KHÔNG tìm theo SĐT, nhập SĐT → không gợi ý */
 export function buyerSuggestions(s: State, me: { id: string; name: string }, q: string) {
   const k = fold(q.trim())
@@ -300,3 +300,119 @@ export function suggestionError(kind: number, text: string, date: string, today 
   if (date > today) return T.idea.errFuture
   return null
 }
+
+// ── m4: Khách hàng của KTV (giả định G4–G6, G8, G14) ──
+// Hàm cho KTV KHÔNG đọc totalPaid / finalPrice / pkgPaid / pkgOwed (doanh thu chỉ CEO).
+type Me = { id: string; name: string }
+/** "dd/mm/yyyy" hoặc "yyyy-mm-dd" → số ngày (để so sánh); sai → null */
+export function dayNum(d?: string): number | null {
+  if (!d) return null
+  let m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(d.trim()), y: number, mo: number, da: number
+  if (m) { da = +m[1]; mo = +m[2]; y = +m[3] } else { m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d.trim()); if (!m) return null; y = +m[1]; mo = +m[2]; da = +m[3] }
+  return Math.floor(Date.UTC(y, mo - 1, da) / 864e5)
+}
+/** Ngân sách giảm dần; bằng nhau → khách cũ (firstVisit sớm hơn) trước; không có ngân sách → cuối. Chỉ đọc budget + firstVisit. */
+export function sortByBudget<C extends Pick<Customer, 'budget' | 'firstVisit'>>(list: C[]): C[] {
+  const fv = (c: C) => dayNum(c.firstVisit) ?? Infinity
+  return [...list].sort((a, b) => {
+    const ha = a.budget != null, hb = b.budget != null
+    if (ha !== hb) return ha ? -1 : 1
+    if (ha && hb && a.budget !== b.budget) return b.budget! - a.budget!
+    return fv(a) - fv(b)
+  })
+}
+/** Tìm của KTV: chỉ mã KH (cả mã thẻ) và tên, không dấu, không phân biệt hoa thường; SĐT → không khớp */
+export function ktvMatch(c: Customer, q: string) {
+  const k = fold(q.trim())
+  if (!k) return true
+  if (looksLikePhone(q)) return false
+  return fold(c.name).includes(k) || fold(c.code).includes(k) || c.packages.some(p => fold(p.cardCode).includes(k))
+}
+/** KTV được mở hồ sơ: khách thuộc tập G4 hoặc có tour hôm nay với KTV đó */
+export const ktvCanOpen = (s: State, me: Me, customerId: string) =>
+  ktvCustomers(s, me).all.some(c => c.id === customerId) || s.appts.some(a => a.customerId === customerId && a.ktvId === me.id && a.status !== 'cancelled')
+
+const closedByMe = (p: import('./data').Package, me: Me) => !!(p.closerIds?.includes(me.id) || p.closer === me.name || p.closer === me.id)
+/** Tái tục = pkgSale.mode 'renew' trên hóa đơn của thẻ, hoặc thẻ ghi renewalOf */
+export const isRenewal = (s: Pick<State, 'invoices'>, p: import('./data').Package) =>
+  !!p.renewalOf || s.invoices.some(i => i.pkgSale?.cardCode === p.cardCode && i.pkgSale.mode === 'renew')
+/** Tab "Tôi chốt liệu trình": khách lẻ tôi chốt (thẻ mới) và khách tái tục tôi chốt */
+export function closedSplit(s: State, me: Me) {
+  const mine = (c: Customer) => c.packages.filter(p => closedByMe(p, me))
+  const closed = ktvCustomers(s, me).closed
+  return { le: closed.filter(c => mine(c).some(p => !isRenewal(s, p))), renew: closed.filter(c => mine(c).some(p => isRenewal(s, p))) }
+}
+export type KtvTab = 'cared' | 'req' | 'closed'
+/** G6: ngày sự kiện gần nhất của khách trong mục (chăm sóc / lịch hẹn / chốt thẻ) */
+export function lastEventDay(s: State, me: Me, c: Customer, tab: KtvTab): number | null {
+  const today = dayNum(daysAhead(0))
+  const ds: (number | null)[] = []
+  if (tab === 'cared') {
+    c.care.filter(x => x.by === me.name).forEach(x => ds.push(dayNum(x.at)))
+    c.packages.forEach(p => p.usage.filter(u => u.ktv === me.name).forEach(u => ds.push(dayNum(u.at.split(' ')[0]))))
+    if (s.appts.some(a => a.customerId === c.id && a.ktvId === me.id && ['in_service', 'done', 'paid'].includes(a.status))) ds.push(today)
+  } else if (tab === 'req') {
+    if (s.appts.some(a => a.customerId === c.id && a.ktvId === me.id && a.requested)) ds.push(today)
+  } else c.packages.filter(p => closedByMe(p, me)).forEach(p => ds.push(dayNum(p.buyDate)))
+  const ok = ds.filter((x): x is number => x != null)
+  return ok.length ? Math.max(...ok) : null
+}
+/** Lọc khoảng A→B (yyyy-mm-dd, bỏ trống = không giới hạn). A > B → báo lỗi, KHÔNG lọc. */
+export function filterByRange(s: State, me: Me, list: Customer[], tab: KtvTab, a: string, b: string): { list: Customer[]; error: string | null } {
+  const da = dayNum(a), db = dayNum(b)
+  if (da == null && db == null) return { list, error: null }
+  if (da != null && db != null && da > db) return { list, error: T.cust.rangeErr }
+  return { list: list.filter(c => { const d = lastEventDay(s, me, c, tab); return d != null && (da == null || d >= da) && (db == null || d <= db) }), error: null }
+}
+
+export type PkgFile = 1 | 2 | 3 | 4 | 5
+export type SegFilter = {
+  q?: string; visitsOp?: 'gte' | 'lte' | 'once'; visits?: number; budgetMin?: number; budgetMax?: number; source?: string
+  awayDays?: number; birthMonth?: number; unhappy?: boolean; referrerId?: string; departed?: boolean; file?: PkgFile
+}
+const paidInFull = (p: import('./data').Package) => p.payments.some(x => x.kind === 'Thanh toán đủ')
+/** G8/G14: trạng thái thẻ theo loại lần đóng tiền (không đọc số tiền) */
+export function pkgFileOf(p: import('./data').Package, f: PkgFile) {
+  const left = pkgLeft(p)
+  switch (f) {
+    case 1: return p.payments.length > 0 && !paidInFull(p)
+    case 2: return paidInFull(p) && left > 0
+    case 3: return p.type === 'session' && left === 2
+    case 4: return p.type === 'session' && left === 1
+    case 5: return left <= 0
+  }
+}
+export const birthMonth = (c: Pick<Customer, 'dob'>) => { const m = /^\d{1,2}\/(\d{1,2})/.exec(c.dob ?? ''); return m ? +m[1] : null }
+/** Sinh nhật cho KTV: chỉ ngày/tháng (G13) */
+export const dobNoYear = (dob?: string) => { const m = /^(\d{1,2})\/(\d{1,2})/.exec(dob ?? ''); return m ? `${m[1]}/${m[2]}` : null }
+export const isUnhappy = (s: Pick<State, 'feedback'>, c: Customer) => !!c.unhappy || s.feedback.some(f => f.customerId === c.id && f.rating <= 3 && f.status !== 'đã xử lý')
+/** Khách Home Spa của KTV: MỘT nguồn cho danh sách và số trên nút. Tập = G4 ∩ nhóm VN/NN ∩ lẻ/liệu trình. */
+export function customerSegments(s: State, me: Me, group: 'VN' | 'NN', kind: 'le' | 'lt', f: SegFilter = {}): Customer[] {
+  const rows = ktvCustomers(s, me).all.filter(c => {
+    if (c.group !== group || (c.packages.length > 0) !== (kind === 'lt')) return false
+    if (f.q && !ktvMatch(c, f.q)) return false
+    if (f.visitsOp === 'once' && c.visits !== 1) return false
+    if (f.visitsOp === 'gte' && f.visits != null && c.visits < f.visits) return false
+    if (f.visitsOp === 'lte' && f.visits != null && c.visits > f.visits) return false
+    if (f.budgetMin != null && (c.budget == null || c.budget < f.budgetMin)) return false
+    if (f.budgetMax != null && (c.budget == null || c.budget > f.budgetMax)) return false
+    if (f.source && c.source !== f.source) return false
+    if (f.awayDays && c.lastVisitDays < f.awayDays) return false
+    if (f.birthMonth && birthMonth(c) !== f.birthMonth) return false
+    if (f.unhappy && !isUnhappy(s, c)) return false
+    if (f.referrerId && c.referredBy !== f.referrerId) return false
+    if (f.departed && !c.departed) return false
+    if (f.file && !c.packages.some(p => pkgFileOf(p, f.file!))) return false
+    return true
+  })
+  return sortByBudget(rows)
+}
+/** Xuất file khách — CHỈ màn CEO gọi hàm này (R5) */
+export function customersCsv(list: Customer[]) {
+  // chặn công thức Excel: ô bắt đầu bằng = + - @ → thêm dấu '
+  const q = (v: unknown) => { const x = String(v ?? ''); return `"${(/^[=+\-@]/.test(x) ? "'" + x : x).replace(/"/g, '""')}"` }
+  const head = ['Mã KH', 'Tên', 'SĐT', 'Nhóm', 'Nguồn', 'Số lần', 'Lần cuối (ngày trước)', 'Ngân sách', 'Tổng đã trả']
+  return [head, ...list.map(c => [c.code, c.name, c.phone, c.group, c.source, c.visits, c.lastVisitDays, c.budget ?? '', c.totalPaid])].map(r => r.map(q).join(',')).join('\n')
+}
+/** R5: SĐT khách chỉ Lễ tân + CEO */
+export const canSeePhone = (role: import('./data').Role) => role === 'reception' || role === 'ceo'

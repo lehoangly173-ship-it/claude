@@ -9,9 +9,7 @@ import { MKT_NODES } from './specs'
 import { KtvHome, ReceptionHome, OpsHub, ReceptionCustomers, MyPage } from './screens/staff'
 import { LeaderHome, TeamTab, MarketingHome, MarketingCust, MarketingMine, CeoHome, CeoCust, CeoMoc, CeoMine } from './screens/roles'
 import { LeaderCustomers, MocScreen, MineScreen } from './screens/leader'
-import { KtvCustomersPage } from './screens/daily'
-
-function KtvCustTab() { const { go } = useStore(); return <KtvCustomersPage back={() => go('home')} /> }
+import { KtvCustTab } from './screens/ktvCustomers'
 type Tab = { id: string; label: string; icon: string }
 const H: Tab = { id: 'home', label: 'Hôm nay', icon: 'home' }, C: Tab = { id: 'cust', label: 'Khách hàng', icon: 'users' }
 const M: Tab = { id: 'moc', label: 'Hỏi Mộc', icon: 'chat' }, ME: Tab = { id: 'me', label: 'Của tôi', icon: 'me' }
@@ -43,7 +41,7 @@ function route(role: D.Role, page: string): string[] {
 function screenFor(role: D.Role, r: string[]): ReactNode {
   const [tab, ...sub] = r
   switch (role) {
-    case 'ktv': return tab === 'cust' ? <KtvCustTab /> : tab === 'moc' ? <MocScreen groups={D.MOC_GROUPS.ktv} /> : tab === 'me' ? <MyPage sub={sub} /> : <KtvHome sub={sub} />
+    case 'ktv': return tab === 'cust' ? <KtvCustTab sub={sub} /> : tab === 'moc' ? <MocScreen groups={D.MOC_GROUPS.ktv} /> : tab === 'me' ? <MyPage sub={sub} /> : <KtvHome sub={sub} />
     case 'reception': return tab === 'ops' ? <OpsHub sub={sub[0]} base="ops" /> : tab === 'cust' ? <ReceptionCustomers /> : tab === 'moc' ? <MocScreen groups={D.MOC_GROUPS.reception} /> : tab === 'me' ? <MyPage sub={sub} /> : <ReceptionHome sub={sub} />
     case 'leader': return tab === 'team' ? <TeamTab sub={sub} /> : tab === 'cust' ? <LeaderCustomers /> : tab === 'moc' ? <MocScreen /> : tab === 'me' ? <MineScreen /> : <LeaderHome sub={sub} />
     case 'marketing': return tab === 'cust' ? <MarketingCust sub={sub} /> : tab === 'moc' ? <MocScreen groups={MKT_NODES.M3.rows.map(r => ({ t: `${r.no}. ${r.t}`, q: r.t }))} /> : tab === 'me' ? <MarketingMine sub={sub} /> : <MarketingHome sub={sub} />

@@ -1,7 +1,8 @@
 import { ReactNode, useState, createContext, useContext } from 'react'
 import { createPortal } from 'react-dom'
 import { useStore } from './store'
-import { Tone, cust } from './logic'
+import { Tone, cust, ktvCanOpen, dobNoYear } from './logic'
+import { T } from './i18n'
 import * as D from './data'
 
 const P: Record<string, string> = {
@@ -120,25 +121,28 @@ export const Av = ({ name }: { name: string }) => <span className="av">{name.rep
 
 /** Hồ sơ khách — mỗi khách một hồ sơ thật, dùng chung ở mọi màn */
 export function CustomerModal({ customerId, onClose }: { customerId: string; onClose: () => void }) {
-  const { s, addCare, user } = useStore()
+  const { s, addCare, user, me } = useStore()
   const c = cust(s, customerId)
   const [note, setNote] = useState('')
-  const [tab, setTab] = useState<'info' | 'pkg' | 'care'>('info')
+  const [tab, setTab] = useState<'info' | 'pkg' | 'care' | 'profile'>('info')
   const fb = s.feedback.filter(f => f.customerId === c.id)
   const visits = s.appts.filter(a => a.customerId === c.id && a.status !== 'cancelled')
   const canSeeMoney = user.role !== 'ktv'
+  // m4: KTV chỉ mở khách thuộc tập G4 hoặc có tour hôm nay với mình
+  if (user.role === 'ktv' && !ktvCanOpen(s, me, customerId)) return <Modal title={T.cust.profile} onClose={onClose}><Empty>{T.cust.noAccess}</Empty></Modal>
   return <Modal title={<>{c.name} <span className="muted small">· mã {c.code}</span></>} onClose={onClose} wide>
     <div className="row">{c.vip && <Pill tone="yellow">VIP</Pill>}<Pill tone="purple">{c.group === 'NN' ? 'Khách nước ngoài' : 'Khách Việt Nam'}</Pill><Pill>Nguồn: {c.source}</Pill><span className="muted small">{c.visits} lượt · lần cuối {c.lastVisitDays === 0 ? 'hôm nay' : `${c.lastVisitDays} ngày trước`}</span></div>
-    <Seg value={tab} onChange={setTab} items={[{ k: 'info', label: 'Thông tin' }, { k: 'pkg', label: `Gói liệu trình (${c.packages.length})` }, { k: 'care', label: 'Chăm sóc & phản hồi' }]} />
+    <Seg value={tab} onChange={setTab} items={[{ k: 'info', label: 'Thông tin' }, { k: 'pkg', label: `Gói liệu trình (${c.packages.length})` }, { k: 'care', label: 'Chăm sóc & phản hồi' }, { k: 'profile', label: T.cust.profileTab }]} />
+    {tab === 'profile' && <CustomerProfile customerId={c.id} />}
     {tab === 'info' && <div className="grid g2">
-      <div className="col small"><span className="eyebrow">Liên hệ</span><span>SĐT: {user.role === 'reception' || user.role === 'ceo' ? c.phone || '—' : 'ẩn (chỉ lễ tân thấy)'}</span><span>Sinh nhật: {c.dob || '—'}</span><span>Khách từ: {c.firstVisit}</span>{canSeeMoney && <span>Tổng chi: <b className="num">{D.vnd(c.totalPaid)}</b></span>}</div>
+      <div className="col small"><span className="eyebrow">Liên hệ</span><span>SĐT: {user.role === 'reception' || user.role === 'ceo' ? c.phone || '—' : 'ẩn (chỉ lễ tân thấy)'}</span><span>Sinh nhật: {(user.role === 'ktv' ? dobNoYear(c.dob) : c.dob) || '—'}</span><span>Khách từ: {c.firstVisit}</span>{canSeeMoney && <span>Tổng chi: <b className="num">{D.vnd(c.totalPaid)}</b></span>}</div>
       <div className="col small"><span className="eyebrow">Lưu ý khi phục vụ</span><span>Sức khỏe: {c.health || 'Không có lưu ý'}</span><span>Sở thích: {c.preference || '—'}</span></div>
       <div className="col small" style={{ gridColumn: '1 / -1' }}><span className="eyebrow">Hôm nay</span>{visits.length ? visits.map(a => <span key={a.id}>{D.hhmm(a.start)} · {D.svc(a.serviceId).name} · KTV {D.staffName(a.ktvId)} · {a.bedId}</span>) : <span className="muted">Không có lịch hôm nay</span>}</div>
     </div>}
     {tab === 'pkg' && (c.packages.length ? c.packages.map(p => <div key={p.cardCode} className="card pad col">
-      <div className="row"><b>{p.name}</b><Pill tone="brown">{p.cardCode}</Pill><span className="right-al strong num">Còn {D.pkgLeftLabel(p)}</span></div>
+      <div className="row"><b>{p.name}</b><Pill tone="brown">{p.cardCode}</Pill><span className="right-al strong num">Còn {!canSeeMoney && p.type === 'money' ? T.cust.moneyCard : D.pkgLeftLabel(p)}</span></div>
       <div className="small muted">Mua {p.buyDate} · hạn {p.expiry} · người chốt {D.staffName(p.closer) !== '—' ? D.staffName(p.closer) : p.closer}{canSeeMoney && ` · giá ${D.vnd(p.finalPrice)} · đã đóng ${D.vnd(D.pkgPaid(p))}`}{canSeeMoney && D.pkgOwed(p) > 0 && <b style={{ color: 'var(--r-fg)' }}> · còn thiếu {D.vnd(D.pkgOwed(p))}</b>}</div>
-      {p.usage.slice(0, 4).map((u, i) => <div key={i} className="tiny muted">• {u.at} · {u.service} · KTV {u.ktv} · trừ {u.deducted} ({u.before} → {u.after})</div>)}
+      {p.usage.slice(0, 4).map((u, i) => <div key={i} className="tiny muted">• {u.at} · {u.service} · KTV {u.ktv}{!canSeeMoney && p.type === 'money' ? '' : <> · trừ {u.deducted} ({u.before} → {u.after})</>}</div>)}
     </div>) : <Empty>Khách chưa có gói liệu trình</Empty>)}
     {tab === 'care' && <div className="col">
       <div className="row"><input id="care-note" className="inp" style={{ flex: 1 }} placeholder="Ghi chú chăm sóc (VD: đã gọi hỏi thăm sau buổi 3)" value={note} onChange={e => setNote(e.target.value)} /><button className="btn pri" disabled={!note.trim()} onClick={() => { addCare(c.id, note.trim()); setNote('') }}>Lưu</button></div>
@@ -146,4 +150,27 @@ export function CustomerModal({ customerId, onClose }: { customerId: string; onC
       {c.care.length ? c.care.map((x, i) => <div key={i} className="small"><b>{x.at}</b> · {x.by}: {x.text}</div>) : <span className="muted small">Chưa có ghi chú chăm sóc</span>}
     </div>}
   </Modal>
+}
+
+/** m4 — Hồ sơ khách 9 trường. KTV: SĐT + địa chỉ "Ẩn" (không có trong DOM), sinh nhật không năm, tiền chỉ Ngân sách. */
+export function CustomerProfile({ customerId }: { customerId: string }) {
+  const { s, user } = useStore()
+  const c = cust(s, customerId), F = T.cust.fields, U = T.cust.unwired
+  const contact = user.role === 'reception' || user.role === 'ceo'
+  const dob = user.role === 'ktv' ? dobNoYear(c.dob) : c.dob
+  const hist: string[] = [...(c.progress ?? []).map(x => `${x} (${T.cust.sample})`), ...c.care.map(x => `${x.at} · ${x.by}: ${x.text}`),
+    ...c.packages.map(p => `${T.cust.closedCard(p.cardCode, p.name, p.buyDate)} · ${p.type === 'session' ? T.cust.left(D.pkgLeft(p)) : T.cust.moneyCard}`)]
+  const v = (x?: string | null) => x || U
+  const row = (i: number, val: ReactNode) => <div key={i} className="item"><div className="body"><span className="tiny muted">{i + 1}. {F[i]}:</span> <b>{val}</b></div></div>
+  return <div className="card list" data-testid="cust-profile">
+    {row(0, c.name)}
+    {row(1, contact ? v(c.address) : T.cust.hidden)}
+    {row(2, v(dob))}
+    {row(3, contact ? v(c.phone) : T.cust.hidden)}
+    <div className="item"><div className="body"><span className="tiny muted">5. {F[4]}:</span>{hist.length ? hist.map((h, i) => <div key={i} className="small">{h}</div>) : <> <b>{U}</b></>}</div></div>
+    {row(5, c.budget != null ? D.vnd(c.budget) : U)}
+    <div className="item"><div className="body"><span className="tiny muted">7. {F[6]}:</span> <b>{v(c.health)}</b><div className="tiny muted">{T.cust.selfEval}</div></div></div>
+    {row(7, v(c.source))}
+    {row(8, c.qrCare == null ? U : c.qrCare ? T.cust.qrYes : T.cust.qrNo)}
+  </div>
 }
