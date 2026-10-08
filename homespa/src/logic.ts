@@ -36,6 +36,7 @@ export type State = {
   opsChecks: import('./data').OpsCheck[]
   zoneRead: Record<string, boolean> // "Tôi đã đọc nhiệm vụ" theo khu/ngày/KTV (xem zoneKey)
   zoneChecks: Record<string, boolean[]> // ô tích từng việc theo khu/ngày/KTV
+  suggestions: import('./data').Suggestion[] // m3: góp ý / sáng kiến KTV
 }
 
 const LIVE: Appt['status'][] = ['booked', 'checked_in', 'in_service']
@@ -274,4 +275,28 @@ export function aiCheck(checks: boolean[], photo: string): AiResult {
   if (total === 0 || done * 2 < total) return { branch: 1, status: 'Chưa đạt', label: 'AI (giả lập): lỗi rõ', reason: `AI (giả lập): mới tích ${done}/${total} việc, chưa đạt tiêu chuẩn — dọn lại và gửi ảnh mới`, done, total }
   if (done < total) return { branch: 3, status: 'Chờ kiểm tra', label: 'AI (giả lập): chưa đủ căn cứ', reason: `AI (giả lập): tích ${done}/${total} việc, chưa đủ căn cứ — cần Lễ tân/Leader kiểm tra`, done, total }
   return { branch: 2, status: 'Chờ kiểm tra', label: 'AI: phù hợp (giả lập)', reason: `AI (giả lập): tích đủ ${done}/${total} việc, ảnh phù hợp`, done, total }
+}
+
+// ── m3: Góp ý / sáng kiến ──
+type Sug = import('./data').Suggestion
+/** Ngày hôm nay dạng yyyy-mm-dd (giờ máy) cho ô chọn ngày */
+export const isoToday = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+/** yyyy-mm-dd → dd/mm/yyyy */
+export const isoToVi = (iso: string) => { const [y, m, d] = iso.split('-'); return y && m && d ? `${d}/${m}/${y}` : iso }
+/** Ý kiến do chính người này gửi (mới nhất trước) */
+export const mySuggestions = (s: Pick<State, 'suggestions'>, staffId: string): Sug[] => s.suggestions.filter(x => x.staffId === staffId)
+/** Danh sách ý kiến KTV phía nhận — lọc ở dữ liệu, không ẩn bằng giao diện.
+ *  CEO: tất cả · Leader: loại 1, 3, 4 (không loại 2 "Nhân sự / cấp trên", G15) · vai trò khác: không có. */
+export function inboxSuggestions(s: Pick<State, 'suggestions'>, role: import('./data').Role): Sug[] {
+  if (role === 'ceo') return s.suggestions
+  if (role === 'leader') return s.suggestions.filter(x => x.kind !== 2)
+  return []
+}
+/** Lỗi khi gửi ý kiến (null = hợp lệ): nội dung rỗng sau trim, ngày rỗng/sai, ngày tương lai, loại sai */
+export function suggestionError(kind: number, text: string, date: string, today = isoToday()): string | null {
+  if (![1, 2, 3, 4].includes(kind)) return T.idea.errKind
+  if (!text.trim()) return T.idea.errText
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return T.idea.errDate
+  if (date > today) return T.idea.errFuture
+  return null
 }

@@ -354,6 +354,11 @@ export type ProductLog = { id: string; product: string; qty: number; ktvId: stri
 export type Leave = { id: string; staffId: string; kind: 'Nghỉ phép' | 'Đổi ca'; date: string; detail: string; withId?: string; status: 'Chờ duyệt' | 'Đã duyệt' | 'Từ chối'; at: number }
 export type ShiftClose = { id: string; staffId: string; at: number; expected: Record<PayMethod, number>; counted: Record<PayMethod, number>; note: string; books: boolean[]; codes?: string[] }
 export type PointEntry = { id: string; staffId: string; delta: number; reason: string; by: string; at: number; status: 'Chờ duyệt' | 'Đã duyệt' | 'Từ chối'; source: 'Dọn dẹp' | 'Lễ tân ghi nhận' | 'Leader' | 'CEO' | 'Review' }
+// m3: góp ý / sáng kiến KTV (nút 11). kind 1–4 theo thứ tự T.idea.kinds; loại 2 (Nhân sự / cấp trên) chỉ người gửi + CEO xem (G15)
+export type SuggestionKind = 1 | 2 | 3 | 4
+export const SUGGESTION_KINDS: SuggestionKind[] = [1, 2, 3, 4]
+export const PRIVATE_SUGGESTION_KIND: SuggestionKind = 2
+export type Suggestion = { id: string; staffId: string; kind: SuggestionKind; text: string; date: string; createdAt: number; status: 'Đã gửi' }
 export type OpsCheck = { id: string; item: string; by: string; at: number; ok: boolean; note: string }
 export const OPS_ITEMS = ['Kiểm tra vệ sinh lao công', 'Kiểm tra không gian trải nghiệm', 'Vật tư – tồn kho – đề xuất mua', 'Thiết bị – bảo dưỡng – sửa chữa', 'Sinh nhật nhân sự – quà tháng – hoạt động chung', 'Ghi nhận điểm uy tín', 'Bàn giao ca – việc còn tồn'] as const
 export const BOOK_CHECKS = ['Không còn hóa đơn nháp / chưa thu', 'Bill Money nhóm đã đối soát', 'Lịch hẹn ngày mai đã nhắn xác nhận', 'Sản phẩm xuất trong ca đã xác nhận 2 bên', 'Việc tồn đã ghi bàn giao ca sau']

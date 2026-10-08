@@ -2,7 +2,7 @@
 // nên một thay đổi (chia tour, thu tiền, xong việc) cập nhật mọi nơi cùng lúc.
 import { createContext, useContext, useState, ReactNode } from 'react'
 import * as D from './data'
-import { State, markReadIn, markUnreadIn, zoneKey, ktvConflict, bedConflict, custConflict, cust, shiftInvoices, CLEAN_MIN, canSee, aiCheck, canSendReport, zoneReport } from './logic'
+import { State, markReadIn, markUnreadIn, zoneKey, ktvConflict, bedConflict, custConflict, cust, shiftInvoices, CLEAN_MIN, canSee, aiCheck, canSendReport, zoneReport, suggestionError } from './logic'
 import { T } from './i18n'
 
 export type User = { role: D.Role; staffId: string }
@@ -44,6 +44,7 @@ const initial = (): State => ({
   ],
   opsChecks: [],
   zoneRead: {}, zoneChecks: {},
+  suggestions: [],
 })
 
 type Ctx = ReturnType<typeof useStoreValue>
@@ -412,6 +413,12 @@ function useStoreValue() {
         notify(d, { cat: 'Thu ngân', text: `${me.name} chốt ca ${D.hhmm(d.now)}${diff ? ` · lệch ${D.vnd(diff)}` : ' · khớp tiền'}`, detail: note || 'Không ghi chú', roles: ['leader', 'ceo'], nav: 'home/close' })
       })
       say('Đã chốt ca — gửi Leader & chị'); return null
+    },
+    // m3: gửi góp ý — kiểm tra lại lúc ghi; không cộng điểm uy tín (Chưa nối)
+    addSuggestion: (kind: D.SuggestionKind, text: string, date: string): string | null => {
+      const e = suggestionError(kind, text, date); if (e) { say('⚠ ' + e); return e }
+      mutate(d => { d.suggestions.unshift({ id: id(d, 'sg'), staffId: me.id, kind, text: text.trim(), date, createdAt: d.now, status: 'Đã gửi' }) })
+      say(T.idea.sentToast); return null
     },
     addOpsCheck: (item: string, ok: boolean, note: string) => { mutate(d => { d.opsChecks.unshift({ id: id(d, 'oc'), item, by: me.id, at: d.now, ok, note }) }); say('Đã ghi nhận') },
     proposePoint: (staffId: string, delta: number, reason: string) => {
