@@ -20,13 +20,20 @@
       "Bash(git tag *)",
       "Bash(git push origin team/*)",
       "Bash(git push -u origin team/*)",
-      "Bash(git push origin develop)"
+      "Bash(git push origin develop)",
+      "Bash(npm ci*)",
+      "Bash(npx vite *)"
     ],
     "ask": [
       "Bash(git push)",
       "Bash(eas *)",
       "Bash(npx eas-cli *)",
       "Bash(gh pr merge*)",
+      "Bash(gh api *merge*)",
+      "Bash(gh api -X PUT*)",
+      "Bash(gh api --method PUT*)",
+      "Bash(npm install*)",
+      "Bash(npm i *)",
       "Edit(./scripts/team/**)",
       "Edit(./.claude/**)",
       "mcp__Expo__build_run",
