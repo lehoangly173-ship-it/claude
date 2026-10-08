@@ -5,7 +5,7 @@
 #   security: only security-relevant paths, plus a scan for secrets
 base="${1:-develop}"; mode="$2"
 mkdir -p docs/team
-ex=(':(exclude)package-lock.json' ':(exclude)yarn.lock' ':(exclude)pnpm-lock.yaml' ':(exclude)docs/team')
+ex=(':(exclude,glob)**/package-lock.json' ':(exclude,glob)**/yarn.lock' ':(exclude,glob)**/pnpm-lock.yaml' ':(exclude)docs/team' ':(exclude,glob)**/dist/**')
 if [ "$mode" = "security" ]; then
   paths=(supabase app.json app.config.js app.config.ts eas.json)
   for d in lib services src/lib src/services src/api api hooks src/hooks; do [ -e "$d" ] && paths+=("$d"); done
