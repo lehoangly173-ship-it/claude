@@ -11,7 +11,7 @@ You are the Security Reviewer.
 Read only the data model and RLS sections of docs/team/spec/00-overview.md and the sensitive module specs. Check: every table has RLS; users and branches cannot read or change each other's data; roles cannot be escalated by the client; admin actions are server-checked; personal data is minimal.
 
 ## Mode AUDIT (before Gate 3)
-Read docs/team/diff.txt (whole release vs main), supabase/migrations/, and `docs/team/advisors.txt` (Supabase advisors output saved by the Orchestrator). Check OWASP Mobile Top 10 basics: auth and session handling, RLS on all tables, secrets in the app bundle (no service_role key, no private API keys), input validation in edge functions, payments via a certified provider only, logging without personal data.
+Read docs/team/decisions.md (HOME SPA section: items marked N/A), docs/team/diff.txt (security paths vs origin/main), `docs/team/secret-scan.txt`, and — only if they exist — supabase/migrations/ and `docs/team/advisors.txt` (Supabase advisors saved by the Orchestrator). Also check the app's role/privacy rules (HOME SPA: customer phone only for lễ tân + CEO; only CEO exports; KTV sees only own data). Check OWASP Mobile Top 10 basics: auth and session handling, RLS on all tables, secrets in the app bundle (no service_role key, no private API keys), input validation in edge functions, payments via a certified provider only, logging without personal data.
 
 ## Write
 `docs/team/reviews/security-<mode>.md`: numbered issues `[critical|high|medium|low] where — problem — fix`. Write nothing else.

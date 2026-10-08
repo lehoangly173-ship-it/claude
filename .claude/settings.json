@@ -22,7 +22,10 @@
       "Bash(git push -u origin team/*)",
       "Bash(git push origin develop)",
       "Bash(npm ci*)",
-      "Bash(npx vite *)"
+      "Bash(npx vite *)",
+      "Bash(git fetch*)",
+      "Bash(git pull -q origin develop)",
+      "Bash(git pull origin develop)"
     ],
     "ask": [
       "Bash(git push)",
@@ -58,12 +61,6 @@
       "Bash(npx supabase db reset*)",
       "Bash(npx supabase migration up*)",
       "Bash(npx supabase functions deploy*)",
-      "Read(**/.env)",
-      "Read(**/.env.local)",
-      "Read(**/.env.*.local)",
-      "Read(**/.env.production*)",
-      "Read(**/.env.development*)",
-      "Read(**/.env.staging*)",
       "mcp__Supabase__apply_migration",
       "mcp__Supabase__execute_sql",
       "mcp__Supabase__deploy_edge_function",
@@ -85,7 +82,15 @@
       "mcp__supabase__reset_branch",
       "mcp__supabase__rebase_branch",
       "mcp__supabase__pause_project",
-      "mcp__supabase__restore_project"
+      "mcp__supabase__restore_project",
+      "Read(**/.env)",
+      "Read(**/.env.local)",
+      "Read(**/.env.*.local)",
+      "Read(**/.env.production*)",
+      "Read(**/.env.development*)",
+      "Read(**/.env.staging*)",
+      "Read(**/.env.test*)",
+      "Read(**/.env.preview*)"
     ],
     "disableBypassPermissionsMode": "disable"
   },
@@ -94,7 +99,10 @@
       {
         "matcher": "Bash",
         "hooks": [
-          { "type": "command", "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/team/block-push-main.sh\"" }
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/team/block-push-main.sh\""
+          }
         ]
       }
     ]

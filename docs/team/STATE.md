@@ -7,7 +7,7 @@ IN-PROGRESS: -     # <agent>/<module> — set before each agent call, clear afte
 branch: -
 base: develop
 last_gate_approved: -
-last_tag: -
+last_version: -     # ban-N branch (no tags)
 
 ## Modules (from spec/00-overview.md)
 | # | module | sensitive | status | fix_rounds |
