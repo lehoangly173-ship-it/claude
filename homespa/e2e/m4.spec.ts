@@ -18,7 +18,7 @@ test.describe('m4 Khách hàng (SENSITIVE)', () => {
 
   test('M4-02 Tôi chốt liệu trình: 2 nút con', async ({ page }) => {
     await openAs(page, 'KTV'); await openMine(page)
-    await page.getByText('Tôi chốt liệu trình').first().click()
+    await page.getByRole('tab', { name: 'Tôi chốt liệu trình' }).click()
     await expect(page.getByText('Khách lẻ tôi chốt')).toBeVisible()
     await expect(page.getByText('Khách liệu trình tái tục tôi chốt')).toBeVisible()
   })
@@ -39,7 +39,7 @@ test.describe('m4 Khách hàng (SENSITIVE)', () => {
 
   test('M4-05/08d Hồ sơ 9 trường đúng thứ tự; KTV địa chỉ Ẩn, sinh nhật không năm', async ({ page }) => {
     await openAs(page, 'KTV'); await openMine(page)
-    await page.locator('[data-testid=cust-row], .crow, .row').first().click()
+    await page.locator('[data-testid=cust-row]').first().click()
     const txt = await page.locator('[role=dialog], .modal').last().innerText()
     let last = -1
     for (const f of PROFILE) { const i = txt.indexOf(f); expect(i, f).toBeGreaterThan(last); last = i }
@@ -52,17 +52,18 @@ test.describe('m4 Khách hàng (SENSITIVE)', () => {
     await openAs(page, 'KTV')
     await expectNoPhone(page)
     await openMine(page); await expectNoPhone(page)
-    await page.locator('[data-testid=cust-row], .crow, .row').first().click(); await expectNoPhone(page)
-    await page.keyboard.press('Escape')
+    await page.locator('[data-testid=cust-row]').first().click(); await expectNoPhone(page)
+    await page.getByRole('button', { name: 'Đóng' }).click()
     await goTab(page, 'Hôm nay'); await expectNoPhone(page)
     await openHomeItem(page, 'Công việc của kĩ thuật viên'); await expectNoPhone(page)
     await goTab(page, 'Hôm nay'); await openHomeItem(page, /Bảng điều phối/); await expectNoPhone(page)
   })
 
-  test('M4-06 Lễ tân + CEO thấy SĐT', async ({ page }) => {
+  test('M4-06/13 Lễ tân + CEO (cust/all) thấy SĐT', async ({ page }) => {
     for (const r of ['Lễ Tân', 'CEO'] as const) {
       await openAs(page, r)
       await goTab(page, 'Khách hàng')
+      if (r === 'CEO') await page.getByText('Danh sách khách, VIP').first().click()
       const t = stripSep((await domDump(page)).text)
       expect(t, r).toMatch(/0\d{9}/)
     }
@@ -87,7 +88,7 @@ test.describe('m4 Khách hàng (SENSITIVE)', () => {
 
   test('M4-08c KTV: 0 chuỗi tiền ngoài Ngân sách', async ({ page }) => {
     await openAs(page, 'KTV'); await openMine(page)
-    await page.locator('[data-testid=cust-row], .crow, .row').first().click()
+    await page.locator('[data-testid=cust-row]').first().click()
     const txt = (await domDump(page)).text
     const lines = txt.split('\n').filter(l => (l.match(MONEY_RE) ?? []).length && !/Ngân sách/i.test(l))
     expect(lines).toEqual([])
