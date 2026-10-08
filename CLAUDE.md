@@ -1,5 +1,7 @@
 # Dự án HOME SPA Flow
 
+> Agent `doi-*` (planner, builder, reviewer, qa, security): bỏ qua mục "Bắt đầu phiên" và "Cuối phiên" bên dưới, chỉ làm theo file agent của mình. Lệnh `/doi-agent`: luôn theo `.claude/skills/doi-agent/SKILL.md` trong repo (bản mới nhất), kể cả khi tài khoản có bản khác.
+
 Chủ dự án: **Ly** (không code, là super admin mọi app). Luôn trả lời **tiếng Việt, ngắn gọn, dễ hiểu, tiết kiệm token**. Ly thích Claude tự làm, chỉ hỏi khi thật sự phải chọn hướng.
 
 App nhân sự **Home Spa – Clinic Dr Quyên** (Đà Nẵng). Code ở `homespa/` (React 18 + Vite + TypeScript).
