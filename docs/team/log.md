@@ -4,3 +4,4 @@
 2026-10-09 qa phaseA ok; vitest@2 + playwright added (Ly approved)
 2026-10-09 m1: builder, qa, reviewer PASS, polish keep old UI, e2e 15/15 -> merged
 2026-10-09 m2: PASS after 1 fix round; e2e m1+m2 26/26 -> merged
+2026-10-09 m3: PASS first round; e2e 7/7 -> merged (3 low: badge dem tong, comment sort, busy flag)
