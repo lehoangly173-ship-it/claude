@@ -260,7 +260,7 @@ export function ProductsPage({ back }: P) {
         {purpose === 'ban_khach' && <>
           <label className="f">{T.product.buyerLabel}<input id="pr-buyer" className="inp" autoComplete="off" value={buyer} placeholder={T.product.buyerPlaceholder} onChange={e => { setBuyer(e.target.value); setErr('') }} /></label>
           {sugg.length > 0 && <ul className="suggest">{sugg.map(c => <li key={c.id} role="option" aria-selected={false} onClick={() => setBuyer(`${c.name} (${c.code})`)}>{c.name} <span className="tiny muted">· mã {c.code}</span></li>)}</ul>}
-          <PhotoInput asButton value={invoice} onChange={v => { setInvoice(v); setErr('') }} label={T.product.invoiceButton} />
+          <PhotoInput value={invoice} onChange={v => { setInvoice(v); setErr('') }} label={T.product.invoiceButton} />
         </>}
       </div>}
       {err && <div className="err small" role="alert">{err}</div>}

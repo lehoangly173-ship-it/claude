@@ -103,8 +103,8 @@ export function SubHead({ title, sub, onBack, right }: { title: string; sub?: Re
     <div className="row" style={{ alignItems: 'flex-end' }}><div style={{ minWidth: 0, flex: 1 }}><h1>{title}</h1>{sub && <p>{sub}</p>}</div>{right}</div></div>
 }
 /** Ảnh minh chứng: chọn ảnh thật từ máy/điện thoại (giữ trong phiên chạy thử) */
-export function PhotoInput({ value, onChange, label = 'Tải ảnh lên', asButton }: { value: string; onChange: (v: string) => void; label?: string; asButton?: boolean }) {
-  return <label className={`photo${value ? ' done' : ''}`} role={asButton ? 'button' : undefined}>
+export function PhotoInput({ value, onChange, label = 'Tải ảnh lên' }: { value: string; onChange: (v: string) => void; label?: string }) {
+  return <label className={`photo${value ? ' done' : ''}`}>
     <input type="file" accept="image/*" capture="environment" onChange={e => { const f = e.target.files?.[0]; if (f) onChange(URL.createObjectURL(f)) }} />
     {value ? (value.startsWith('blob:') ? <img src={value} alt="Ảnh đã chọn" /> : <span className="ph-ic">🖼</span>) : <span className="ph-ic"><Icon n="camera" s={20} /></span>}
     <span>{value ? 'Đã có ảnh · bấm để đổi' : label}<span className="tiny muted" style={{ display: 'block', fontWeight: 400 }}>Không chụp được ảnh? Báo quản lý kiểm tra hệ thống.</span></span>
