@@ -179,6 +179,8 @@ export const custSegment = (c: Customer) =>
 /** Thông báo người này được thấy: đúng vai trò, và nếu có người nhận cụ thể thì chỉ người đó */
 export const canSee = (n: import('./data').Notif, role: import('./data').Role, staffId: string) => (n.to ? n.to.includes(staffId) : n.roles.includes(role))
 export const myZones = (s: State, staffId: string) => Object.entries(s.zoneOwner).filter(([, v]) => v === staffId).map(([k]) => +k)
+/** KTV chỉ được gửi khi khu chưa có báo cáo hoặc báo cáo gần nhất 'Chưa đạt' */
+export const canSendReport = (r?: { status: string }) => !r || r.status === 'Chưa đạt'
 export const zoneReport = (s: State, zone: number) => s.cleanReports.filter(r => r.zone === zone).sort((a, b) => b.at - a.at)[0]
 /** Thứ tự tour hôm nay: ca sáng trước, ca chiều sau (theo hàng xoay tour hiện tại) */
 export const tourOrder = (s: State) => [...s.rotation[1], ...s.rotation[2]]
@@ -262,3 +264,14 @@ export function validateReceive(f: { purpose?: 'ban_khach' | 'dung_co_so'; buyer
 }
 /** Người mua + ảnh hóa đơn: chỉ KTV tạo, Lễ tân, CEO */
 export const canSeeBuyer = (role: import('./data').Role, viewerId: string, p: { ktvId: string }) => role === 'reception' || role === 'ceo' || (role === 'ktv' && p.ktvId === viewerId)
+
+// ── m2: "AI kiểm tra" GIẢ LẬP (G7) — chỉ chọn nhánh theo tỉ lệ checklist đã tích, không đọc ảnh ──
+export type AiResult = { branch: 0 | 1 | 2 | 3; status?: 'Chưa đạt' | 'Chờ kiểm tra'; label: string; reason: string; done: number; total: number }
+/** branch 0 = thiếu ảnh (không chạy AI) · 1 = lỗi rõ (<50%) · 3 = chưa đủ căn cứ (50% đến <100%) · 2 = phù hợp (100%) */
+export function aiCheck(checks: boolean[], photo: string): AiResult {
+  const total = checks.length, done = checks.filter(Boolean).length
+  if (!photo) return { branch: 0, label: '', reason: 'Cần tải ảnh minh chứng', done, total }
+  if (total === 0 || done * 2 < total) return { branch: 1, status: 'Chưa đạt', label: 'AI (giả lập): lỗi rõ', reason: `AI (giả lập): mới tích ${done}/${total} việc, chưa đạt tiêu chuẩn — dọn lại và gửi ảnh mới`, done, total }
+  if (done < total) return { branch: 3, status: 'Chờ kiểm tra', label: 'AI (giả lập): chưa đủ căn cứ', reason: `AI (giả lập): tích ${done}/${total} việc, chưa đủ căn cứ — cần Lễ tân/Leader kiểm tra`, done, total }
+  return { branch: 2, status: 'Chờ kiểm tra', label: 'AI: phù hợp (giả lập)', reason: `AI (giả lập): tích đủ ${done}/${total} việc, ảnh phù hợp`, done, total }
+}

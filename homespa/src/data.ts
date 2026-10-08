@@ -288,18 +288,18 @@ export const SOPS = [
 // 7–10 là 4 lần giặt khăn, chỉ báo cáo được sau mốc giờ.
 export type Zone = { no: number; shift: 1 | 2; name: string; after?: number; std: string[] }
 export const ZONES: Zone[] = [
-  { no: 1, shift: 1, name: 'Tầng 1 + giường gội', std: ['Lau sàn, quầy lễ tân', 'Giường gội: thay khăn, lau bồn', 'Sắp xếp dép, kệ đồ khách'] },
-  { no: 2, shift: 1, name: 'Phòng 2 giường tầng 2 + kệ gội', std: ['Thay ga, gối, khăn giường', 'Lau kệ gội, bổ sung dầu gội', 'Kiểm tra máy xông, đèn'] },
-  { no: 3, shift: 1, name: 'Phòng CNC + kệ gỗ phía trước', std: ['Lau máy, sắp dây gọn', 'Lau kệ gỗ, xếp sản phẩm trưng bày', 'Kiểm tra mùi phòng'] },
-  { no: 4, shift: 1, name: 'Tầng 3 + phòng nghỉ nhân viên', std: ['Dọn giường tầng 3', 'Phòng nghỉ: rác, bàn, tủ đồ', 'Đóng cửa sổ, tắt điện thừa'] },
-  { no: 5, shift: 1, name: 'Khu ngâm chân + khăn nóng', std: ['Thay nước, vệ sinh bồn ngâm', 'Tủ khăn nóng đủ khăn, đúng nhiệt', 'Lau khay, sàn khu ngâm'] },
-  { no: 6, shift: 1, name: 'Bàn đá + nhà vệ sinh', std: ['Lau bàn đá', 'Nhà vệ sinh: sàn, bồn, giấy, xà phòng', 'Thay túi rác'] },
-  { no: 7, shift: 2, name: 'Giặt khăn lần 1', after: 10 * 60, std: ['Gom khăn bẩn các tầng', 'Giặt – sấy đúng chương trình', 'Gấp & trả khăn về tủ'] },
-  { no: 8, shift: 2, name: 'Giặt khăn lần 2', after: 12 * 60, std: ['Gom khăn bẩn các tầng', 'Giặt – sấy đúng chương trình', 'Gấp & trả khăn về tủ'] },
-  { no: 9, shift: 2, name: 'Giặt khăn lần 3', after: 15 * 60, std: ['Gom khăn bẩn các tầng', 'Giặt – sấy đúng chương trình', 'Gấp & trả khăn về tủ'] },
-  { no: 10, shift: 2, name: 'Giặt khăn lần 4', after: 17 * 60, std: ['Gom khăn bẩn các tầng', 'Giặt – sấy đúng chương trình', 'Gấp & trả khăn về tủ'] },
-  { no: 11, shift: 2, name: 'Rác + hỗ trợ giặt', std: ['Đổ rác các tầng, thay túi', 'Hỗ trợ gấp khăn', 'Lau thùng rác'] },
-  { no: 12, shift: 2, name: 'Khu giặt sấy + cây cối', std: ['Vệ sinh lồng giặt, lưới lọc máy sấy', 'Tưới & lau lá cây', 'Sắp xếp khu giặt gọn'] },
+  { no: 1, shift: 1, name: 'Tầng 1 + giường gội', std: ['Lau sàn, quầy lễ tân', 'Giường gội: thay khăn, lau bồn', 'Sắp xếp dép, kệ đồ khách', 'Thùng rác trống, thay túi mới', 'Chụp ảnh toàn cảnh đủ sáng'] },
+  { no: 2, shift: 1, name: 'Phòng 2 giường tầng 2 + kệ gội', std: ['Thay ga, gối, khăn giường', 'Lau kệ gội, bổ sung dầu gội', 'Kiểm tra máy xông, đèn', 'Thùng rác trống, thay túi mới', 'Chụp ảnh toàn cảnh đủ sáng'] },
+  { no: 3, shift: 1, name: 'Phòng CNC + kệ gỗ phía trước', std: ['Lau máy, sắp dây gọn', 'Lau kệ gỗ, xếp sản phẩm trưng bày', 'Kiểm tra mùi phòng', 'Thùng rác trống, thay túi mới', 'Chụp ảnh toàn cảnh đủ sáng'] },
+  { no: 4, shift: 1, name: 'Tầng 3 + phòng nghỉ nhân viên', std: ['Dọn giường tầng 3', 'Phòng nghỉ: rác, bàn, tủ đồ', 'Đóng cửa sổ, tắt điện thừa', 'Thùng rác trống, thay túi mới', 'Chụp ảnh toàn cảnh đủ sáng'] },
+  { no: 5, shift: 1, name: 'Khu ngâm chân + khăn nóng', std: ['Thay nước, vệ sinh bồn ngâm', 'Tủ khăn nóng đủ khăn, đúng nhiệt', 'Lau khay, sàn khu ngâm', 'Thùng rác trống, thay túi mới', 'Chụp ảnh toàn cảnh đủ sáng'] },
+  { no: 6, shift: 1, name: 'Bàn đá + nhà vệ sinh', std: ['Lau bàn đá', 'Nhà vệ sinh: sàn, bồn, giấy, xà phòng', 'Thay túi rác', 'Thùng rác trống, thay túi mới', 'Chụp ảnh toàn cảnh đủ sáng'] },
+  { no: 7, shift: 2, name: 'Giặt khăn lần 1', after: 10 * 60, std: ['Gom khăn bẩn các tầng', 'Giặt – sấy đúng chương trình', 'Gấp & trả khăn về tủ', 'Thùng rác trống, thay túi mới', 'Chụp ảnh toàn cảnh đủ sáng'] },
+  { no: 8, shift: 2, name: 'Giặt khăn lần 2', after: 12 * 60, std: ['Gom khăn bẩn các tầng', 'Giặt – sấy đúng chương trình', 'Gấp & trả khăn về tủ', 'Thùng rác trống, thay túi mới', 'Chụp ảnh toàn cảnh đủ sáng'] },
+  { no: 9, shift: 2, name: 'Giặt khăn lần 3', after: 15 * 60, std: ['Gom khăn bẩn các tầng', 'Giặt – sấy đúng chương trình', 'Gấp & trả khăn về tủ', 'Thùng rác trống, thay túi mới', 'Chụp ảnh toàn cảnh đủ sáng'] },
+  { no: 10, shift: 2, name: 'Giặt khăn lần 4', after: 17 * 60, std: ['Gom khăn bẩn các tầng', 'Giặt – sấy đúng chương trình', 'Gấp & trả khăn về tủ', 'Thùng rác trống, thay túi mới', 'Chụp ảnh toàn cảnh đủ sáng'] },
+  { no: 11, shift: 2, name: 'Rác + hỗ trợ giặt', std: ['Đổ rác các tầng, thay túi', 'Hỗ trợ gấp khăn', 'Lau thùng rác', 'Thùng rác trống, thay túi mới', 'Chụp ảnh toàn cảnh đủ sáng'] },
+  { no: 12, shift: 2, name: 'Khu giặt sấy + cây cối', std: ['Vệ sinh lồng giặt, lưới lọc máy sấy', 'Tưới & lau lá cây', 'Sắp xếp khu giặt gọn', 'Thùng rác trống, thay túi mới', 'Chụp ảnh toàn cảnh đủ sáng'] },
 ]
 export const ZONE_POINTS = 2 // điểm uy tín cộng khi khu vực được kiểm tra "Đạt"
 // Phân khu mặc định (CEO chỉnh trong Cài đặt): mỗi khu một người phụ trách hôm nay
@@ -344,7 +344,9 @@ export const MOC_GROUPS: Record<Role, { t: string; q: string }[]> = {
   leader: [], ceo: [], marketing: [],
 }
 
-export type CleanReport = { id: string; zone: number; staffId: string; photo: string; checks: boolean[]; at: number; status: 'Chờ kiểm tra' | 'Đạt' | 'Chưa đạt'; checker?: string; note?: string; points?: number }
+export type CleanReport = { id: string; zone: number; staffId: string; photo: string; checks: boolean[]; at: number; status: 'Chờ kiểm tra' | 'Đạt' | 'Chưa đạt'; checker?: string; note?: string; points?: number; ai?: CleanAi }
+/** Kết quả "AI kiểm tra" GIẢ LẬP của một báo cáo (nhánh 1 lỗi rõ · 2 phù hợp · 3 chưa đủ căn cứ) */
+export type CleanAi = { branch: 1 | 2 | 3; label: string; reason: string }
 export type BillPhoto = { id: string; staffId: string; shift: 1 | 2; photo: string; at: number; note?: string }
 export type BillCheck = { by: string; at: number; matched: number; issues: string[] }
 export type Review = { id: string; staffId: string; platform: 'Google' | 'Facebook'; customerId?: string; photo: string; at: number; status: 'Chờ đối soát' | 'Đã xác nhận' | 'Không khớp'; checker?: string }

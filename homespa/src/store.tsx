@@ -2,7 +2,8 @@
 // nên một thay đổi (chia tour, thu tiền, xong việc) cập nhật mọi nơi cùng lúc.
 import { createContext, useContext, useState, ReactNode } from 'react'
 import * as D from './data'
-import { State, markReadIn, markUnreadIn, zoneKey, ktvConflict, bedConflict, custConflict, cust, shiftInvoices, CLEAN_MIN, canSee } from './logic'
+import { State, markReadIn, markUnreadIn, zoneKey, ktvConflict, bedConflict, custConflict, cust, shiftInvoices, CLEAN_MIN, canSee, aiCheck, canSendReport, zoneReport } from './logic'
+import { T } from './i18n'
 
 export type User = { role: D.Role; staffId: string }
 const DEFAULT_USER: Record<D.Role, string> = { reception: 'lam', ktv: 'mai', leader: 'thao', ceo: 'quyen', marketing: 'khoa' }
@@ -344,17 +345,29 @@ function useStoreValue() {
     submitClean: (zone: number, photo: string, checks: boolean[]): string | null => {
       const z = D.ZONES.find(x => x.no === zone)!
       if (z.after && s.now < z.after) return `Khu ${zone} chỉ báo cáo sau ${D.hhmm(z.after)}`
-      if (!photo) return 'Cần tải ảnh minh chứng'
-      if (!checks.every(Boolean)) return 'Chưa tick đủ các việc của khu vực'
+      if (s.zoneOwner[zone] !== me.id) return T.clean.notYours
+      if (!canSendReport(zoneReport(s, zone))) return T.clean.alreadySent
+      const ai = aiCheck(checks, photo)
+      if (ai.branch === 0) return T.clean.needPhoto
       mutate(d => {
-        d.cleanReports.unshift({ id: id(d, 'cr'), zone, staffId: me.id, photo, checks, at: d.now, status: 'Chờ kiểm tra' })
+        const status = ai.status!
+        d.cleanReports.unshift({ id: id(d, 'cr'), zone, staffId: me.id, photo, checks, at: d.now, status, note: ai.branch === 1 ? ai.reason : undefined, ai: { branch: ai.branch as 1 | 2 | 3, label: ai.label, reason: ai.reason } })
         delete d.zoneChecks[zoneKey(zone, me.id)] // gửi xong thì làm lại từ đầu nếu bị Chưa đạt
-        notify(d, { cat: 'Dọn dẹp', text: `${me.name} báo xong khu ${zone} — ${z.name}`, detail: 'Chờ kiểm tra ảnh & chấm điểm', roles: ['leader'], nav: 'checklist' })
+        const base = { cat: 'Dọn dẹp' as const, nav: 'home/cleaning' }
+        if (ai.branch === 1) {
+          notify(d, { ...base, text: `Khu ${zone}: ${T.clean.aiSim} — chưa đạt, nhắc dọn lại`, detail: ai.reason, roles: ['ktv'], to: [me.id] })
+          notify(d, { ...base, text: `${me.name} — khu ${zone}: AI giả lập báo chưa đạt, nhắc dọn lại`, detail: ai.reason, roles: ['leader'] })
+        } else if (ai.branch === 3) {
+          notify(d, { ...base, text: `${me.name} — khu ${zone}: cần kiểm tra và nhắc`, detail: `${ai.reason} · ${T.clean.aiSim}`, roles: ['reception', 'leader'] })
+        } else {
+          notify(d, { ...base, text: `Khu ${zone} — ${me.name}: AI phù hợp (giả lập), chờ Lễ tân/Leader duyệt`, detail: `${ai.reason} · ${T.clean.aiSim}`, roles: ['reception', 'leader'] })
+          notify(d, { ...base, text: `Khu ${zone}: AI phù hợp (giả lập), chờ duyệt`, detail: T.clean.aiSim, roles: ['ktv'], to: [me.id] })
+        }
       })
-      say('Đã gửi báo cáo — chờ kiểm tra'); return null
+      say(ai.status === 'Chưa đạt' ? 'Đã gửi báo cáo — AI giả lập: chưa đạt' : 'Đã gửi báo cáo — chờ kiểm tra'); return null
     },
     checkClean: (rid: string, ok: boolean, note: string) => mutate(d => {
-      const r = d.cleanReports.find(x => x.id === rid)!; if (r.status !== 'Chờ kiểm tra' || !['leader', 'ceo'].includes(me.role) || (!ok && !note.trim())) return
+      const r = d.cleanReports.find(x => x.id === rid)!; if (r.status !== 'Chờ kiểm tra' || !['leader', 'ceo', 'reception'].includes(me.role) || (!ok && !note.trim())) return
       r.status = ok ? 'Đạt' : 'Chưa đạt'; r.checker = me.id; r.note = note; r.points = ok ? D.ZONE_POINTS : 0
       if (ok) d.points.unshift({ id: id(d, 'pt'), staffId: r.staffId, delta: D.ZONE_POINTS, reason: `Khu vực ${r.zone} đạt chuẩn`, by: me.id, at: d.now, status: 'Đã duyệt', source: 'Dọn dẹp' })
       notify(d, { cat: 'Dọn dẹp', text: `Khu ${r.zone}: ${ok ? `Đạt · +${D.ZONE_POINTS} điểm` : 'Chưa đạt — làm lại'}`, detail: note || (ok ? 'Đã kiểm tra ảnh' : ''), roles: ['ktv', 'reception'], to: [r.staffId], nav: 'home/cleaning' })
