@@ -26,3 +26,21 @@ App nhân sự cho **Home Spa – Clinic Dr Quyên** (Đà Nẵng). Code ở `ho
 - Claude lehoangly173@gmail.com ↔ GitHub `lehoangly173-ship-it` (chủ repo).
 - Claude levanly1703@gmail.com ↔ GitHub `levanly1703-cell` (cộng tác, quyền ghi).
 - Không để 2 tài khoản sửa cùng lúc.
+
+<!-- doi-agent v3: paste this block into CLAUDE.md (keep CLAUDE.md short) -->
+## Owner and team
+- Owner: Ly (super admin of every app). She does not code: talk to her in Vietnamese, short, plain words.
+- Product team: run with `/doi-agent`. Agents live in .claude/agents/doi-*.md; state in docs/team/STATE.md.
+
+## Fixed requirements for every app
+- Login; progress and roles persist across devices. Role-based access with RLS on every table.
+- An /admin area to edit content without code.
+- Every figure has one source of truth and updates immediately everywhere.
+- One codebase for phone and desktop; installable on iPhone and Android.
+- No hardcoded user-facing text (i18n files).
+- Built so billing, tax, revenue reports and payments can be added later without rebuilding.
+
+## Safety
+- Never push to main, deploy to production, submit to stores, or change the production database. Ly approves releases by merging on GitHub.
+- Never read or print secrets (.env).
+- Before saying something can't be done: try alternatives and record what was tried.

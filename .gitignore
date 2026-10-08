@@ -1,0 +1,8 @@
+# doi-agent v3 — secrets and generated files (append to .gitignore)
+.env
+.env.*
+!.env.example
+docs/team/diff.txt
+docs/team/e2e-full.txt
+docs/team/e2e-result.txt
+docs/team/advisors.txt
