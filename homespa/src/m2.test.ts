@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { aiCheck } from './logic'
+import { aiCheck, canSendReport } from './logic'
 
 const ticks = (n: number, total = 5) => Array.from({ length: total }, (_, i) => i < n)
 
@@ -24,5 +24,14 @@ describe('aiCheck (M2-11): AI kiểm tra giả lập', () => {
   it('ngưỡng đúng 50% (1/2) thuộc nhánh 3; checklist rỗng → nhánh 1', () => {
     expect(aiCheck(ticks(1, 2), 'p').branch).toBe(3)
     expect(aiCheck([], 'p').branch).toBe(1)
+  })
+})
+
+describe('canSendReport (lỗi 1)', () => {
+  it('chỉ gửi được khi chưa có báo cáo hoặc Chưa đạt', () => {
+    expect(canSendReport(undefined)).toBe(true)
+    expect(canSendReport({ status: 'Chưa đạt' })).toBe(true)
+    expect(canSendReport({ status: 'Chờ kiểm tra' })).toBe(false)
+    expect(canSendReport({ status: 'Đạt' })).toBe(false)
   })
 })

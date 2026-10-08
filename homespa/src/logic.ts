@@ -179,6 +179,8 @@ export const custSegment = (c: Customer) =>
 /** Thông báo người này được thấy: đúng vai trò, và nếu có người nhận cụ thể thì chỉ người đó */
 export const canSee = (n: import('./data').Notif, role: import('./data').Role, staffId: string) => (n.to ? n.to.includes(staffId) : n.roles.includes(role))
 export const myZones = (s: State, staffId: string) => Object.entries(s.zoneOwner).filter(([, v]) => v === staffId).map(([k]) => +k)
+/** KTV chỉ được gửi khi khu chưa có báo cáo hoặc báo cáo gần nhất 'Chưa đạt' */
+export const canSendReport = (r?: { status: string }) => !r || r.status === 'Chưa đạt'
 export const zoneReport = (s: State, zone: number) => s.cleanReports.filter(r => r.zone === zone).sort((a, b) => b.at - a.at)[0]
 /** Thứ tự tour hôm nay: ca sáng trước, ca chiều sau (theo hàng xoay tour hiện tại) */
 export const tourOrder = (s: State) => [...s.rotation[1], ...s.rotation[2]]

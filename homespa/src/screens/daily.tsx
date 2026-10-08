@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, ChangeEvent } from 'react'
 import { useStore } from '../store'
 import * as D from '../data'
-import { canSee, cust, myZones, zoneReport, tourOrder, billRows, ktvState, pointsOf, unreadCount, cleanDetail, zoneKey, ktvCustomers, buyerSuggestions, validateReceive, canSeeBuyer } from '../logic'
+import { canSee, cust, myZones, zoneReport, canSendReport, tourOrder, billRows, ktvState, pointsOf, unreadCount, cleanDetail, zoneKey, ktvCustomers, buyerSuggestions, validateReceive, canSeeBuyer } from '../logic'
 import { T } from '../i18n'
 import { Pill, Empty, Modal, SubHead, Block, Tiles, PhotoInput, Thumb, Seg, Av, Icon, Nodes } from '../ui'
 import { ApptPill } from './ops'
@@ -52,15 +52,7 @@ const AiLine = ({ r }: { r: D.CleanReport }) => r.ai ? <div className="small"><b
 export function CleaningPage({ back }: P) {
   const { s, me, user, checkClean } = useStore()
   const [view, setViewRaw] = useState<CView>({ k: 'home' })
-  // Nút Back của điện thoại/trình duyệt: từ màn con quay về Mẹ (không rời trang)
-  const viewRef = useRef(view)
-  useEffect(() => { const pop = () => { viewRef.current = { k: 'home' }; setViewRaw({ k: 'home' }) }; window.addEventListener('popstate', pop); return () => window.removeEventListener('popstate', pop) }, [])
-  const setView = (v: CView) => {
-    const was = viewRef.current.k
-    if (was === 'home' && v.k !== 'home') window.history.pushState({ cleaning: 1 }, '')
-    if (was !== 'home' && v.k === 'home') { window.history.back(); return }
-    viewRef.current = v; setViewRaw(v)
-  }
+  const setView = (v: CView) => setViewRaw(v)
   const [detail, setDetail] = useState<'zones' | 'points' | 'pending' | 'redo' | null>(null)
   const [check, setCheck] = useState<D.CleanReport | null>(null)
   const [note, setNote] = useState('')
@@ -200,9 +192,10 @@ function ZoneView({ zone, tab, setTab, justSent, onSent, back }: { zone: number;
   const checks = s.zoneChecks[key] ?? z.std.map(() => false)
   const r = zoneReport(s, zone)
   const own = s.zoneOwner[zone] === me.id
-  const canSend = own && r?.status !== 'Đạt'
+  const canSend = own && canSendReport(r)
   const onFile = (e: ChangeEvent<HTMLInputElement>) => { const f = e.target.files?.[0]; if (f) { setPhoto(URL.createObjectURL(f)); setErr('') } }
-  const send = () => { const e = submitClean(zone, photo, checks); if (e) { setErr(e); say('⚠ ' + e) } else { setErr(''); setPhoto(''); onSent() } }
+  const sending = useRef(false)
+  const send = () => { if (sending.current) return; sending.current = true; setTimeout(() => { sending.current = false }, 600); const e = submitClean(zone, photo, checks); if (e) { setErr(e); say('⚠ ' + e) } else { setErr(''); setPhoto(''); onSent() } }
   return <>
     <SubHead title={`Khu vực số ${zone} — ${z.name}`} sub={<>Phụ trách hôm nay: <b>{D.staffName(s.zoneOwner[zone])}</b>{z.after ? ` · báo cáo sau ${D.hhmm(z.after)}` : ''}</>} onBack={back} />
     {r && <div className={r.status === 'Đạt' ? 'ok small' : r.status === 'Chưa đạt' ? 'err small' : 'warn small'}>Lần báo gần nhất {D.hhmm(r.at)} · {r.status}{r.points ? ` · +${r.points} điểm` : ''}{r.note ? ` · ${r.note}` : ''}</div>}

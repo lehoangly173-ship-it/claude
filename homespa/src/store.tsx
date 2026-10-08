@@ -2,7 +2,7 @@
 // nên một thay đổi (chia tour, thu tiền, xong việc) cập nhật mọi nơi cùng lúc.
 import { createContext, useContext, useState, ReactNode } from 'react'
 import * as D from './data'
-import { State, markReadIn, markUnreadIn, zoneKey, ktvConflict, bedConflict, custConflict, cust, shiftInvoices, CLEAN_MIN, canSee, aiCheck } from './logic'
+import { State, markReadIn, markUnreadIn, zoneKey, ktvConflict, bedConflict, custConflict, cust, shiftInvoices, CLEAN_MIN, canSee, aiCheck, canSendReport, zoneReport } from './logic'
 import { T } from './i18n'
 
 export type User = { role: D.Role; staffId: string }
@@ -346,6 +346,7 @@ function useStoreValue() {
       const z = D.ZONES.find(x => x.no === zone)!
       if (z.after && s.now < z.after) return `Khu ${zone} chỉ báo cáo sau ${D.hhmm(z.after)}`
       if (s.zoneOwner[zone] !== me.id) return T.clean.notYours
+      if (!canSendReport(zoneReport(s, zone))) return T.clean.alreadySent
       const ai = aiCheck(checks, photo)
       if (ai.branch === 0) return T.clean.needPhoto
       mutate(d => {

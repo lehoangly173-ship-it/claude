@@ -55,6 +55,7 @@ export const T = {
     redoIt: 'Dọn lại',
     sendNew: 'Gửi ảnh mới',
     needPhoto: 'Cần tải ảnh minh chứng',
+    alreadySent: 'Khu này đã gửi báo cáo, đang chờ kiểm tra hoặc đã đạt',
     notYours: 'Khu này không phải của bạn hôm nay',
     emptySent: 'Chưa có báo cáo nào được gửi',
     noPhoto: 'Chưa có ảnh',
