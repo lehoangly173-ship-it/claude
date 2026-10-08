@@ -3,7 +3,7 @@
 lane: M
 request: fix lan 1 KTV (5 dot) - homespa/docs/ktv-fix-lan-1.md
 step: module:m4
-IN-PROGRESS: doi-builder/m4-ceo-phone
+IN-PROGRESS: doi-reviewer/m4
 branch: team/m4-khach-hang
 base: develop
 last_gate_approved: gate1
