@@ -22,3 +22,4 @@
 
 ## Approved additions (date — library — why)
 - 2026-10-09 — vitest (dev only) — unit tests for HOME SPA logic; runs on Vite, no extra config.
+- 2026-10-09 — @playwright/test (dev only) — end-to-end tests for HOME SPA; Ly approved in chat (also vitest)
