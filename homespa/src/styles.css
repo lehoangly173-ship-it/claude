@@ -149,7 +149,7 @@ button.tile:hover { border-color: var(--green-2) }
 .g4 { grid-template-columns: repeat(4, minmax(0, 1fr)) }
 .g6 { grid-template-columns: repeat(6, minmax(0, 1fr)) }
 .split { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 16px; align-items: start }
-.row, .frow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap }
 .col { display: flex; flex-direction: column; gap: 8px }
 .muted { color: var(--dim) }
 .small { font-size: 12.5px }

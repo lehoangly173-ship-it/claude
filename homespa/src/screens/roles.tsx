@@ -192,7 +192,7 @@ function CeoExport() {
   const { s, user } = useStore()
   if (user.role !== 'ceo') return null
   const run = () => { const url = URL.createObjectURL(new Blob(['\ufeff' + customersCsv(s.customers)], { type: 'text/csv;charset=utf-8' })); const a = document.createElement('a'); a.href = url; a.download = `khach-hang-${D.dateShort().replace(/\//g, '-')}.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000) }
-  return <div className="frow small"><button className="btn" onClick={run}>{T.cust.exportBtn}</button><span className="muted">{T.cust.exportNote}</span></div>
+  return <div className="row small"><button className="btn" onClick={run}>{T.cust.exportBtn}</button><span className="muted">{T.cust.exportNote}</span></div>
 }
 export function CeoCust({ sub }: { sub: string[] }) {
   const { go } = useStore()

@@ -121,27 +121,28 @@ export const Av = ({ name }: { name: string }) => <span className="av">{name.rep
 
 /** Hồ sơ khách — mỗi khách một hồ sơ thật, dùng chung ở mọi màn */
 export function CustomerModal({ customerId, onClose }: { customerId: string; onClose: () => void }) {
-  const { s, addCare, user } = useStore()
+  const { s, addCare, user, me } = useStore()
   const c = cust(s, customerId)
   const [note, setNote] = useState('')
   const [tab, setTab] = useState<'info' | 'pkg' | 'care' | 'profile'>('info')
   const fb = s.feedback.filter(f => f.customerId === c.id)
   const visits = s.appts.filter(a => a.customerId === c.id && a.status !== 'cancelled')
   const canSeeMoney = user.role !== 'ktv'
-  if (user.role === 'ktv') return <KtvCustomerModal customerId={customerId} onClose={onClose} />
+  // m4: KTV chỉ mở khách thuộc tập G4 hoặc có tour hôm nay với mình
+  if (user.role === 'ktv' && !ktvCanOpen(s, me, customerId)) return <Modal title={T.cust.profile} onClose={onClose}><Empty>{T.cust.noAccess}</Empty></Modal>
   return <Modal title={<>{c.name} <span className="muted small">· mã {c.code}</span></>} onClose={onClose} wide>
     <div className="row">{c.vip && <Pill tone="yellow">VIP</Pill>}<Pill tone="purple">{c.group === 'NN' ? 'Khách nước ngoài' : 'Khách Việt Nam'}</Pill><Pill>Nguồn: {c.source}</Pill><span className="muted small">{c.visits} lượt · lần cuối {c.lastVisitDays === 0 ? 'hôm nay' : `${c.lastVisitDays} ngày trước`}</span></div>
     <Seg value={tab} onChange={setTab} items={[{ k: 'info', label: 'Thông tin' }, { k: 'pkg', label: `Gói liệu trình (${c.packages.length})` }, { k: 'care', label: 'Chăm sóc & phản hồi' }, { k: 'profile', label: T.cust.profileTab }]} />
     {tab === 'profile' && <CustomerProfile customerId={c.id} />}
     {tab === 'info' && <div className="grid g2">
-      <div className="col small"><span className="eyebrow">Liên hệ</span><span>SĐT: {user.role === 'reception' || user.role === 'ceo' ? c.phone || '—' : 'ẩn (chỉ lễ tân thấy)'}</span><span>Sinh nhật: {c.dob || '—'}</span><span>Khách từ: {c.firstVisit}</span>{canSeeMoney && <span>Tổng chi: <b className="num">{D.vnd(c.totalPaid)}</b></span>}</div>
+      <div className="col small"><span className="eyebrow">Liên hệ</span><span>SĐT: {user.role === 'reception' || user.role === 'ceo' ? c.phone || '—' : 'ẩn (chỉ lễ tân thấy)'}</span><span>Sinh nhật: {(user.role === 'ktv' ? dobNoYear(c.dob) : c.dob) || '—'}</span><span>Khách từ: {c.firstVisit}</span>{canSeeMoney && <span>Tổng chi: <b className="num">{D.vnd(c.totalPaid)}</b></span>}</div>
       <div className="col small"><span className="eyebrow">Lưu ý khi phục vụ</span><span>Sức khỏe: {c.health || 'Không có lưu ý'}</span><span>Sở thích: {c.preference || '—'}</span></div>
       <div className="col small" style={{ gridColumn: '1 / -1' }}><span className="eyebrow">Hôm nay</span>{visits.length ? visits.map(a => <span key={a.id}>{D.hhmm(a.start)} · {D.svc(a.serviceId).name} · KTV {D.staffName(a.ktvId)} · {a.bedId}</span>) : <span className="muted">Không có lịch hôm nay</span>}</div>
     </div>}
     {tab === 'pkg' && (c.packages.length ? c.packages.map(p => <div key={p.cardCode} className="card pad col">
-      <div className="row"><b>{p.name}</b><Pill tone="brown">{p.cardCode}</Pill><span className="right-al strong num">Còn {D.pkgLeftLabel(p)}</span></div>
+      <div className="row"><b>{p.name}</b><Pill tone="brown">{p.cardCode}</Pill><span className="right-al strong num">Còn {!canSeeMoney && p.type === 'money' ? T.cust.moneyCard : D.pkgLeftLabel(p)}</span></div>
       <div className="small muted">Mua {p.buyDate} · hạn {p.expiry} · người chốt {D.staffName(p.closer) !== '—' ? D.staffName(p.closer) : p.closer}{canSeeMoney && ` · giá ${D.vnd(p.finalPrice)} · đã đóng ${D.vnd(D.pkgPaid(p))}`}{canSeeMoney && D.pkgOwed(p) > 0 && <b style={{ color: 'var(--r-fg)' }}> · còn thiếu {D.vnd(D.pkgOwed(p))}</b>}</div>
-      {p.usage.slice(0, 4).map((u, i) => <div key={i} className="tiny muted">• {u.at} · {u.service} · KTV {u.ktv} · trừ {u.deducted} ({u.before} → {u.after})</div>)}
+      {p.usage.slice(0, 4).map((u, i) => <div key={i} className="tiny muted">• {u.at} · {u.service} · KTV {u.ktv}{!canSeeMoney && p.type === 'money' ? '' : <> · trừ {u.deducted} ({u.before} → {u.after})</>}</div>)}
     </div>) : <Empty>Khách chưa có gói liệu trình</Empty>)}
     {tab === 'care' && <div className="col">
       <div className="row"><input id="care-note" className="inp" style={{ flex: 1 }} placeholder="Ghi chú chăm sóc (VD: đã gọi hỏi thăm sau buổi 3)" value={note} onChange={e => setNote(e.target.value)} /><button className="btn pri" disabled={!note.trim()} onClick={() => { addCare(c.id, note.trim()); setNote('') }}>Lưu</button></div>
@@ -157,7 +158,7 @@ export function CustomerProfile({ customerId }: { customerId: string }) {
   const c = cust(s, customerId), F = T.cust.fields, U = T.cust.unwired
   const contact = user.role === 'reception' || user.role === 'ceo'
   const dob = user.role === 'ktv' ? dobNoYear(c.dob) : c.dob
-  const hist: string[] = [...(c.progress ?? []), ...c.care.map(x => `${x.at} · ${x.by}: ${x.text}`),
+  const hist: string[] = [...(c.progress ?? []).map(x => `${x} (${T.cust.sample})`), ...c.care.map(x => `${x.at} · ${x.by}: ${x.text}`),
     ...c.packages.map(p => `${T.cust.closedCard(p.cardCode, p.name, p.buyDate)} · ${p.type === 'session' ? T.cust.left(D.pkgLeft(p)) : T.cust.moneyCard}`)]
   const v = (x?: string | null) => x || U
   const row = (i: number, val: ReactNode) => <div key={i} className="item"><div className="body"><span className="tiny muted">{i + 1}. {F[i]}:</span> <b>{val}</b></div></div>
@@ -172,15 +173,4 @@ export function CustomerProfile({ customerId }: { customerId: string }) {
     {row(7, v(c.source))}
     {row(8, c.qrCare == null ? U : c.qrCare ? T.cust.qrYes : T.cust.qrNo)}
   </div>
-}
-/** Hồ sơ khách cho KTV: chỉ khách thuộc tập G4 hoặc có tour hôm nay với mình */
-function KtvCustomerModal({ customerId, onClose }: { customerId: string; onClose: () => void }) {
-  const { s, me, addCare } = useStore()
-  const [note, setNote] = useState('')
-  if (!ktvCanOpen(s, me, customerId)) return <Modal title={T.cust.profile} onClose={onClose}><Empty>{T.cust.noAccess}</Empty></Modal>
-  const c = cust(s, customerId)
-  return <Modal title={<>{c.name} <span className="muted small">· mã {c.code}</span></>} onClose={onClose} wide>
-    <CustomerProfile customerId={c.id} />
-    <div className="frow"><input id="care-note" className="inp" style={{ flex: 1 }} placeholder="Ghi chú chăm sóc (VD: đã gọi hỏi thăm sau buổi 3)" value={note} onChange={e => setNote(e.target.value)} /><button className="btn pri" disabled={!note.trim()} onClick={() => { addCare(c.id, note.trim()); setNote('') }}>Lưu</button></div>
-  </Modal>
 }

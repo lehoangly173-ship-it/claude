@@ -245,7 +245,7 @@ export function ktvCustomers(s: State, me: { id: string; name: string }) {
 export const PHONE_RE = /(\+?84|0)\d{9}/
 /** Nội dung có dạng SĐT (bỏ khoảng trắng, chấm, gạch) */
 export const looksLikePhone = (t: string) => PHONE_RE.test(t.replace(/[^\d+]/g, ''))
-const fold = (x: string) => x.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').toLowerCase()
+const fold = (x: string) => x.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd')
 /** Gợi ý khách theo mã/tên trong tập của KTV; KHÔNG tìm theo SĐT, nhập SĐT → không gợi ý */
 export function buyerSuggestions(s: State, me: { id: string; name: string }, q: string) {
   const k = fold(q.trim())
@@ -409,7 +409,8 @@ export function customerSegments(s: State, me: Me, group: 'VN' | 'NN', kind: 'le
 }
 /** Xuất file khách — CHỈ màn CEO gọi hàm này (R5) */
 export function customersCsv(list: Customer[]) {
-  const q = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`
+  // chặn công thức Excel: ô bắt đầu bằng = + - @ → thêm dấu '
+  const q = (v: unknown) => { const x = String(v ?? ''); return `"${(/^[=+\-@]/.test(x) ? "'" + x : x).replace(/"/g, '""')}"` }
   const head = ['Mã KH', 'Tên', 'SĐT', 'Nhóm', 'Nguồn', 'Số lần', 'Lần cuối (ngày trước)', 'Ngân sách', 'Tổng đã trả']
   return [head, ...list.map(c => [c.code, c.name, c.phone, c.group, c.source, c.visits, c.lastVisitDays, c.budget ?? '', c.totalPaid])].map(r => r.map(q).join(',')).join('\n')
 }

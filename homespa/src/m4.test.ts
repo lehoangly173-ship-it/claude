@@ -135,3 +135,12 @@ describe('M4-13 quyền SĐT', () => {
     for (const r of ['ktv', 'leader', 'marketing'] as const) expect(canSeePhone(r)).toBe(false)
   })
 })
+
+describe('review m4: tìm không dấu và CSV an toàn', () => {
+  it('"dang" khớp "Đặng Thùy Dung" (Đ hoa → d)', () => expect(ids(customerSegments(S(), mai, 'VN', 'le', { q: 'dang' }))).toEqual(['m4c']))
+  it('CSV: ô bắt đầu bằng = + - @ có tiền tố \'', () => {
+    const c = { ...D.SEED_CUSTOMERS[0], name: '=HYPERLINK("x")', source: '@cmd', code: '+1', phone: '-2' }
+    const row = customersCsv([c]).split('\n')[1]
+    expect(row).toContain(`"'+1"`); expect(row).toContain(`"'=HYPERLINK(""x"")"`); expect(row).toContain(`"'-2"`); expect(row).toContain(`"'@cmd"`)
+  })
+})
