@@ -2,7 +2,8 @@
 import { ReactNode, useState } from 'react'
 import { useStore, BUDGET_LIMIT } from '../store'
 import * as D from '../data'
-import { alerts, billRows, overview, pointsOf, ktvState, custSegment, zoneReport } from '../logic'
+import { alerts, billRows, overview, pointsOf, ktvState, custSegment, zoneReport, inboxSuggestions } from '../logic'
+import { T } from '../i18n'
 import { Hero, Tiles, Nodes, Block, ChipGrid, SubHead, Pill, Empty, Seg, Av, NodeSpec, Icon, Delta } from '../ui'
 import { CEO_NODES, MKT_NODES, SpecRow } from '../specs'
 import { dailySub, OpsHub, BackBtn, MyPage } from './staff'
@@ -53,7 +54,7 @@ export function LeaderHome({ sub }: { sub: string[] }) {
       <ChipGrid items={[{ l: '1 · Việc bất thường', onClick: () => go('home/tasks'), solid: true, badge: al.length }, { l: '2 · Ca & Tour', onClick: () => go('home/ops'), solid: true }, { l: '3 · Chấm công nhóm', onClick: () => go('home/attendance') }, { l: '4 · Checklist dọn dẹp', onClick: () => go('home/cleaning'), badge: toCheck }]} />
     </Block>
     <Block title="Kiểm tra luồng KTV">
-      <ChipGrid items={[{ l: 'Dọn dẹp & điểm', onClick: () => go('home/cleaning'), badge: toCheck }, { l: 'Sản phẩm KTV', onClick: () => go('home/products'), badge: stock }, { l: 'Bill Money', onClick: () => go('home/bills') }, { l: 'Đánh giá khách', onClick: () => go('home/reviews'), badge: s.reviews.filter(r => r.status === 'Chờ đối soát').length }, { l: 'Thông báo KTV', onClick: () => go('home/notices') }, { l: 'Đơn nghỉ / đổi ca', onClick: () => go('home/leave') }]} />
+      <ChipGrid items={[{ l: 'Dọn dẹp & điểm', onClick: () => go('home/cleaning'), badge: toCheck }, { l: 'Sản phẩm KTV', onClick: () => go('home/products'), badge: stock }, { l: 'Bill Money', onClick: () => go('home/bills') }, { l: 'Đánh giá khách', onClick: () => go('home/reviews'), badge: s.reviews.filter(r => r.status === 'Chờ đối soát').length }, { l: 'Thông báo KTV', onClick: () => go('home/notices') }, { l: 'Đơn nghỉ / đổi ca', onClick: () => go('home/leave') }, { l: T.idea.inbox, onClick: () => go('home/ideas'), badge: inboxSuggestions(s, 'leader').length }]} />
     </Block>
     <Block title="Quản lý đội ngũ">
       <ChipGrid items={[{ l: 'Nhân viên', onClick: () => go('team/staff') }, { l: 'Lịch chia ca', onClick: () => go('team/roster') }, { l: 'Đào tạo', onClick: () => go('team/train') }, { l: 'Điểm uy tín', onClick: () => go('team/points'), badge: s.points.filter(p => p.status === 'Chờ duyệt').length }]} />
@@ -168,7 +169,7 @@ export function CeoHome({ sub }: { sub: string[] }) {
       { v: billRows(s).filter(r => r.issue).length, l: 'Lệch đối soát tour', onClick: () => go('home/bills') },
       { v: D.vndShort(o.revenue), l: 'Tiền đã thu hôm nay', tone: 'ok' }, { v: `${o.ktvBusy}/${o.ktvIn}`, l: 'KTV đang làm / trong ca' },
     ]} />
-    <ChipGrid items={[{ l: 'Ca & Tour', onClick: () => go('home/ops'), solid: true }, { l: 'Chấm công', onClick: () => go('home/attendance') }, { l: 'Lịch chia ca', onClick: () => go('home/shift') }, { l: 'Nhân viên', onClick: () => go('me/n10') }, { l: 'Cài đặt CEO & AI', onClick: () => go('me/settings') }, { l: 'Chiến dịch', onClick: () => go('cust/n6') }]} />
+    <ChipGrid items={[{ l: 'Ca & Tour', onClick: () => go('home/ops'), solid: true }, { l: 'Chấm công', onClick: () => go('home/attendance') }, { l: 'Lịch chia ca', onClick: () => go('home/shift') }, { l: 'Nhân viên', onClick: () => go('me/n10') }, { l: 'Cài đặt CEO & AI', onClick: () => go('me/settings') }, { l: 'Chiến dịch', onClick: () => go('cust/n6') }, { l: T.idea.inbox, onClick: () => go('home/ideas'), badge: inboxSuggestions(s, 'ceo').length }]} />
     <Nodes items={[
       { no: '①', t: NM('NM1').title, d: 'Sức khỏe Home · tăng/giảm · cảnh báo · ưu tiên', onClick: () => go('home/n1') },
       { no: '②', t: NM('NM8').title, d: 'Lễ tân · KTV · công suất · vệ sinh · vật tư · sự cố', onClick: () => go('home/n2') },

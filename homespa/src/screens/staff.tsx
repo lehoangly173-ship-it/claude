@@ -4,7 +4,7 @@ import { useStore } from '../store'
 import * as D from '../data'
 import { unreadCount, cust, myZones, zoneReport, tourOrder, billRows, overview, alerts, pointsOf, expectedByMethod, ktvState, lastCloseAt } from '../logic'
 import { Hero, Tiles, Nodes, Block, ChipGrid, SubHead, Pill, Empty, Modal, Seg, Av, PhotoInput, NodeSpec, Icon } from '../ui'
-import { ShiftTourPage, CleaningPage, BoardPage, KtvCustomersPage, NoticesPage, BillsPage, ReviewsPage, ProductsPage, LeavePage, IncidentPage, LeaveModal, IdeaPage } from './daily'
+import { ShiftTourPage, CleaningPage, BoardPage, KtvCustomersPage, NoticesPage, BillsPage, ReviewsPage, ProductsPage, LeavePage, IncidentPage, LeaveModal, IdeaPage, IdeasInboxPage } from './daily'
 import { T } from '../i18n'
 import { OverviewScreen, ScheduleScreen, QueueScreen, BedsScreen } from './ops'
 import { CashierScreen } from './cashier'
@@ -27,6 +27,7 @@ export function dailySub(key: string | undefined, back: () => void): ReactNode |
     case 'leave': return <LeavePage back={back} />
     case 'incident': return <IncidentPage back={back} />
     case 'idea': return <IdeaPage back={back} />
+    case 'ideas': return <IdeasInboxPage back={back} />
     case 'close': return <ClosesView back={back} />
   }
   return null

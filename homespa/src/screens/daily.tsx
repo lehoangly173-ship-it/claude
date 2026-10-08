@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, ChangeEvent } from 'react'
 import { useStore } from '../store'
 import * as D from '../data'
-import { canSee, cust, myZones, zoneReport, canSendReport, tourOrder, billRows, ktvState, pointsOf, unreadCount, cleanDetail, zoneKey, ktvCustomers, buyerSuggestions, validateReceive, canSeeBuyer } from '../logic'
+import { canSee, cust, myZones, zoneReport, canSendReport, tourOrder, billRows, ktvState, pointsOf, unreadCount, cleanDetail, zoneKey, ktvCustomers, buyerSuggestions, validateReceive, canSeeBuyer, isoToday, isoToVi, mySuggestions, inboxSuggestions, suggestionError } from '../logic'
 import { T } from '../i18n'
 import { Pill, Empty, Modal, SubHead, Block, Tiles, PhotoInput, Thumb, Seg, Av, Icon, Nodes } from '../ui'
 import { ApptPill } from './ops'
@@ -374,11 +374,52 @@ export function ProductsPage({ back }: P) {
   </>
 }
 
-// ── 11. Sáng kiến phát triển Home Spa (trang khung; m3 hoàn thiện luồng góp ý) ──
+// ── 11. Sáng kiến phát triển Home Spa (m3: góp ý 4 loại → nội dung → ngày → Gửi) ──
+const kindLabel = (k: D.SuggestionKind) => T.idea.kinds[k - 1]
+function SuggestionRow({ x, showName }: { x: D.Suggestion; showName?: boolean }) {
+  return <div className="item" data-testid="idea-row"><div className="body"><div className="t">{x.text}</div><div className="d">{x.kind}. {kindLabel(x.kind)} · {isoToVi(x.date)}{showName ? ` · ${D.staffName(x.staffId)}` : ''}</div></div><Pill tone="green">{x.status}</Pill></div>
+}
 export function IdeaPage({ back }: P) {
+  const { s, me, addSuggestion } = useStore()
+  const [kind, setKind] = useState<D.SuggestionKind | null>(null)
+  const [text, setText] = useState('')
+  const [date, setDate] = useState(isoToday())
+  const [sent, setSent] = useState(false)
+  const busy = useRef(false)
+  const today = isoToday()
+  const mine = mySuggestions(s, me.id)
+  const pick = (k: D.SuggestionKind) => { busy.current = false; setKind(k); setText(''); setDate(today); setSent(false) }
+  const ok = kind != null && !suggestionError(kind, text, date, today)
+  const send = () => {
+    if (!kind || busy.current) return
+    busy.current = true
+    if (!addSuggestion(kind, text, date)) { setKind(null); setText(''); setDate(today); setSent(true) } else busy.current = false
+  }
   return <>
     <SubHead title={T.menu.idea} sub={T.menu.ideaDesc} onBack={back} />
-    <div className="card pad col"><div><Pill>{T.idea.unwired}</Pill></div><div className="note">{T.idea.note}</div></div>
+    <Block title={T.idea.pickKind}>
+      <Nodes items={D.SUGGESTION_KINDS.map(k => ({ no: k, t: kindLabel(k), onClick: () => pick(k) }))} />
+    </Block>
+    {kind != null && <Block title={`${kind}. ${kindLabel(kind)}`}>
+      {kind === D.PRIVATE_SUGGESTION_KIND && <div className="note">{T.idea.privateNote}</div>}
+      <label className="f">{T.idea.text}<textarea id="idea-text" data-testid="idea-text" className="inp" value={text} onChange={e => setText(e.target.value)} placeholder={T.idea.textPh} /></label>
+      <label className="f">{T.idea.date}<input id="idea-date" data-testid="idea-date" className="inp" type="date" max={today} value={date} onChange={e => setDate(e.target.value)} /></label>
+      <button className="btn pri" data-testid="idea-send" disabled={!ok} onClick={send}>{T.idea.send}</button>
+    </Block>}
+    {sent && <div className="card pad col" data-testid="idea-sent"><div><Pill tone="green">{T.idea.sent}</Pill></div><div className="note"><b>{T.idea.unwiredPoints}</b> · {T.idea.pointsNote}</div></div>}
+    <Block title={T.idea.mine}><div className="card list">{mine.map(x => <SuggestionRow key={x.id} x={x} />)}{!mine.length && <Empty>{T.idea.emptyMine}</Empty>}</div></Block>
+  </>
+}
+
+// ── Ý kiến KTV (phía nhận, chỉ đọc): CEO tất cả · Leader loại 1/3/4 · vai trò khác không có ──
+export function IdeasInboxPage({ back }: P) {
+  const { s, user } = useStore()
+  const list = inboxSuggestions(s, user.role)
+  return <>
+    <SubHead title={T.idea.inbox} sub={user.role === 'ceo' ? T.idea.inboxSubCeo : user.role === 'leader' ? T.idea.inboxSubLeader : undefined} onBack={back} />
+    {isBoss(user.role)
+      ? <div className="card list">{list.map(x => <SuggestionRow key={x.id} x={x} showName />)}{!list.length && <Empty>{T.idea.emptyInbox}</Empty>}</div>
+      : <Empty>{T.idea.noAccess}</Empty>}
   </>
 }
 
