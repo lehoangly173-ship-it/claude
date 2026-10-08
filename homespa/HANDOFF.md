@@ -9,6 +9,14 @@ Chủ dự án: **Ly** (trả lời bằng tiếng Việt, ngắn gọn, tiết 
 - Đã chạy thử headless mọi vai trò/trang con + rà soát độc lập (17 lỗi đã sửa).
 - Bản web: https://homespa--flow.expo.app (Expo account `hayquen`, project `@hayquen/homespa`, projectId `16f65a26-63a8-4b23-8d5f-3e610e2aa3cc`).
 
+## Các bản (đánh số theo yêu cầu của Ly)
+| Bản | Git tag | Commit | Nội dung |
+|---|---|---|---|
+| Bản 1 — bản chuẩn đầu tiên | `ban-1` | aafa1d7 | Bản đang chạy ở homespa--flow.expo.app (trước khi sửa 07/10) |
+| Bản 2 | `ban-2` | (commit có tag ban-2) | Menu "Hôm nay" bật ra trên máy tính + sửa logic các luồng |
+Mỗi lần sửa xong và Ly đồng ý → tạo bản tiếp theo: `git tag ban-N` + đẩy tag lên GitHub + ghi thêm dòng vào bảng này.
+Quay lại bản cũ: `git checkout ban-1` (chỉ xem) hoặc deploy file `homespa/dist/index.html` của tag đó lên Expo.
+
 ## Cập nhật 07/10 (phiên mới)
 - Máy tính: bấm "Hôm nay" ở thanh trái → menu bật ra chứa nút mẹ/nhóm nút (cơ chế `MenuCtx` trong ui.tsx: `Nodes`/`ChipGrid` của trang gốc Hôm nay tự chuyển vào menu). Điện thoại giữ nguyên.
 - Sửa logic (2 agent rà soát độc lập): chốt ca chặn bấm 2 lần/tiền âm/lệch phải ghi lý do, ô sổ sách Bill Money & sản phẩm chỉ tick được khi đủ điều kiện, chốt ca lưu mã hóa đơn (`codes`) để không sót hóa đơn; "Home sắp xếp" xoay tour; không gợi ý KTV chưa chấm công; đổi ca chọn người đổi (`Leave.withId`) → duyệt thì bảng ca đảo cả 2; KTV chỉ xem bill/khách của mình; sự cố chuyển việc không đếm trùng; review ghi cho KTV của tour, không cộng điểm 2 lần; duyệt điểm chỉ Leader/CEO + báo người liên quan; thông báo duyệt không lộ đơn cá nhân; từ chối tăng ngân sách giữ số đã duyệt; Mộc không tự đặt quy chuẩn/không trả sai quy trình; số mẫu có nhãn; Mộc Marketing theo nút 3.1–3.9.
