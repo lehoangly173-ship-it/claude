@@ -2,9 +2,9 @@
 
 lane: M
 request: fix lan 1 KTV (5 dot) - homespa/docs/ktv-fix-lan-1.md
-step: module:m1
-IN-PROGRESS: -
-branch: team/m1-mau-nut-nho
+step: module:m2
+IN-PROGRESS: doi-builder/m2-don-dep
+branch: team/m2-don-dep
 base: develop
 last_gate_approved: gate1
 last_version: -     # ban-N branch (no tags)
@@ -13,7 +13,7 @@ last_version: -     # ban-N branch (no tags)
 | # | module | sensitive | status | fix_rounds |
 |---|--------|-----------|--------|-----------|
 | 1 | m1-mau-nut-nho | no | merged | 0 |
-| 2 | m2-don-dep | no | spec | 0 |
+| 2 | m2-don-dep | no | building | 0 |
 | 3 | m3-gop-y | YES | spec | 0 |
 | 4 | m4-khach-hang | YES | spec | 0 |
 | 5 | m5-cua-toi | YES | spec | 0 |
