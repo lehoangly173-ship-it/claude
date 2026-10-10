@@ -1,4 +1,5 @@
 // KTV & LỄ TÂN — 4 nút mẹ: HÔM NAY · (CÔNG VIỆC / VẬN HÀNH) · KHÁCH HÀNG · HỎI ĐÁP MỘC · CỦA TÔI
+import { OpsBase2, HandoverPage } from './reception2'
 import { ReactNode, useState, useRef } from 'react'
 import { useStore } from '../store'
 import * as D from '../data'
@@ -58,6 +59,7 @@ export function KtvHome({ sub }: { sub: string[] }) {
   const page = dailySub(sub[0], () => go('home'))
   if (page) return <>{page}</>
   if (sub[0] === 'work') return <KtvWork sub={sub.slice(1)} />
+  if (sub[0] === 'handover') return <HandoverPage back={() => go('home')} />
   const order = tourOrder(s), pos = order.indexOf(me.id)
   const mine = s.appts.filter(a => a.ktvId === me.id && !['cancelled', 'no_show'].includes(a.status))
   const done = mine.filter(a => a.status === 'done' || a.status === 'paid').length
@@ -84,6 +86,7 @@ export function KtvHome({ sub }: { sub: string[] }) {
       { t: 'Xin nghỉ phép', d: 'Gửi đơn · theo dõi kết quả', onClick: () => go('home/leave') },
       { t: 'Báo cáo sự cố', d: 'Mô tả · ảnh · trạng thái xử lý', onClick: () => go('home/incident') },
       { t: T.menu.idea, d: T.menu.ideaDesc, onClick: () => go('home/idea') },
+      { t: 'Nhận bàn giao ca', d: 'Nội dung bàn giao · xác nhận đồng ý / không đồng ý', badge: s.handovers.filter(h => h.to === me.id && h.status === 'Chờ xác nhận').length, onClick: () => go('home/handover') },
     ]} />
     <QrButton />
   </>
@@ -102,7 +105,8 @@ export function ReceptionHome({ sub }: { sub: string[] }) {
   if (sub[0] === 'close') return <CloseShiftPage back={back} />
   const page = dailySub(sub[0], back)
   if (page) return <>{page}</>
-  if (sub[0] === 'base') return <OpsBasePage key={sub[1]} sub={sub[1]} />
+  if (sub[0] === 'base') return <OpsBase2 key={sub[1]} sub={sub[1]} sub2={sub[2]} />
+  if (sub[0] === 'handover') return <HandoverPage back={back} />
   if (sub[0] === 'tasks') return <MyTasksPage back={back} />
   const o = overview(s)
   const needCare = alerts(s).filter(a => a.customerId).length
@@ -207,48 +211,16 @@ function CloseShiftPage({ back }: { back: () => void }) {
   </>
 }
 
-// ── Vận hành cơ sở – hoạt động đội nhóm ──
-function OpsBasePage({ sub }: { sub?: string }) {
-  const { s, me, go, addOpsCheck, proposePoint } = useStore()
-  const i = Number(sub ?? 0)
-  const item = D.OPS_ITEMS[i] ?? D.OPS_ITEMS[0]
-  const [ok, setOk] = useState(true)
-  const [note, setNote] = useState('')
-  const [pt, setPt] = useState({ staffId: '', delta: 1, reason: '' })
-  const hist = s.opsChecks.filter(x => x.item === item)
-  const isPoints = item === 'Ghi nhận điểm uy tín'
-  return <>
-    <SubHead title={item} sub="Vận hành cơ sở – hoạt động đội nhóm" onBack={() => go('home')} />
-    <div style={{ overflowX: 'auto' }}><Seg value={String(i)} onChange={v => go(`home/base/${v}`)} items={D.OPS_ITEMS.map((x, j) => ({ k: String(j), label: `${j + 1}` }))} /></div>
-    {isPoints ? <>
-      <div className="note"><b>Lưu ý của chị Quyên:</b> lễ tân ghi nhận & tổng hợp; Leader/CEO duyệt điểm cộng/trừ có tranh chấp hoặc cần đánh giá — lễ tân không tự quyết điểm của đồng nghiệp.</div>
-      <Block title="Ghi nhận điểm">
-        <div className="grid g3"><label className="f">Nhân viên<select id="pt-st" className="inp" value={pt.staffId} onChange={e => setPt({ ...pt, staffId: e.target.value })}><option value="">— chọn —</option>{s.staff.filter(x => x.id !== me.id && (x.role === 'ktv' || x.role === 'reception')).map(x => <option key={x.id} value={x.id}>{x.name}</option>)}</select></label>
-          <label className="f">Điểm (+/−)<input id="pt-d" className="inp num" type="number" min={-10} max={10} value={pt.delta} onChange={e => setPt({ ...pt, delta: +e.target.value })} /></label>
-          <label className="f">Sự việc & minh chứng<input id="pt-r" className="inp" value={pt.reason} onChange={e => setPt({ ...pt, reason: e.target.value })} placeholder="VD: khách khen trên Google" /></label></div>
-        <button className="btn pri" disabled={!pt.staffId || !pt.delta || !pt.reason.trim()} onClick={() => { proposePoint(pt.staffId, pt.delta, pt.reason.trim()); setPt({ staffId: '', delta: 1, reason: '' }) }}>Gửi Leader/CEO duyệt</button>
-      </Block>
-      <Block title="Đã ghi nhận"><div className="card list">{s.points.filter(p => p.by === me.id).map(p => <div key={p.id} className="item"><div className="body"><div className="t">{D.staffName(p.staffId)} · {p.delta > 0 ? '+' : ''}{p.delta}</div><div className="d">{p.reason} · {D.hhmm(p.at)}</div></div><Pill tone={p.status === 'Đã duyệt' ? 'green' : p.status === 'Từ chối' ? 'red' : 'yellow'}>{p.status}</Pill></div>)}{!s.points.some(p => p.by === me.id) && <Empty>Chưa ghi nhận</Empty>}</div></Block>
-    </> : <>
-      <Block title="Ghi kết quả kiểm tra">
-        <Seg value={ok ? 'ok' : 'no'} onChange={v => setOk(v === 'ok')} items={[{ k: 'ok', label: 'Đạt / đã xong' }, { k: 'no', label: 'Có vấn đề' }]} />
-        <textarea id="ob-note" className="inp" value={note} onChange={e => setNote(e.target.value)} placeholder={item.startsWith('Vật tư') ? 'VD: còn 2 chai dầu massage — đề xuất mua 10 chai' : item.startsWith('Bàn giao') ? 'VD: khách Hà hẹn 18:00 chưa xác nhận; máy sấy tầng 3 kêu to' : 'Mô tả ngắn'} />
-        <button className="btn pri" disabled={!ok && !note.trim()} onClick={() => { addOpsCheck(item, ok, note.trim()); setNote('') }}>Ghi nhận</button>
-        {!ok && <div className="tiny muted">Có vấn đề → bắt buộc mô tả; Leader thấy trong "Việc bất thường".</div>}
-      </Block>
-      <Block title="Lịch sử hôm nay"><div className="card list">{hist.map(h => <div key={h.id} className="item"><div className="body"><div className="t">{h.note || (h.ok ? 'Đạt' : 'Có vấn đề')}</div><div className="d">{D.staffName(h.by)} · {D.hhmm(h.at)}</div></div><Pill tone={h.ok ? 'green' : 'red'}>{h.ok ? 'Đạt' : 'Vấn đề'}</Pill></div>)}{!hist.length && <Empty>Chưa có ghi nhận</Empty>}</div></Block>
-    </>}
-  </>
-}
-
 // ── Khách hàng của lễ tân (CSKH) ──
 type Grp = 'leVN' | 'ltVN' | 'leNN' | 'ltNN'
 const pkgState = (p: D.Package) => { const left = D.pkgLeft(p); if (D.pkgOwed(p) > 0) return 'Đã cọc, còn thiếu'; if (left <= 0) return 'Đã hết liệu trình'; if (p.type === 'session' && left === 1) return 'Còn buổi cuối cùng'; if (p.type === 'session' && left === 2) return 'Còn 2 buổi cuối'; return 'Đã thanh toán đủ' }
 const pkgIs = (p: D.Package, st: string) => { const left = D.pkgLeft(p), owed = D.pkgOwed(p); switch (st) { case 'Đã cọc, còn thiếu': return owed > 0; case 'Đã thanh toán đủ': return owed === 0 && left > 0; case 'Còn 2 buổi cuối': return p.type === 'session' && left === 2; case 'Còn buổi cuối cùng': return p.type === 'session' && left === 1; case 'Đã hết liệu trình': return left <= 0 } return false }
 const thisMonth = () => D.TODAY.getMonth() + 1
 const bday = (c: D.Customer) => !!c.dob && +c.dob.split('/')[1] === thisMonth()
-export function ReceptionCustomers() {
+export function ReceptionCustomers({ embed }: { embed?: boolean } = {}) {
   const { s, user, openCustomer } = useStore()
+  const [rg, setRg] = useState({ from: '', to: '' })
+  const lastIso = (c: D.Customer) => { const d = new Date(D.TODAY); d.setDate(d.getDate() - c.lastVisitDays); return d.toISOString().slice(0, 10) }
   const [grp, setGrp] = useState<Grp>('leVN')
   const [flt, setFlt] = useState('Tất cả')
   const [days, setDays] = useState(30)
@@ -271,19 +243,20 @@ export function ReceptionCustomers() {
       default: return c.packages.some(p => pkgIs(p, flt))
     }
   }
-  const list = base.filter(match).filter(c => !q.trim() || c.name.toLowerCase().includes(q.toLowerCase()) || c.code.toLowerCase().includes(q.toLowerCase())).sort((a, b) => b.totalPaid - a.totalPaid)
+  const list = base.filter(match).filter(c => (!rg.from || lastIso(c) >= rg.from) && (!rg.to || lastIso(c) <= rg.to)).filter(c => !q.trim() || c.name.toLowerCase().includes(q.toLowerCase()) || c.code.toLowerCase().includes(q.toLowerCase())).sort((a, b) => b.totalPaid - a.totalPaid)
   const script = (c: D.Customer) => unhappy.has(c.id) ? 'Gọi xin lỗi, hỏi rõ vấn đề, đề xuất xử lý trong quyền hạn' : bday(c) ? 'Chúc mừng sinh nhật + quà theo chương trình Sinh nhật vàng' : c.packages.some(p => ['Còn 2 buổi cuối', 'Còn buổi cuối cùng', 'Đã hết liệu trình'].includes(pkgState(p))) ? 'Hỏi tiến triển, tư vấn tái tục theo khung đã duyệt' : c.packages.some(p => D.pkgOwed(p) > 0) ? 'Nhắc nhẹ đóng tiếp khi khách đến' : c.lastVisitDays >= days ? 'Hỏi thăm, mời quay lại — hỏi lý do gián đoạn' : c.visits <= 1 ? 'Hỏi cảm nhận buổi đầu, mời đặt buổi 2' : 'Hỏi thăm sau dịch vụ'
   const logs = s.customers.flatMap(c => c.care.filter(x => x.kind))
   const fbBad = s.feedback.filter(f => f.rating <= 3)
   const recIds = new Set(s.staff.filter(x => x.role === 'reception').map(x => x.id))
   return <>
-    <Hero tag="Khách hàng · CSKH" title="Chăm sóc khách hàng" sub="Lọc tệp khách → kịch bản mục tiêu → ghi kết quả CSKH. Lễ tân duyệt nội dung trước khi gửi tin." />
+    {!embed && <Hero tag="Khách hàng · CSKH" title="Chăm sóc khách hàng" sub="Lọc tệp khách → kịch bản mục tiêu → ghi kết quả CSKH. Lễ tân duyệt nội dung trước khi gửi tin." />}
     <Tiles items={[
       { v: logs.filter(x => x.kind === 'Nhắn tin' && x.ok).length, l: 'Nhắn tin thành công' }, { v: logs.filter(x => x.kind === 'Gọi điện' && x.ok).length, l: 'Gọi điện thành công' },
       { v: logs.filter(x => x.replied).length, l: 'Khách có phản hồi' }, { v: logs.filter(x => x.came).length, l: 'Khách hẹn tới', tone: 'ok' },
       { v: s.feedback.length ? (s.feedback.reduce((t, f) => t + f.rating, 0) / s.feedback.length).toFixed(1) : '—', l: 'Điểm trải nghiệm TB' },
       { v: fbBad.length ? `${Math.round(fbBad.filter(f => f.status === 'đã xử lý' && f.handlerId && recIds.has(f.handlerId)).length / fbBad.length * 100)}%` : '—', l: 'Khiếu nại lễ tân xử lý' },
     ]} />
+    <div className="row small"><span className="muted">Chọn thời gian (lần đến gần nhất):</span><input className="inp" style={{ width: 150 }} type="date" value={rg.from} onChange={e => setRg({ ...rg, from: e.target.value })} aria-label="Từ ngày" />→<input className="inp" style={{ width: 150 }} type="date" value={rg.to} onChange={e => setRg({ ...rg, to: e.target.value })} aria-label="Đến ngày" /></div>
     <div style={{ overflowX: 'auto' }}><Seg value={grp} onChange={g => { setGrp(g); setFlt('Tất cả') }} items={[{ k: 'leVN', label: 'Khách lẻ Việt' }, { k: 'ltVN', label: 'Liệu trình Việt' }, { k: 'leNN', label: 'Khách lẻ nước ngoài' }, { k: 'ltNN', label: 'Liệu trình nước ngoài' }]} /></div>
     <div className="row">{filters.map(f => <button key={f} className={`btn sm${flt === f ? ' pri' : ''}`} onClick={() => setFlt(f)}>{f}</button>)}</div>
     <div className="row"><input className="inp" style={{ flex: 1, minWidth: 160 }} placeholder={isLT ? 'Tìm mã KH / tên' : 'Tìm tên / mã'} value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm khách" />

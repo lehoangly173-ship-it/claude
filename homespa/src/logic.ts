@@ -1,6 +1,7 @@
 // Các phép tính dẫn xuất (không lưu) — mọi con số trên màn hình đều tính từ đây,
 // để Tổng quan, Sơ đồ giường, Hàng chờ, Leader... luôn khớp nhau.
 import { T } from './i18n'
+import * as D from './data'
 import {
   daysAhead, Appt, BEDS, Bed, Customer, ktvs, SHIFTS, Staff, svc, bedZoneFor, pkgLeft, pkgOwed, hhmm, Feedback, Invoice, Task,
 } from './data'
@@ -37,6 +38,13 @@ export type State = {
   zoneRead: Record<string, boolean> // "Tôi đã đọc nhiệm vụ" theo khu/ngày/KTV (xem zoneKey)
   zoneChecks: Record<string, boolean[]> // ô tích từng việc theo khu/ngày/KTV
   suggestions: import('./data').Suggestion[] // m3: góp ý / sáng kiến KTV
+  stockMoves: import('./data').StockMove[]
+  opsReqs: import('./data').OpsReq[]
+  xpChecks: import('./data').XpCheck[]
+  handovers: import('./data').Handover[]
+  expenses: import('./data').Expense[]
+  profiles: Record<string, import('./data').StaffProfile>
+  adjusts: import('./data').AdjustReq[]
 }
 
 const LIVE: Appt['status'][] = ['booked', 'checked_in', 'in_service']
@@ -416,3 +424,75 @@ export function customersCsv(list: Customer[]) {
 }
 /** R5: SĐT khách chỉ Lễ tân + CEO */
 export const canSeePhone = (role: import('./data').Role) => role === 'reception' || role === 'ceo'
+
+// ═══ FIX LẦN 1 — Kho, chi tiêu, công nợ (một nguồn số) ═══
+const IT = (id: string) => D.STOCK_ITEMS.find(x => x.id === id)!
+/** Tồn kho chung: tồn đầu + nhập + hoàn trả − cấp − dùng chung − bán − hỏng ± kiểm kê */
+export function stockQty(s: State, item: string) {
+  return s.stockMoves.filter(m => m.item === item && m.status !== 'Chờ duyệt' && m.status !== 'Từ chối').reduce((t, m) => {
+    switch (m.kind) { case 'Nhập': case 'Hoàn trả': return t + m.qty; case 'Kiểm kê': return t + m.qty; case 'Đề xuất mua': return t; default: return t - m.qty }
+  }, IT(item).start)
+}
+/** Đang giữ tại nhân viên = cấp − hoàn trả − đã dùng (số liệu mẫu: phần đã dùng ước theo tour) */
+export function heldBy(s: State, staffId: string, item: string) {
+  const mv = s.stockMoves.filter(m => m.item === item && m.staffId === staffId)
+  const got = mv.filter(m => m.kind === 'Cấp NV').reduce((t, m) => t + m.qty, 0), back = mv.filter(m => m.kind === 'Hoàn trả').reduce((t, m) => t + m.qty, 0)
+  const lost = mv.filter(m => m.kind === 'Hỏng/hao hụt').reduce((t, m) => t + m.qty, 0)
+  return { got, back, lost }
+}
+/** Tiêu hao = tồn đầu + nhận thêm − hoàn trả − tồn cuối */
+export const usage = (start: number, got: number, back: number, end: number) => start + got - back - end
+/** Cảnh báo & đề xuất mua: dưới ngưỡng cảnh báo → mua đủ mức cần duy trì, trừ hàng đã đặt chưa nhận */
+export function buySuggest(s: State) {
+  return D.STOCK_ITEMS.map(it => {
+    const q = stockQty(s, it.id), ordered = s.stockMoves.filter(m => m.item === it.id && m.kind === 'Đề xuất mua' && m.status !== 'Từ chối').reduce((t, m) => t + m.qty, 0)
+    const need = q < it.warn ? Math.max(0, it.keep - q - ordered) : 0
+    return { it, q, ordered, need, state: q <= 0 ? 'Đã hết' : q < it.warn ? 'Sắp hết' : 'Đủ' }
+  })
+}
+export const expensesTotal = (s: State) => s.expenses.reduce((t, e) => t + e.amount, 0)
+/** Công nợ: buổi spa đang nợ khách (liệu trình còn buổi) và tiền cọc còn thiếu */
+export function debtSummary(s: State) {
+  const pk = s.customers.flatMap(c => c.packages.map(p => ({ c, p })))
+  const left = pk.filter(x => D.pkgLeft(x.p) > 0)
+  const deposit = pk.filter(x => D.pkgOwed(x.p) > 0), full = left.filter(x => D.pkgOwed(x.p) === 0)
+  const perSession = (p: D.Package) => p.type === 'session' ? p.finalPrice / Math.max(1, (p.sessions ?? 0) + (p.bonus ?? 0)) : 1
+  const owedValue = (p: D.Package) => p.type === 'session' ? D.pkgLeft(p) * perSession(p) : D.pkgLeft(p)
+  return { left, deposit, full, sessionsOwed: left.filter(x => x.p.type === 'session').reduce((t, x) => t + D.pkgLeft(x.p), 0), owedValue, depositPaid: deposit.reduce((t, x) => t + D.pkgPaid(x.p), 0), depositMissing: deposit.reduce((t, x) => t + D.pkgOwed(x.p), 0), fullValue: full.reduce((t, x) => t + owedValue(x.p), 0) }
+}
+/** Hiệu suất nhân sự theo sơ đồ (5 nhóm). null = Chưa nối (chưa có dữ liệu/công thức). Không tự cộng điểm. */
+export function ktvPerf(s: State, id: string, extra = false): { g: string; rows: { t: string; v: string | null }[] }[] {
+  const me = s.staff.find(x => x.id === id), name = me?.name ?? ''
+  const ap = s.appts.filter(a => a.ktvId === id && ['done', 'paid'].includes(a.status))
+  const fb = s.feedback.filter(f => f.ktvId === id)
+  const pk = s.customers.flatMap(c => c.packages.filter(p => (p.closerIds ?? []).includes(id) || p.closer === name))
+  const served = new Set(ap.map(a => a.customerId))
+  const cr = s.cleanReports.filter(r => r.staffId === id && r.status !== 'Chờ kiểm tra')
+  const at = s.attendance[id], st = me?.shift ? D.SHIFTS[me.shift].start : null
+  const c = (id2: string) => s.customers.find(x => x.id === id2)
+  return [
+    { g: '1. Chuyên môn và khách hàng', rows: [
+      { t: 'Điểm TB khách đánh giá', v: fb.length ? (fb.reduce((t, f) => t + f.rating, 0) / fb.length).toFixed(1) + '/5' : null },
+      { t: 'Số khách yêu cầu', v: String(s.appts.filter(a => a.ktvId === id && a.requested && !['cancelled', 'no_show'].includes(a.status)).length) },
+      { t: 'Đánh giá chấm điểm chuyên môn theo kì', v: null },
+      { t: 'Best saler, tỉ suất % sale', v: served.size ? `${pk.length} thẻ · ${Math.round(pk.length / served.size * 100)}%` : `${pk.length} thẻ` },
+      { t: 'Số lượt KH phục vụ', v: String(ap.length) },
+      { t: 'Tổng số giờ phục vụ khách', v: (ap.reduce((t, a) => t + a.end - a.start, 0) / 60).toFixed(1) + ' giờ' },
+      ...(extra ? [{ t: 'Số hồ sơ khách hàng được cập nhật', v: String(s.customers.filter(x => x.care.some(e => e.by === name)).length) }] : []),
+    ] },
+    { g: '2. Tăng trưởng KH', rows: [
+      { t: 'KH mới phục vụ', v: String([...served].filter(x => (c(x)?.visits ?? 0) <= 1).length) },
+      { t: 'Khách mới quay lại', v: String([...served].filter(x => c(x)?.visits === 2).length) },
+      { t: 'KH mới mua liệu trình', v: String(pk.filter(p => !p.renewalOf).length) },
+      { t: 'KH cũ tái tục liệu trình', v: String(pk.filter(p => p.renewalOf).length) },
+      ...(extra ? [{ t: 'Số data khách giới thiệu thêm', v: null }] : []),
+    ] },
+    { g: '3. Tinh thần làm việc', rows: [
+      { t: 'Set up dọn dẹp đúng tiêu chuẩn', v: cr.length ? `${cr.filter(r => r.status === 'Đạt').length}/${cr.length} lần đạt` : null },
+      { t: 'Ý thức đúng giờ', v: at?.in != null && st != null ? (at.in <= st ? 'Đúng giờ' : `Trễ ${at.in - st} phút`) : null },
+      { t: 'Nhận tăng ca (Team 1 / Team 2)', v: null }, { t: 'Chấp hành quy trình', v: null }, { t: 'Chuyên cần', v: null }, { t: 'Tinh thần học tập', v: null },
+    ] },
+    { g: '4. Văn hóa ứng xử', rows: [{ t: extra ? 'Được nhân sự bầu chọn là người yêu thích nhất' : 'Được KTV, lễ tân bầu chọn là người yêu thích nhất', v: null }, { t: 'Được cấp trên bình chọn', v: null }] },
+    { g: 'Sáng tạo – đổi mới', rows: [{ t: 'Có các ý kiến sáng tạo đóng góp cho spa', v: String(s.suggestions.filter(x => x.staffId === id).length) }, { t: 'Giúp đỡ Home', v: null }] },
+  ]
+}

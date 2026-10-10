@@ -374,12 +374,71 @@ export type Review = { id: string; staffId: string; platform: 'Google' | 'Facebo
 export type ProductLog = { id: string; product: string; qty: number; ktvId: string; recId: string; photo: string; at: number; ktvOk: boolean; recOk: boolean; purpose?: 'ban_khach' | 'dung_co_so'; buyerNote?: string; invoicePhoto?: string }
 export type Leave = { id: string; staffId: string; kind: 'Nghỉ phép' | 'Đổi ca'; date: string; detail: string; withId?: string; status: 'Chờ duyệt' | 'Đã duyệt' | 'Từ chối'; at: number }
 export type ShiftClose = { id: string; staffId: string; at: number; expected: Record<PayMethod, number>; counted: Record<PayMethod, number>; note: string; books: boolean[]; codes?: string[] }
-export type PointEntry = { id: string; staffId: string; delta: number; reason: string; by: string; at: number; status: 'Chờ duyệt' | 'Đã duyệt' | 'Từ chối'; source: 'Dọn dẹp' | 'Lễ tân ghi nhận' | 'Leader' | 'CEO' | 'Review' }
+export type PointEntry = { id: string; staffId: string; delta: number; reason: string; by: string; at: number; status: 'Chờ duyệt' | 'Đã duyệt' | 'Từ chối'; source: 'Dọn dẹp' | 'Lễ tân ghi nhận' | 'Leader' | 'CEO' | 'Review'; photo?: string }
 // m3: góp ý / sáng kiến KTV (nút 11). kind 1–4 theo thứ tự T.idea.kinds; loại 2 (Nhân sự / cấp trên) chỉ người gửi + CEO xem (G15)
 export type SuggestionKind = 1 | 2 | 3 | 4
 export const SUGGESTION_KINDS: SuggestionKind[] = [1, 2, 3, 4]
 export const PRIVATE_SUGGESTION_KIND: SuggestionKind = 2
 export type Suggestion = { id: string; staffId: string; kind: SuggestionKind; text: string; date: string; createdAt: number; status: 'Đã gửi' }
 export type OpsCheck = { id: string; item: string; by: string; at: number; ok: boolean; note: string }
-export const OPS_ITEMS = ['Kiểm tra vệ sinh lao công', 'Kiểm tra không gian trải nghiệm', 'Vật tư – tồn kho – đề xuất mua', 'Thiết bị – bảo dưỡng – sửa chữa', 'Sinh nhật nhân sự – quà tháng – hoạt động chung', 'Ghi nhận điểm uy tín', 'Bàn giao ca – việc còn tồn'] as const
+export const OPS_ITEMS = ['Kiểm tra vệ sinh lao công', 'Kiểm tra không gian trải nghiệm', 'Vật tư – tồn kho – đề xuất mua', 'Thiết bị – bảo dưỡng – sửa chữa', 'Sinh nhật nhân sự – quà tháng – hoạt động chung', 'Ghi nhận điểm uy tín', 'Bàn giao ca – việc còn tồn', 'Chi tiêu vận hành'] as const
 export const BOOK_CHECKS = ['Không còn hóa đơn nháp / chưa thu', 'Bill Money nhóm đã đối soát', 'Lịch hẹn ngày mai đã nhắn xác nhận', 'Sản phẩm xuất trong ca đã xác nhận 2 bên', 'Việc tồn đã ghi bàn giao ca sau']
+
+// ═══ FIX LẦN 1 — Lễ tân (Lark "FIX LẦN 1 APP LỄ TÂN") ═══
+/** Kiểm tra vệ sinh lao công: 4 khu · tiêu chuẩn · ảnh mẫu → tải ảnh → gửi duyệt → AI quét (giả lập) */
+export const LC_AREAS = [
+  { k: 'T1', t: 'Tầng 1', std: 'Sảnh, quầy lễ tân, khu chờ, nhà vệ sinh tầng 1 sạch, khô; rác đã đổ; đồ dùng đúng vị trí.' },
+  { k: 'T2', t: 'Tầng 2', std: 'Hành lang, phòng trị liệu tầng 2: sàn sạch, gương sạch, thùng rác trống, khăn bẩn đã gom.' },
+  { k: 'T3', t: 'Tầng 3', std: 'Khu gội, khu ngâm chân tầng 3: vòi nước, ghế/giường gội sạch; sàn khô; dụng cụ đủ.' },
+  { k: 'SV', t: 'Sân vườn, tưới cây, bàn đá và bếp', std: 'Cây đã tưới, lá rụng đã quét; bàn đá sạch; bếp rửa bát xong, bồn rửa khô.' },
+]
+/** Kiểm tra không gian trải nghiệm: 9 nút con (bảng Lark) */
+export const XP_ITEMS: [string, string][] = [
+  ['Vệ sinh và sắp xếp', 'Sàn, kệ, bàn, gương sạch; rác đã thu gom; đồ dùng đúng vị trí; cây xanh và đồ trang trí gọn gàng.'],
+  ['Giường và vật dụng phục vụ', 'Ga, khăn, gối sạch và khô; giường ngay ngắn; đủ vật dụng cho massage trị liệu hoặc gội đầu; đồ dùng cá nhân của khách có chỗ để.'],
+  ['Nhiệt độ và không khí', 'Phòng dễ chịu, thông thoáng; điều hòa/quạt hoạt động; luồng gió phù hợp với vị trí khách nằm.'],
+  ['Mùi hương', 'Hương thảo mộc nhẹ, dễ chịu; kiểm tra mùi ẩm, khăn, nhà vệ sinh hoặc mùi khác gây khó chịu.'],
+  ['Âm thanh', 'Nhạc đúng danh sách Home, âm lượng phù hợp; kiểm tra tiếng nói chuyện, tiếng thiết bị và tiếng ồn bên ngoài.'],
+  ['Ánh sáng', 'Đèn hoạt động; ánh sáng dịu tại giường, đủ sáng ở lối đi; tránh ánh đèn chiếu thẳng vào mắt khách.'],
+  ['Sự riêng tư', 'Rèm, cửa, vách ngăn đúng vị trí; khách thay đồ và nằm trị liệu kín đáo; phòng đang có khách được nhận diện rõ.'],
+  ['Tiện nghi theo khu vực', 'Sảnh có chỗ ngồi, nước uống; khu gội kiểm tra vòi nước và ghế/giường; khu ngâm chân đủ dụng cụ; nhà vệ sinh có giấy, xà phòng và sàn khô.'],
+  ['An toàn và thiết bị', 'Lối đi thông thoáng; dây điện gọn; thiết bị hoạt động ổn định; phát hiện rò nước, hỏng hóc hoặc điểm dễ trượt ngã.'],
+]
+/** Chỉ kiểm trực tiếp rồi xác nhận (ảnh chỉ hỗ trợ đối chiếu) */
+export const XP_DIRECT = [2, 3, 4]
+/** Vật tư: 8 nút con (bảng Lark) */
+export const STOCK_TABS = ['Nhập kho', 'Xuất & cấp vật tư', 'Bán hàng', 'Tồn kho & kiểm kê', 'Sử dụng theo nhân sự', 'Cảnh báo & đề xuất mua', 'Tiền hàng & báo cáo', 'Duyệt & lịch sử'] as const
+export const STOCK_NEW = [2, 4, 6, 7]
+/** Danh mục hàng (số liệu mẫu) — cấu hình thật đặt ở CEO → Cài đặt → Kho hàng. unit = đơn vị theo dõi; pack = quy đổi 1 đơn vị nhập */
+export type StockItem = { id: string; name: string; unit: string; pack: number; packName: string; cost: number; price?: number; warn: number; keep: number; start: number; perTour?: number }
+export const STOCK_ITEMS: StockItem[] = [
+  { id: 'dau', name: 'Dầu massage', unit: 'ml', pack: 1000, packName: 'chai 1.000 ml', cost: 180, warn: 2000, keep: 8000, start: 5200, perTour: 20 },
+  { id: 'caoho', name: 'Cao hổ', unit: 'hũ', pack: 1, packName: 'hũ', cost: 95000, price: 180000, warn: 3, keep: 10, start: 6 },
+  { id: 'goi', name: 'Dầu gội', unit: 'chai', pack: 1, packName: 'chai', cost: 120000, price: 220000, warn: 3, keep: 10, start: 2 },
+  { id: 'xa', name: 'Dầu xả', unit: 'chai', pack: 1, packName: 'chai', cost: 110000, warn: 3, keep: 8, start: 5 },
+  { id: 'sua', name: 'Sữa chua', unit: 'hộp', pack: 1, packName: 'hộp', cost: 7000, warn: 10, keep: 40, start: 18 },
+  { id: 'khan', name: 'Khăn lạnh', unit: 'cái', pack: 1, packName: 'cái', cost: 1500, warn: 50, keep: 200, start: 140 },
+  { id: 'giat', name: 'Nước giặt', unit: 'ml', pack: 3000, packName: 'can 3.000 ml', cost: 40, warn: 1500, keep: 6000, start: 2400 },
+]
+export type StockMove = { id: string; item: string; kind: 'Nhập' | 'Cấp NV' | 'Dùng chung' | 'Bán' | 'Hoàn trả' | 'Hỏng/hao hụt' | 'Kiểm kê' | 'Đề xuất mua'; qty: number; staffId?: string; note: string; by: string; at: number; price?: number; supplier?: string; status?: 'Chờ duyệt' | 'Đã duyệt' | 'Từ chối' }
+export const SEED_STOCK_MOVES: StockMove[] = [
+  { id: 'sm1', item: 'dau', kind: 'Cấp NV', qty: 200, staffId: 'mai', note: 'Cấp đầu ca', by: 'lam', at: 8 * 60 + 5 },
+  { id: 'sm2', item: 'dau', kind: 'Hoàn trả', qty: 20, staffId: 'mai', note: 'Trả cuối ca trước', by: 'lam', at: 8 * 60 + 6 },
+  { id: 'sm3', item: 'caoho', kind: 'Bán', qty: 1, staffId: 'trieu', note: 'Bán cho khách Trần Văn Minh', by: 'lam', at: 9 * 60 + 40, price: 180000 },
+  { id: 'sm4', item: 'goi', kind: 'Nhập', qty: 6, note: 'Phiếu nhập NK-0108', by: 'lam', at: 7 * 60 + 50, price: 120000, supplier: 'Cty Thảo Mộc Việt' },
+]
+/** Tồn đầu ca KTV (số liệu mẫu) để tính tiêu hao = tồn đầu + nhận − trả − tồn cuối */
+export const SEED_KTV_HOLD: Record<string, { item: string; start: number; end?: number; tours: number }> = { mai: { item: 'dau', start: 100, end: 80, tours: 10 } }
+export type OpsReq = { id: string; kind: 'Thiết bị' | 'Hoạt động'; title: string; cost: number; from?: string; to?: string; photo?: string; by: string; at: number; status: 'Chờ duyệt' | 'Đã duyệt' | 'Từ chối'; decidedBy?: string }
+export type XpCheck = { id: string; area: string; res: 'Đạt' | 'Cần xử lý' | 'Không áp dụng'; note: string; photo: string; by: string; at: number; help?: boolean; ai?: string; status?: 'Chờ duyệt' | 'Đạt' | 'Không đạt – lễ tân xử lý' | 'Đã xử lý' }
+export type Handover = { id: string; from: string; to: string; text: string; at: number; status: 'Chờ xác nhận' | 'Đồng ý' | 'Không đồng ý'; reason?: string }
+export const EXP_CATS = ['Điện', 'Nước', 'Rác + Wifi', 'Tiền mặt bằng', 'Lương cơ sở', 'Hàng hóa sử dụng', 'Quảng cáo Facebook', 'Quảng cáo Google', 'Khác'] as const
+export type Expense = { id: string; cat: typeof EXP_CATS[number]; amount: number; date: string; note: string; photo: string; by: string; at: number }
+export const SEED_EXPENSES: Expense[] = [
+  { id: 'ex1', cat: 'Điện', amount: 4200000, date: daysAhead(-5), note: 'Hóa đơn điện tháng (số liệu mẫu)', photo: 'dien.jpg', by: 'lam', at: 480 },
+  { id: 'ex2', cat: 'Tiền mặt bằng', amount: 25000000, date: daysAhead(-9), note: 'Tiền thuê tháng (số liệu mẫu)', photo: 'matbang.jpg', by: 'lam', at: 480 },
+  { id: 'ex3', cat: 'Quảng cáo Facebook', amount: 3500000, date: daysAhead(-3), note: 'Chiến dịch tri ân (số liệu mẫu)', photo: 'fb.jpg', by: 'lam', at: 480 },
+  { id: 'ex4', cat: 'Hàng hóa sử dụng', amount: 1800000, date: daysAhead(-2), note: 'Dầu massage, khăn (số liệu mẫu)', photo: 'hang.jpg', by: 'lam', at: 480 },
+]
+export type StaffProfile = { fullName: string; avatar: string; dept: string; joinDate: string; phone: string }
+export type AdjustReq = { id: string; staffId: string; date: string; text: string; at: number; status: 'Chờ duyệt' | 'Đã duyệt' | 'Từ chối' }

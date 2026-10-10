@@ -45,6 +45,9 @@ const initial = (): State => ({
   opsChecks: [],
   zoneRead: {}, zoneChecks: {},
   suggestions: [],
+  stockMoves: clone(D.SEED_STOCK_MOVES), opsReqs: [{ id: 'or1', kind: 'Thiết bị', title: 'Máy sấy tóc tầng 3 kêu to', cost: 350000, from: D.daysAhead(1), to: D.daysAhead(2), photo: 'maysay.jpg', by: 'lam', at: 9 * 60, status: 'Chờ duyệt' }],
+  xpChecks: [], handovers: [{ id: 'ho1', from: 'lam', to: 'mai', text: 'Thu hộ 300.000đ tiền mặt của khách Hà (tour 18:00) — nộp lại lễ tân ca 2', at: 9 * 60 + 30, status: 'Chờ xác nhận' }],
+  expenses: clone(D.SEED_EXPENSES), profiles: {}, adjusts: [],
 })
 
 type Ctx = ReturnType<typeof useStoreValue>
@@ -281,7 +284,8 @@ function useStoreValue() {
       say('Đã gửi báo cáo tuần cho chị')
     },
     decide: (aid: string, ok: boolean, note = '') => {
-      if (user.role !== 'ceo') return say('Chỉ chị (CEO) được duyệt')
+      const a0 = s.approvals.find(x => x.id === aid)
+      if (user.role !== 'ceo' && !(user.role === 'leader' && a0?.kind === 'Nghỉ phép / đổi ca')) return say('Chỉ chị (CEO) được duyệt')
       mutate(d => {
         const a = d.approvals.find(x => x.id === aid)!
         if (a.status !== 'Chờ duyệt') return
@@ -420,11 +424,24 @@ function useStoreValue() {
       mutate(d => { d.suggestions.unshift({ id: id(d, 'sg'), staffId: me.id, kind, text: text.trim(), date, createdAt: d.now, status: 'Đã gửi' }) })
       say(T.idea.sentToast); return null
     },
+    // FIX LẦN 1 — Lễ tân / KTV / Leader
+    addStock: (m: Omit<D.StockMove, 'id' | 'by' | 'at'>) => { mutate(d => { d.stockMoves.unshift({ ...m, id: id(d, 'sm'), by: me.id, at: d.now }); if (m.status === 'Chờ duyệt') notify(d, { cat: 'Leader', text: `Chờ duyệt kho: ${m.kind} ${m.qty} ${D.STOCK_ITEMS.find(x => x.id === m.item)?.name}`, detail: m.note, roles: ['leader', 'ceo'], nav: 'home/base/2' }) }); say(m.status === 'Chờ duyệt' ? 'Đã gửi duyệt' : 'Đã ghi phiếu') },
+    decideStock: (mid: string, ok: boolean) => { if (!['leader', 'ceo'].includes(me.role)) return say('Chỉ Leader/CEO duyệt'); mutate(d => { const m = d.stockMoves.find(x => x.id === mid); if (m && m.status === 'Chờ duyệt') m.status = ok ? 'Đã duyệt' : 'Từ chối' }) },
+    addOpsReq: (r: Omit<D.OpsReq, 'id' | 'by' | 'at' | 'status'>) => { mutate(d => { d.opsReqs.unshift({ ...r, id: id(d, 'or'), by: me.id, at: d.now, status: 'Chờ duyệt' }); notify(d, { cat: 'Leader', text: `Đề xuất ${r.kind.toLowerCase()}: ${r.title}`, detail: D.vnd(r.cost), roles: ['leader'], nav: 'home/approve' }) }); say('Đã gửi Leader duyệt') },
+    decideOpsReq: (rid: string, ok: boolean) => { if (!['leader', 'ceo'].includes(me.role)) return say('Chỉ Leader/CEO duyệt'); mutate(d => { const r = d.opsReqs.find(x => x.id === rid); if (!r || r.status !== 'Chờ duyệt') return; r.status = ok ? 'Đã duyệt' : 'Từ chối'; r.decidedBy = me.id; notify(d, { cat: 'Leader', text: `${ok ? 'Đã duyệt' : 'Không duyệt'}: ${r.title}`, detail: `${r.kind} · ${D.vnd(r.cost)}`, roles: ['reception'], to: [r.by], nav: 'home/base' }) }) },
+    addXp: (x: Omit<D.XpCheck, 'id' | 'by' | 'at'>) => { mutate(d => { d.xpChecks.unshift({ ...x, id: id(d, 'xp'), by: me.id, at: d.now }); if (x.help || x.status === 'Không đạt – lễ tân xử lý' || x.res === 'Cần xử lý') notify(d, { cat: 'Leader', text: `Cần xử lý: ${x.area}`, detail: x.note || x.ai || '', roles: ['leader'], nav: 'home' }) }); say('Đã ghi kết quả') },
+    fixXp: (xid: string) => mutate(d => { const x = d.xpChecks.find(y => y.id === xid); if (x) x.status = 'Đã xử lý' }),
+    addHandover: (to: string, text: string) => { mutate(d => { d.handovers.unshift({ id: id(d, 'ho'), from: me.id, to, text, at: d.now, status: 'Chờ xác nhận' }); notify(d, { cat: 'Hệ thống', text: `${me.name} bàn giao ca cho bạn`, detail: text, roles: ['ktv', 'reception', 'leader'], to: [to], nav: 'home/handover' }) }); say('Đã gửi bàn giao') },
+    answerHandover: (hid: string, ok: boolean, reason = '') => { mutate(d => { const h = d.handovers.find(x => x.id === hid); if (!h || h.to !== me.id || h.status !== 'Chờ xác nhận') return; h.status = ok ? 'Đồng ý' : 'Không đồng ý'; h.reason = reason
+      notify(d, { cat: 'Hệ thống', text: ok ? `${me.name} đã nhận bàn giao ca` : `${me.name} không nhận bàn giao — giao lại người khác`, detail: h.text + (reason ? ` · ${reason}` : ''), roles: ok ? ['ktv', 'reception', 'leader'] : ['ktv', 'reception', 'leader'], to: ok ? undefined : [h.from], nav: 'home/handover' }) }); say(ok ? 'Đã nhận — báo nhóm chung' : 'Đã báo người bàn giao') },
+    addExpense: (e: Omit<D.Expense, 'id' | 'by' | 'at'>) => { mutate(d => { d.expenses.unshift({ ...e, id: id(d, 'ex'), by: me.id, at: d.now }) }); say('Đã nhập chi phí') },
+    saveProfile: (p: D.StaffProfile) => { if (!p.fullName.trim()) { say('⚠ Cần họ tên'); return false } mutate(d => { d.profiles[me.id] = p }); say('Đã lưu hồ sơ'); return true },
+    requestAdjust: (date: string, text: string) => { mutate(d => { d.adjusts.unshift({ id: id(d, 'aj'), staffId: me.id, date, text, at: d.now, status: 'Chờ duyệt' }); notify(d, { cat: 'Leader', text: `${me.name} xin điều chỉnh chấm công ${date}`, detail: text, roles: ['leader'], nav: 'team/attendance' }) }); say('Đã gửi — chờ duyệt') },
     addOpsCheck: (item: string, ok: boolean, note: string) => { mutate(d => { d.opsChecks.unshift({ id: id(d, 'oc'), item, by: me.id, at: d.now, ok, note }) }); say('Đã ghi nhận') },
-    proposePoint: (staffId: string, delta: number, reason: string) => {
+    proposePoint: (staffId: string, delta: number, reason: string, photo?: string) => {
       mutate(d => {
         const direct = me.role === 'leader' || me.role === 'ceo'
-        d.points.unshift({ id: id(d, 'pt'), staffId, delta, reason, by: me.id, at: d.now, status: direct ? 'Đã duyệt' : 'Chờ duyệt', source: me.role === 'ceo' ? 'CEO' : direct ? 'Leader' : 'Lễ tân ghi nhận' })
+        d.points.unshift({ id: id(d, 'pt'), staffId, delta, reason, photo, by: me.id, at: d.now, status: direct ? 'Đã duyệt' : 'Chờ duyệt', source: me.role === 'ceo' ? 'CEO' : direct ? 'Leader' : 'Lễ tân ghi nhận' })
         if (direct) notify(d, { cat: 'Điểm uy tín', text: `${delta > 0 ? '+' : ''}${delta} điểm uy tín`, detail: reason, roles: ['ktv', 'reception', 'marketing'], to: [staffId], nav: 'me' })
       })
       say(me.role === 'leader' || me.role === 'ceo' ? 'Đã ghi điểm' : 'Đã ghi nhận — chờ Leader/CEO duyệt')

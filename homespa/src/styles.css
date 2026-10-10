@@ -368,3 +368,18 @@ button.tile.deep:hover, .btn.deep:hover { background: var(--green-dark); border-
 .radio { display: flex; gap: 8px; align-items: center; padding: 10px 12px; border: 1.5px solid var(--line); border-radius: 12px; font-weight: 600; cursor: pointer }
 .radio:has(input:checked) { border-color: var(--green-2); background: var(--mint) }
 .radio input { accent-color: var(--green); width: 18px; height: 18px }
+/* Cây nút mẹ → con → cháu (xổ khi chạm / rê chuột) */
+.tnode { display: flex; flex-direction: column; gap: 6px }
+.tnode .node { padding: 0; gap: 0 }
+.tnode .thead { display: flex; align-items: center; gap: 14px; flex: 1; min-width: 0; padding: 14px 4px 14px 16px; border: 0; background: none; text-align: left; color: inherit }
+.tnode .tgo { border: 0; background: none; padding: 14px 16px 14px 8px; color: var(--green) }
+.tnode.on .node { border-color: var(--green-2) }
+.tkids { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 4px 4px 18px; border-left: 2px solid var(--mint-2); margin-left: 20px }
+.tkid { border: 1px solid var(--green-2); background: var(--card); color: var(--green); border-radius: 10px; padding: 7px 10px; font-size: 13px; font-weight: 600; text-align: left }
+.tkid b { margin-right: 6px; color: var(--mint-ink); font-size: 12px }
+.tkid:hover { background: var(--mint) }
+.fm-kid { padding-left: 46px !important; font-weight: 500 !important; font-size: 12.5px !important; color: var(--green) }
+.calgrid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px }
+.calc { border: 1px solid var(--line); border-radius: 10px; padding: 6px 4px; text-align: center; background: var(--card); display: flex; flex-direction: column; font-size: 12px }
+.calc b { font-size: 11px; color: var(--dim) }
+.calc.off { background: var(--r-bg); color: var(--r-fg) }
