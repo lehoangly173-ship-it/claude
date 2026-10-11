@@ -43,6 +43,11 @@ Các bước (Claude tự làm khi connector đã nối đúng tài khoản):
 - Link sẽ đổi (link cũ thuộc `hayquen`). Muốn dùng lại link cũ: nối lại `hayquen` sau 01/11.
 - Không cần lưu mật khẩu/token nào vào repo; connector tự giữ đăng nhập.
 
+## Cập nhật 11/10 (tối) — gọn nút con + mốc ngày khắp app
+- `TreeNodes` (tree.tsx): chạm nút mẹ → danh sách nút con nằm TRONG cùng thẻ (kiểu danh sách cài đặt), mỗi lần mở một nút, có số lượng ▾ và dòng "Xem tổng hợp"; máy tính rê chuột vẫn mở, bấm không bị đóng ngược.
+- Bỏ mã số kiểu 1.8.1: nút mẹ vẫn đánh số (quy tắc giao diện); nút con dùng biểu tượng theo nội dung (`iconFor`), nút cháu chỉ có chữ; tiêu đề trang không còn mã số.
+- Mốc ngày: chip "📅 CN 11/10/2026" trên thanh đầu mọi vai trò; mọi nhãn có chữ "hôm nay" (eyebrow, tiêu đề khối, ô số, Stat, hero tag) tự thêm ngày dd/mm (`withDay` trong ui.tsx). Phê duyệt CEO, Mộc trả lời, Báo cáo tuần Leader dùng số theo kỳ từ period.ts, ghi rõ ngày.
+
 ## Cập nhật 11/10 (chiều) — THỜI GIAN + BIỂU ĐỒ cho Leader/CEO (yêu cầu cháu Ly)
 Nhánh dự phòng trước khi làm: `du-phong-truoc-bieu-do` (= Bản 3).
 - **Một nguồn số theo thời gian: `src/period.ts`.** Hôm nay = dữ liệu thật trong state (hóa đơn, lịch, chấm công, chi tiêu, kho); ngày đã qua = số liệu mẫu cố định theo ngày (`pastDay`, có cache); tương lai = 0. Chi tiêu lễ tân nhập trong tháng hiện tại thay phần mẫu của đúng hạng mục. Tiền mặt bằng/điện/nước/wifi mẫu ghi một lần/tháng vào ngày cố định. Khi nối dữ liệu thật: chỉ thay `pastDay()` (và lọc theo ngày trong `todayReal`).

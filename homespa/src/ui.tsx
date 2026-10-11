@@ -33,10 +33,15 @@ export const Pill = ({ tone = 'grey', children, dot }: { tone?: Tone; children: 
 
 export function Stat({ label, value, sub, tone, onClick, extra }: { label: string; value: ReactNode; sub?: ReactNode; tone?: string; onClick?: () => void; extra?: ReactNode }) {
   const style = { ['--tone' as any]: tone ? `var(--${tone})` : undefined }
-  const inner = <><span className="l">{label}</span><span className="v num">{value}</span>{sub && <span className="small muted">{sub}</span>}{extra && <span className="row">{extra}</span>}</>
+  const inner = <><span className="l">{withDay(label)}</span><span className="v num">{value}</span>{sub && <span className="small muted">{sub}</span>}{extra && <span className="row">{extra}</span>}</>
   return onClick ? <button className="card stat" style={style} onClick={onClick}>{inner}</button> : <div className="card stat" style={style}>{inner}</div>
 }
 /** So sánh kỳ: luôn hiện cả số tuyệt đối lẫn % */
+/** Chữ có "hôm nay" mà chưa ghi ngày → tự thêm ngày (dd/mm) để mọi số liệu trong ngày đều có mốc thời gian */
+export function withDay<T>(x: T): T | string {
+  if (typeof x !== 'string' || !/hôm nay/i.test(x) || /\d{1,2}\/\d{1,2}/.test(x)) return x
+  return `${x} · ${D.dateShort().slice(0, 5)}`
+}
 export function Delta({ now, prev, invert, unit = '' }: { now: number; prev: number; invert?: boolean; unit?: string }) {
   const diff = now - prev, pct = D.pctChange(now, prev)
   if (diff === 0) return <span className="delta muted">= kỳ trước</span>
@@ -46,7 +51,7 @@ export function Delta({ now, prev, invert, unit = '' }: { now: number; prev: num
   return <span className={`delta ${good ? 'up' : 'down'}`}>{diff > 0 ? '▲' : '▼'} {diff > 0 ? 'tăng' : 'giảm'} {abs} ({Math.abs(pct)}%)</span>
 }
 export function PageHeader({ eyebrow, title, sub, right }: { eyebrow?: string; title: string; sub?: ReactNode; right?: ReactNode }) {
-  return <div className="ph"><div>{eyebrow && <div className="eyebrow">{eyebrow}</div>}<h1>{title}</h1>{sub && <p>{sub}</p>}</div>{right && <div className="right">{right}</div>}</div>
+  return <div className="ph"><div>{eyebrow && <div className="eyebrow">{withDay(eyebrow)}</div>}<h1>{title}</h1>{sub && <p>{sub}</p>}</div>{right && <div className="right">{right}</div>}</div>
 }
 export function Seg<T extends string>({ value, onChange, items }: { value: T; onChange: (v: T) => void; items: { k: T; label: string; badge?: number }[] }) {
   return <div className="seg" role="tablist">{items.map(i => <button key={i.k} role="tab" aria-selected={value === i.k} className={value === i.k ? 'on' : ''} onClick={() => onChange(i.k)}>{i.label}{i.badge ? <span className="badge">{i.badge}</span> : null}</button>)}</div>
@@ -59,16 +64,16 @@ export function Modal({ title, onClose, children, footer, wide }: { title: React
 }
 export const Empty = ({ children }: { children: ReactNode }) => <div className="empty">{children}</div>
 export const Sec = ({ eyebrow, title, right, children }: { eyebrow?: string; title?: string; right?: ReactNode; children: ReactNode }) =>
-  <section><div className="sec-title">{eyebrow && <span className="eyebrow">{eyebrow}</span>}{title && <h2>{title}</h2>}{right}</div>{children}</section>
+  <section><div className="sec-title">{eyebrow && <span className="eyebrow">{withDay(eyebrow)}</span>}{title && <h2>{withDay(title)}</h2>}{right}</div>{children}</section>
 // ── Bộ khung theo phong cách Home (video mẫu) ──
 export function Hero({ tag, title, sub, children }: { tag: string; title: ReactNode; sub?: ReactNode; children?: ReactNode }) {
-  return <div className="hero"><span className="tag">{tag}</span><h1>{title}</h1>{sub && <p>{sub}</p>}{children && <div className="hrow">{children}</div>}</div>
+  return <div className="hero"><span className="tag">{withDay(tag)}</span><h1>{title}</h1>{sub && <p>{sub}</p>}{children && <div className="hrow">{children}</div>}</div>
 }
 export type Color = 'mint' | 'deep' | 'gold' // xanh nhạt = vừa · xanh đậm = ô số/nhãn nhấn · vàng = quan trọng
 export type TileT = { v: ReactNode; l: string; s?: string; tone?: 'warn' | 'ok'; color?: Color; onClick?: () => void }
 export function Tiles({ items, soft }: { items: TileT[]; soft?: boolean }) {
   return <div className={`tiles${soft ? ' soft' : ''}`}>{items.map((t, i) => {
-    const inner = <><span className="v num">{t.v}</span><span className="l">{t.l}</span>{t.s && <span className="s">{t.s}</span>}</>
+    const inner = <><span className="v num">{t.v}</span><span className="l">{withDay(t.l)}</span>{t.s && <span className="s">{t.s}</span>}</>
     const cls = `tile${t.tone ? ` ${t.tone}-t` : ''}${t.color ? ` ${t.color}` : ''}`
     return t.onClick ? <button key={i} className={cls} onClick={t.onClick}>{inner}</button> : <div key={i} className={cls}>{inner}</div>
   })}</div>
@@ -82,7 +87,7 @@ function useMenuPortal(content: (close: () => void) => ReactNode) {
   return createPortal(<div className="fm-group">{g && <div className="fm-h">{g}</div>}{content(m.close)}</div>, m.host)
 }
 export function Block({ title, sub, right, children, color }: { title: ReactNode; sub?: ReactNode; right?: ReactNode; children: ReactNode; color?: Color }) {
-  return <section className="block"><div className={`bh${color ? ` ${color}` : ''}`}><div style={{ minWidth: 0 }}><h2>{title}</h2>{sub && <p>{sub}</p>}</div>{right && <div className="right">{right}</div>}</div><GroupCtx.Provider value={typeof title === 'string' ? title : null}>{children}</GroupCtx.Provider></section>
+  return <section className="block"><div className={`bh${color ? ` ${color}` : ''}`}><div style={{ minWidth: 0 }}><h2>{withDay(title)}</h2>{sub && <p>{sub}</p>}</div>{right && <div className="right">{right}</div>}</div><GroupCtx.Provider value={typeof title === 'string' ? title : null}>{children}</GroupCtx.Provider></section>
 }
 export type NodeT = { no?: ReactNode; t: string; d?: string; badge?: number; alert?: boolean; cls?: string; onClick: () => void }
 export function Nodes({ items }: { items: NodeT[] }) {

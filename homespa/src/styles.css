@@ -373,15 +373,25 @@ button.tile.deep:hover, .btn.deep:hover { background: var(--green-dark); border-
 .radio:has(input:checked) { border-color: var(--green-2); background: var(--mint) }
 .radio input { accent-color: var(--green); width: 18px; height: 18px }
 /* Cây nút mẹ → con → cháu (xổ khi chạm / rê chuột) */
-.tnode { display: flex; flex-direction: column; gap: 6px }
-.tnode .node { padding: 0; gap: 0 }
+.tnode { display: flex; flex-direction: column; background: var(--card); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); overflow: hidden; transition: border-color .15s, box-shadow .15s }
+.tnode .node { padding: 0; gap: 0; border: 0; border-radius: 0; box-shadow: none; background: transparent }
 .tnode .thead { display: flex; align-items: center; gap: 14px; flex: 1; min-width: 0; padding: 14px 4px 14px 16px; border: 0; background: none; text-align: left; color: inherit }
 .tnode .tgo { border: 0; background: none; padding: 14px 16px 14px 8px; color: var(--green) }
-.tnode.on .node { border-color: var(--green-2) }
-.tkids { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 4px 4px 18px; border-left: 2px solid var(--mint-2); margin-left: 20px }
-.tkid { border: 1px solid var(--green-2); background: var(--card); color: var(--green); border-radius: 10px; padding: 7px 10px; font-size: 13px; font-weight: 600; text-align: left }
-.tkid b { margin-right: 6px; color: var(--mint-ink); font-size: 12px }
-.tkid:hover { background: var(--mint) }
+.tnode.on { border-color: var(--green-2); box-shadow: 0 6px 18px rgba(31, 107, 58, .12) }
+.tnode.on .node { background: var(--mint) }
+.tchev { flex: none; display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 700; color: var(--mint-ink); background: var(--mint); border-radius: 99px; padding: 3px 8px }
+.tchev i { font-style: normal; display: inline-block; transition: transform .2s }
+.tnode.on .tchev { background: var(--card) } .tnode.on .tchev i { transform: rotate(180deg) }
+.tkids { display: flex; flex-direction: column; border-top: 1px solid var(--line); animation: tk-in .18s ease-out }
+@keyframes tk-in { from { opacity: 0; transform: translateY(-4px) } to { opacity: 1; transform: none } }
+@media (prefers-reduced-motion: reduce) { .tkids { animation: none } .tchev i { transition: none } }
+.tkid { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 48px; border: 0; border-radius: 0; background: none; color: var(--ink); padding: 11px 16px 11px 18px; font-size: 14px; font-weight: 600; text-align: left }
+.tkid + .tkid { border-top: 1px solid var(--line-2) }
+.tkid b { flex: none; min-width: 34px; height: 26px; padding: 0 6px; border-radius: 8px; background: var(--mint); color: var(--mint-ink); display: inline-grid; place-items: center; font-size: 11.5px; margin: 0 }
+.tkid span { flex: 1; min-width: 0 }
+.tkid::after { content: '›'; flex: none; color: var(--dim); font-size: 22px; line-height: 1; font-weight: 400 }
+.tkid.tall { color: var(--green); font-size: 13px; background: var(--line-2) }
+.tkid.tall::after { color: var(--green) }
 .fm-kid { padding-left: 46px !important; font-weight: 500 !important; font-size: 12.5px !important; color: var(--green) }
 .calgrid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px }
 .calc { border: 1px solid var(--line); border-radius: 10px; padding: 6px 4px; text-align: center; background: var(--card); display: flex; flex-direction: column; font-size: 12px }
@@ -517,3 +527,7 @@ details.howto ul { margin: 8px 0 0; padding-left: 18px }
 .dn-leg .num.muted { text-align: right; font-size: 12px }
 .kpis .stat .v { font-size: 22px }
 @media (max-width: 900px) { .hb-row { grid-template-columns: minmax(80px, 36%) 1fr auto; font-size: 12.5px } .dn { justify-content: center } }
+
+.node .no.ic { color: var(--green) }
+.today-chip { font-size: 12px; font-weight: 700; color: var(--mint-ink); background: var(--mint); border-radius: 99px; padding: 5px 10px; white-space: nowrap; margin-right: 8px }
+.nodes.tree { align-items: start }

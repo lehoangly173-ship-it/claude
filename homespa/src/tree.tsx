@@ -1,6 +1,6 @@
 // Cây nút mẹ → con → cháu: chạm/rê chuột vào nút mẹ là xổ nút con ngay (chưa cần bấm mở trang).
 // Trang nút cháu: bảng số liệu mẫu tự dựng theo cột "chắt" trong tài liệu + Mộc phân tích (giả lập).
-import { ReactNode, useContext, useState } from 'react'
+import { ReactNode, useContext, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import * as D from './data'
 import { MenuCtx, Icon, Pill, SubHead, Seg, Block } from './ui'
@@ -10,25 +10,32 @@ import { lastRanges, metrics, cost as costOf, profit, prevOf, type Gran } from '
 import { ColChart, HBars, Donut } from './charts'
 
 export type Kid = { no?: string; l: string; onClick: () => void }
-export type TreeItem = { no?: ReactNode; t: string; d?: string; badge?: number; alert?: boolean; onClick: () => void; kids: Kid[] }
+export type TreeItem = { no?: ReactNode; icon?: string; t: string; d?: string; badge?: number; alert?: boolean; onClick: () => void; kids: Kid[] }
 
 export function TreeNodes({ items }: { items: TreeItem[] }) {
   const [open, setOpen] = useState<number | null>(null)
+  const hov = useRef(false) // mở do rê chuột → cú bấm đầu tiên giữ mở, không đóng lại
   const m = useContext(MenuCtx)
   if (m) return createPortal(<div className="fm-group">{items.map((n, i) => <div key={i}>
     <button className={`fm-item${n.alert ? ' alert' : ''}`} onMouseEnter={() => setOpen(i)} onClick={() => { m.close(); n.onClick() }}><span className="no">{n.no ?? i + 1}</span><span className="t">{n.t}</span>{n.badge ? <span className="badge red">{n.badge}</span> : null}</button>
-    {open === i && n.kids.map(k => <button key={k.l} className="fm-item fm-kid" onClick={() => { m.close(); k.onClick() }}><span className="t">{k.no ? `${k.no} · ` : ''}{k.l}</span></button>)}
+    {open === i && n.kids.map(k => <button key={k.l} className="fm-item fm-kid" onClick={() => { m.close(); k.onClick() }}><span className="t">{k.l}</span></button>)}
   </div>)}</div>, m.host)
-  return <div className="nodes tree">{items.map((n, i) => { const on = open === i
-    return <div key={i} className={`tnode${on ? ' on' : ''}`} onPointerEnter={e => { if (e.pointerType === 'mouse') setOpen(i) }} onPointerLeave={e => { if (e.pointerType === 'mouse') setOpen(o => (o === i ? null : o)) }}>
+  // Điện thoại & máy tính: chạm vào nút mẹ để mở/đóng danh sách nút con NGAY TRONG thẻ (kiểu danh sách cài đặt iOS),
+  // mỗi lần chỉ mở một nút; mũi tên bên phải hoặc dòng "Xem tổng hợp" để vào trang nút mẹ.
+  return <div className="nodes tree">{items.map((n, i) => { const on = open === i, id = `tk-${i}`
+    return <div key={i} className={`tnode${on ? ' on' : ''}`} onPointerEnter={e => { if (e.pointerType === 'mouse' && open !== i) { hov.current = true; setOpen(i) } }} onPointerLeave={e => { if (e.pointerType === 'mouse' && hov.current) setOpen(o => (o === i ? null : o)) }}>
       <div className={`node${n.alert ? ' alert' : ''}`}>
-        <button className="thead" aria-expanded={on} onClick={() => (on ? n.onClick() : setOpen(i))}>
-          <span className="no">{n.no ?? i + 1}</span><span className="body"><span className="t" style={{ display: 'block' }}>{n.t}</span>{n.d && <span className="d" style={{ display: 'block' }}>{n.d}</span>}</span>
+        <button className="thead" aria-expanded={on} aria-controls={id} onClick={() => { if (on && hov.current) { hov.current = false; return } hov.current = false; setOpen(on ? null : i) }}>
+          <span className={`no${n.icon ? ' ic' : ''}`}>{n.icon ? <Icon n={n.icon} s={19} /> : n.no ?? i + 1}</span><span className="body"><span className="t" style={{ display: 'block' }}>{n.t}</span>{n.d && <span className="d" style={{ display: 'block' }}>{n.d}</span>}</span>
+          {n.kids.length > 0 && <span className="tchev" aria-hidden="true">{n.kids.length}<i>▾</i></span>}
         </button>
         {n.badge ? <span className="badge red">{n.badge}</span> : null}
         <button className="arr tgo" aria-label={`Mở ${n.t}`} onClick={n.onClick}><Icon n="arrow" s={18} /></button>
       </div>
-      {on && n.kids.length > 0 && <div className="tkids">{n.kids.map(k => <button key={k.l} className="tkid" onClick={k.onClick}>{k.no && <b>{k.no}</b>}{k.l}</button>)}</div>}
+      {on && n.kids.length > 0 && <div className="tkids" id={id} role="list">
+        {n.kids.map(k => <button key={k.l} role="listitem" className="tkid" onClick={k.onClick}><span>{k.l}</span></button>)}
+        <button className="tkid tall" onClick={n.onClick}><span>Xem tổng hợp · {n.t}</span></button>
+      </div>}
     </div> })}</div>
 }
 
@@ -117,10 +124,10 @@ export function ConPage({ row, base, back, custom }: { row: SpecRow; base: strin
   const { go } = useStore()
   const ks = chau(row)
   return <>
-    <SubHead title={`${row.no}. ${row.t}`} sub={`Nút cháu: ${ks.join(' · ')}`} onBack={back} />
+    <SubHead title={row.t} sub={`${ks.length} mục: ${ks.join(' · ')}`} onBack={back} />
     {custom}
     <div className="nodes">{ks.map((k, i) => <button key={k} className="node" onClick={() => go(`${base}/${row.no}/${i}`)}>
-      <span className="no">{row.no}.{i + 1}</span><span className="body"><span className="t" style={{ display: 'block' }}>{k}</span><span className="d" style={{ display: 'block' }}>{cols(row).join(' · ')}</span></span><span className="arr"><Icon n="arrow" s={18} /></span></button>)}</div>
+      <span className="no ic"><Icon n={iconFor(`${k} ${row.t}`)} s={19} /></span><span className="body"><span className="t" style={{ display: 'block' }}>{k}</span><span className="d" style={{ display: 'block' }}>{cols(row).join(' · ')}</span></span><span className="arr"><Icon n="arrow" s={18} /></span></button>)}</div>
   </>
 }
 
@@ -146,7 +153,7 @@ export function ChauPage({ row, idx, base, ctx }: { row: SpecRow; idx: number; b
   const full = data.filter(r => !/\((đến nay|này)\)/.test(r.l)) // kỳ chưa hết không đem so cao/thấp
   const sorted = ni >= 0 ? [...(full.length > 1 ? full : data)].sort((a, b) => (b.c[ni].n ?? 0) - (a.c[ni].n ?? 0)) : []
   return <>
-    <SubHead title={`${row.no}.${idx + 1} · ${k}`} sub={<>{row.t} · theo {ents.kind.toLowerCase()} · <span className="rtag">📅 {TIME_KINDS.includes(ents.kind) ? `${ents.rows[ents.rows.length - 1]?.date?.split(' – ')[0] ?? ''} – ${ents.rows[0]?.date?.split(' – ').pop() ?? ''}` : `Hôm nay ${D.dateShort()} · ${D.hhmm(s.now)}`}</span></>} onBack={() => go(`${base}/${row.no}`)} />
+    <SubHead title={k} sub={<>{row.t} · theo {ents.kind.toLowerCase()} · <span className="rtag">📅 {TIME_KINDS.includes(ents.kind) ? `${ents.rows[ents.rows.length - 1]?.date?.split(' – ')[0] ?? ''} – ${ents.rows[0]?.date?.split(' – ').pop() ?? ''}` : `Hôm nay ${D.dateShort()} · ${D.hhmm(s.now)}`}</span></>} onBack={() => go(`${base}/${row.no}`)} />
     {ks.length > 1 && <div style={{ overflowX: 'auto' }}><Seg value={String(idx)} onChange={v => go(`${base}/${row.no}/${v}`)} items={ks.map((x, j) => ({ k: String(j), label: x }))} /></div>}
     <Block title={k} sub={`Chi tiết khi mở: ${cs.join(' · ')}`} right={<Pill tone="yellow">Dữ liệu app + {D.SAMPLE_NOTE}</Pill>}>
       <div className="tbl-wrap"><table><thead><tr><th>{ents.kind}</th>{cs.map(c => <th key={c}>{c}</th>)}</tr></thead>
@@ -172,6 +179,20 @@ function ChauChart({ kind, col, rows, money }: { kind: string; col: string; rows
   if (['Nguồn khách', 'Bộ phận'].includes(kind) && rows.every(x => x.v >= 0) && !/tỷ lệ|tỉ lệ|%/i.test(col))
     return <Block title={`Cơ cấu ${col.toLowerCase()} theo ${kind.toLowerCase()}`}><Donut label={col} fmt={fmt} parts={rows.map(x => ({ l: x.l, v: x.v }))} /></Block>
   return <Block title={`So sánh ${col.toLowerCase()} theo ${kind.toLowerCase()}`}><HBars label={col} fmt={fmt} rows={rows.map(x => ({ l: x.l, v: x.v }))} unit={/tỷ lệ|tỉ lệ|%|hoàn thành|công suất/i.test(col) ? '%' : undefined} /></Block>
+}
+
+/** Biểu tượng theo nội dung — thay cho mã số 1.6.1 khó đọc (nút mẹ vẫn đánh số theo quy tắc giao diện) */
+export function iconFor(t: string): string {
+  const c = t.toLowerCase()
+  const M: [RegExp, string][] = [
+    [/công việc|nhiệm vụ|việc được giao|việc cần|việc tồn/, 'work'],
+    [/duyệt|quy định|hợp đồng|hồ sơ|kiểm tra|pháp|rủi ro|bảo mật/, 'shield'], [/marketing|chiến dịch|quảng cáo|kênh|nội dung|bài|facebook|tiktok|instagram|google|website|truyền thông|đăng/, 'mega'],
+    [/tiền|chi phí|ngân sách|lương|quỹ|công nợ|thuế|dòng tiền|giá|thanh toán|thu nhập|cọc/, 'cash'], [/doanh thu|lợi nhuận|báo cáo|kpi|hiệu quả|tổng quan|tăng|giảm|chỉ số|kết quả/, 'chart'],
+    [/cskh|mộc|(^|\s)ai(\s|$)|phản hồi|tin nhắn|chăm sóc/, 'chat'], [/khách|vip|giới thiệu|nguồn|tệp/, 'users'], [/nhân sự|ktv|nhân viên|đội|tuyển|đào tạo|năng lực|lễ tân/, 'team'],
+    [/lịch|ca |ca$|thời gian|hạn|tuần|tháng/, 'cal'], [/kho|vật tư|sản phẩm|thiết bị|hàng/, 'box'], [/sáng kiến|dự án|chiến lược|mục tiêu|chất lượng|đánh giá|điểm/, 'star'],
+    [/cài đặt|tổ chức|hệ thống|phân quyền|quy trình/, 'gear'], [/vận hành|giường|tour|dịch vụ|massage|gội/, 'ops'],
+  ]
+  return M.find(([re]) => re.test(c))?.[1] ?? 'more'
 }
 
 /** Hàng nút con của một nút mẹ → TreeItem.kids */

@@ -117,6 +117,7 @@ export default function App() {
         <span className="avatar">{me.name.replace('Chị ', '')[0]}</span>
         <div className="who"><small>{user.role === 'ceo' ? 'CEO' : user.role === 'ktv' ? 'KTV Trị liệu' : D.ROLE_LABEL[user.role]}</small><b>{user.role === 'ceo' ? 'Dr. Quyên' : me.name}</b></div>
         <span className="grow" />
+        <span className="today-chip" title="Hôm nay">📅 {D.TODAY.toLocaleDateString('vi-VN', { weekday: 'short' })} {D.dateShort()}</span>
         <button className="iconbtn" onClick={() => nav('home/notices')} aria-label={`Thông báo${unread ? `, ${unread} chưa đọc` : ''}`}><Icon n="bell" s={18} />{unread > 0 && <span className="dot" />}</button>
       </div>
       <div className="page" key={user.role + r.join('/')}>

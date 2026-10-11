@@ -6,7 +6,7 @@ import { alerts, billRows, overview, pointsOf, ktvState, custSegment, zoneReport
 import { T } from '../i18n'
 import { Hero, Tiles, Nodes, Block, ChipGrid, SubHead, Pill, Empty, Seg, Av, NodeSpec, Icon, Delta, NumInput } from '../ui'
 import { CEO_NODES, MKT_NODES, SpecRow } from '../specs'
-import { TreeNodes, ConPage, ChauPage, chau, kidsOf } from '../tree'
+import { TreeNodes, ConPage, ChauPage, chau, kidsOf, iconFor } from '../tree'
 import { dailySub, OpsHub, BackBtn, MyPage, ReceptionCustomers } from './staff'
 import { AttendancePage, ShiftTourPage, LeavePage } from './daily'
 import { LeaderToday, LeaderCustomers, MocScreen, ProgramsPanel, RoiPanel } from './leader'
@@ -26,7 +26,7 @@ function SpecHub({ rows, sub, leaf, base, title, tag, custom, intro }: { rows: S
     {base.includes('/') && <BackBtn to={base.split('/')[0]} />}
     <Hero tag={tag} title={title} sub="Chạm vào nút con để xổ nút cháu · bấm lần nữa để mở" />
     {intro}
-    <TreeNodes items={rows.map(r => ({ no: r.no, t: r.t, d: chau(r).join(' · '), onClick: () => go(`${base}/${r.no}`), kids: chau(r).map((k, i) => ({ no: `${r.no}.${i + 1}`, l: k, onClick: () => go(`${base}/${r.no}/${i}`) })) }))} />
+    <TreeNodes items={rows.map(r => ({ icon: iconFor(r.t), t: r.t, d: chau(r).join(' · '), onClick: () => go(`${base}/${r.no}`), kids: chau(r).map((k, i) => ({ no: `${r.no}.${i + 1}`, l: k, onClick: () => go(`${base}/${r.no}/${i}`) })) }))} />
   </>
 }
 
