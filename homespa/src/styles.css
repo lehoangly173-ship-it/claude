@@ -531,3 +531,7 @@ details.howto ul { margin: 8px 0 0; padding-left: 18px }
 .node .no.ic { color: var(--green) }
 .today-chip { font-size: 12px; font-weight: 700; color: var(--mint-ink); background: var(--mint); border-radius: 99px; padding: 5px 10px; white-space: nowrap; margin-right: 8px }
 .nodes.tree { align-items: start }
+/* Không cho trang trôi ngang trên điện thoại: thẻ nút cây co theo màn hình, chữ dài tự cắt "…" */
+.main { overflow-x: hidden }
+.page, .nodes, .tnode, .tnode .node, .tnode .thead { min-width: 0; max-width: 100% }
+.tnode .thead .body { min-width: 0; overflow: hidden }
