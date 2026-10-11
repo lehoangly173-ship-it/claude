@@ -14,7 +14,8 @@ Chủ dự án: **Ly** (trả lời bằng tiếng Việt, ngắn gọn, tiết 
 |---|---|---|---|
 | Bản 1 — bản chuẩn đầu tiên | `ban-1` | aafa1d7 | Bản trước khi sửa 07/10. Trang lưu: https://claude.ai/artifact/T2qvJupenjggrB9uajMXnT |
 | Bản 2 | `ban-2` | 2112c49 | Chạy trên web 08–10/10. | Menu "Hôm nay" bật ra trên máy tính + sửa logic các luồng. Trang xem thử: https://claude.ai/artifact/QQsdqNiCi2D137VqaXbT9Q |
-| (chờ Bản 3) | `develop` | 9c622ee | **Đang chạy ở homespa--flow.expo.app (deploy 10/10)** — Fix lần 1 KTV/Lễ tân/Leader + cây nút CEO/Marketing. Ly duyệt → lưu `ban-3`. Xem thử: https://claude.ai/artifact/2aArSe57RwaNQ9rRRTiYV3 |
+| Bản 3 | `ban-3` | 695aa4e | Fix lần 1 + Fix lần 3 (11/10): mức ưu tiên thông báo Đỏ/Vàng/Xanh/Trắng, giao diện đồng nhất, sơ đồ giường KTV, ô số tự do, bộ lọc khách hàng. **Web Expo vẫn chạy bản fix lần 1** (deploy chặn do hết hạn mức gói Expo đến 01/11/2026). Xem thử: https://claude.ai/artifact/2aArSe57RwaNQ9rRRTiYV3 |
+| (chờ Bản 4) | `develop` | 695aa4e | Bản đang phát triển tiếp. |
 Mỗi lần sửa xong và Ly đồng ý → tạo bản tiếp theo bằng NHÁNH (proxy chặn đẩy tag): `git push origin HEAD:refs/heads/ban-N` + ghi thêm dòng vào bảng này.
 Quay lại bản cũ: deploy file `homespa/dist/index.html` của nhánh bản đó lên Expo.
 
