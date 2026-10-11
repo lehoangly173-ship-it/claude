@@ -43,6 +43,13 @@ Các bước (Claude tự làm khi connector đã nối đúng tài khoản):
 - Link sẽ đổi (link cũ thuộc `hayquen`). Muốn dùng lại link cũ: nối lại `hayquen` sau 01/11.
 - Không cần lưu mật khẩu/token nào vào repo; connector tự giữ đăng nhập.
 
+## Cập nhật 11/10 (20h) — rà soát logic + deploy
+- "Tiền đã thu" mọi màn (CEO Hôm nay, Điều phối, Thu ngân, CEO/Leader theo kỳ) = hóa đơn + bán sản phẩm (`soldToday` trong logic.ts) → cùng một số. Chốt ca chỉ đối chiếu hóa đơn theo phương thức, ghi rõ khoản bán sản phẩm đếm riêng.
+- Nút cây: menu máy tính mở bằng bàn phím (onFocus), nút mẹ không có con thì chạm là vào trang; `iconFor` sửa nhận nhầm "giá"; ② Chăm sóc KH: nút con cuộn tới đúng khối.
+- `withDay`: ngày gắn ngay sau chữ "hôm nay" (VD "Khách mới hôm nay 11/10"). Mộc: thiếu dữ liệu hiện "—".
+- Kiểm tra: scratchpad consist.mjs (20 kiểm tra số khớp giữa màn + luồng), chạy cả trên web thật: 20/20.
+- Đã deploy commit ce5939f lên https://hayquen2-homespa--flow.expo.app (11/10 20h).
+
 ## Cập nhật 11/10 (tối) — gọn nút con + mốc ngày khắp app
 - `TreeNodes` (tree.tsx): chạm nút mẹ → danh sách nút con nằm TRONG cùng thẻ (kiểu danh sách cài đặt), mỗi lần mở một nút, có số lượng ▾ và dòng "Xem tổng hợp"; máy tính rê chuột vẫn mở, bấm không bị đóng ngược.
 - Bỏ mã số kiểu 1.8.1: nút mẹ vẫn đánh số (quy tắc giao diện); nút con dùng biểu tượng theo nội dung (`iconFor`), nút cháu chỉ có chữ; tiêu đề trang không còn mã số.
