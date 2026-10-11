@@ -24,8 +24,24 @@ Quay lại bản cũ: deploy file `homespa/dist/index.html` của nhánh bản �
 - Claude levanly1703@gmail.com ↔ GitHub `levanly1703-cell` (cộng tác, quyền ghi).
 - Quy tắc: không làm 2 tài khoản cùng lúc; đầu phiên `git pull origin develop`, cuối phiên đẩy lên `develop` (không đẩy `main`; Ly duyệt bằng Merge pull request) + cập nhật HANDOFF.
 
-## Deploy Expo (cách đã chạy 08/10, qua Expo connector)
-sandbox_create(@hayquen/homespa) → `git clone --depth 1 https://github.com/lehoangly173-ship-it/claude.git repo` → copy `homespa/dist/index.html` vào `~/site/dist/` → app.json `{"expo":{"name":"homespa","slug":"homespa","owner":"hayquen","extra":{"eas":{"projectId":"16f65a26-63a8-4b23-8d5f-3e610e2aa3cc"}}}}` + package.json → `npx eas-cli deploy --export-dir dist --alias flow --non-interactive` → sandbox_stop.
+## Deploy Expo (qua Expo connector trong Claude)
+Tài khoản cũ: `hayquen`, project `@hayquen/homespa`, projectId `16f65a26-63a8-4b23-8d5f-3e610e2aa3cc`, link https://homespa--flow.expo.app (alias `flow`). Gói miễn phí: 60 phút CI/tháng; hết hạn mức 11/10, cấp lại 01/11/2026.
+
+Các bước (Claude tự làm khi connector đã nối đúng tài khoản):
+1. `sandbox_create` { appFullName: `@<chủ>/homespa`, operatingSystem: LINUX, resourceClass: MEDIUM, waitForReady: true }.
+2. `sandbox_exec`: `git clone --depth 1 -b develop https://github.com/lehoangly173-ship-it/claude.git repo && mkdir -p ~/site/dist && cp repo/homespa/dist/index.html ~/site/dist/`
+   (repo phải Public mới clone được không cần đăng nhập. Nếu repo Private: đẩy file vào sandbox bằng base64 chia nhỏ qua `sandbox_exec`, hoặc dùng `projectArchive.gitRef` khi project Expo đã liên kết GitHub.)
+3. Trong `~/site`: tạo `app.json` = `{"expo":{"name":"homespa","slug":"homespa","owner":"<chủ>","extra":{"eas":{"projectId":"<projectId>"}}}}` và `package.json` = `{"name":"homespa","version":"1.0.0","private":true}`.
+4. `cd ~/site && npx eas-cli deploy --export-dir dist --alias flow --non-interactive` → link `https://<tên-project>--flow.expo.app`.
+5. `sandbox_stop` (luôn tắt để không tốn phút).
+
+### Đổi sang tài khoản Expo mới (Ly làm, điện thoại cũng được)
+1. expo.dev → đăng ký tài khoản mới (Ly đã tạo 11/10).
+2. Trên expo.dev, bấm **Create a project**, đặt tên `homespa`. Nếu không tạo, Claude không mở được sandbox vì sandbox cần project có sẵn.
+3. claude.ai → Settings → Connectors → Expo → ngắt `hayquen` → kết nối lại bằng tài khoản mới.
+4. Nhắn Claude "đã đổi Expo, tài khoản <tên>". Claude: lấy projectId (`npx eas-cli project:info` trong sandbox hoặc trang project), sửa dòng "Tài khoản" ở trên, deploy theo 5 bước, gửi link mới.
+- Link sẽ đổi (link cũ thuộc `hayquen`). Muốn dùng lại link cũ: nối lại `hayquen` sau 01/11.
+- Không cần lưu mật khẩu/token nào vào repo; connector tự giữ đăng nhập.
 
 ## Cập nhật 11/10 — FIX LẦN 3 (Lark "Fix app Home lần 3") + đồng nhất cả app
 Chi tiết yêu cầu: tài liệu Project `claude/lark-fix-lan-3.md`. Nhánh dự phòng trước khi sửa: `du-phong-truoc-fix-3`.

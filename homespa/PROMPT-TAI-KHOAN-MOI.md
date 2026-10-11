@@ -9,4 +9,4 @@ Việc mình muốn làm hôm nay: [ghi việc ở đây]
 ---
 
 Nếu tài khoản mới chưa nối GitHub: claude.ai/code → Connect GitHub → đăng nhập GitHub `lehoangly173-ship-it` (hoặc `levanly1703-cell`) → Authorize.
-Muốn xuất bản web: kết nối thêm **Expo** (tài khoản `hayquen`) trong Settings → Connectors.
+Muốn xuất bản web: kết nối thêm **Expo** trong Settings → Connectors (tài khoản đang dùng ghi ở mục "Deploy Expo" trong HANDOFF).
