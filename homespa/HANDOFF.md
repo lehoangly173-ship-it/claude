@@ -7,14 +7,14 @@ Chủ dự án: **Ly** (trả lời bằng tiếng Việt, ngắn gọn, tiết 
 - App đã **thiết kế lại theo video mẫu** của Ly (app Base44 do cháu Ly làm): xanh lá Home, tiêu đề chữ có chân (Playfair Display), thẻ trắng bo tròn, hero xanh, **nút mẹ đánh số**, thanh tab dưới theo vai trò, dải "Demo — chuyển vai trò" phía trên.
 - Logic giữ từ bản trước (lịch điều phối Gantt kéo thả, chia tour xoay vòng, thu ngân + thẻ liệu trình, duyệt CEO, Leader Home), thêm toàn bộ luồng hằng ngày theo sơ đồ Lark.
 - Đã chạy thử headless mọi vai trò/trang con + rà soát độc lập (17 lỗi đã sửa).
-- Bản web: https://homespa--flow.expo.app (Expo account `hayquen`, project `@hayquen/homespa`, projectId `16f65a26-63a8-4b23-8d5f-3e610e2aa3cc`).
+- Bản web (từ 11/10): https://hayquen2-homespa--flow.expo.app (Expo account `hayquen2`, project `@hayquen2/homespa`, projectId `70f679aa-20f1-43e3-9858-a4fea2cf4522`). Link cũ https://homespa--flow.expo.app (`hayquen`, projectId `16f65a26-63a8-4b23-8d5f-3e610e2aa3cc`) vẫn chạy bản fix lần 1.
 
 ## Các bản (đánh số theo yêu cầu của Ly)
 | Bản | Nhánh GitHub | Commit | Nội dung |
 |---|---|---|---|
 | Bản 1 — bản chuẩn đầu tiên | `ban-1` | aafa1d7 | Bản trước khi sửa 07/10. Trang lưu: https://claude.ai/artifact/T2qvJupenjggrB9uajMXnT |
 | Bản 2 | `ban-2` | 2112c49 | Chạy trên web 08–10/10. | Menu "Hôm nay" bật ra trên máy tính + sửa logic các luồng. Trang xem thử: https://claude.ai/artifact/QQsdqNiCi2D137VqaXbT9Q |
-| Bản 3 | `ban-3` | 695aa4e | Fix lần 1 + Fix lần 3 (11/10): mức ưu tiên thông báo Đỏ/Vàng/Xanh/Trắng, giao diện đồng nhất, sơ đồ giường KTV, ô số tự do, bộ lọc khách hàng. **Web Expo vẫn chạy bản fix lần 1** (deploy chặn do hết hạn mức gói Expo đến 01/11/2026). Xem thử: https://claude.ai/artifact/2aArSe57RwaNQ9rRRTiYV3 |
+| Bản 3 | `ban-3` | 695aa4e | Fix lần 1 + Fix lần 3 (11/10): mức ưu tiên thông báo Đỏ/Vàng/Xanh/Trắng, giao diện đồng nhất, sơ đồ giường KTV, ô số tự do, bộ lọc khách hàng. **Đang chạy ở https://hayquen2-homespa--flow.expo.app (deploy 11/10)**; link cũ homespa--flow.expo.app vẫn bản fix lần 1. Xem thử: https://claude.ai/artifact/2aArSe57RwaNQ9rRRTiYV3 |
 | (chờ Bản 4) | `develop` | 695aa4e | Bản đang phát triển tiếp. |
 Mỗi lần sửa xong và Ly đồng ý → tạo bản tiếp theo bằng NHÁNH (proxy chặn đẩy tag): `git push origin HEAD:refs/heads/ban-N` + ghi thêm dòng vào bảng này.
 Quay lại bản cũ: deploy file `homespa/dist/index.html` của nhánh bản đó lên Expo.
@@ -25,7 +25,7 @@ Quay lại bản cũ: deploy file `homespa/dist/index.html` của nhánh bản �
 - Quy tắc: không làm 2 tài khoản cùng lúc; đầu phiên `git pull origin develop`, cuối phiên đẩy lên `develop` (không đẩy `main`; Ly duyệt bằng Merge pull request) + cập nhật HANDOFF.
 
 ## Deploy Expo (qua Expo connector trong Claude)
-Tài khoản cũ: `hayquen`, project `@hayquen/homespa`, projectId `16f65a26-63a8-4b23-8d5f-3e610e2aa3cc`, link https://homespa--flow.expo.app (alias `flow`). Gói miễn phí: 60 phút CI/tháng; hết hạn mức 11/10, cấp lại 01/11/2026.
+Đang dùng: `hayquen2`, project `@hayquen2/homespa`, projectId `70f679aa-20f1-43e3-9858-a4fea2cf4522`, link https://hayquen2-homespa--flow.expo.app (alias `flow`). Tài khoản cũ: `hayquen`, project `@hayquen/homespa`, projectId `16f65a26-63a8-4b23-8d5f-3e610e2aa3cc`, link https://homespa--flow.expo.app (alias `flow`). Gói miễn phí: 60 phút CI/tháng; hết hạn mức 11/10, cấp lại 01/11/2026.
 
 Các bước (Claude tự làm khi connector đã nối đúng tài khoản):
 1. `sandbox_create` { appFullName: `@<chủ>/homespa`, operatingSystem: LINUX, resourceClass: MEDIUM, waitForReady: true }.
