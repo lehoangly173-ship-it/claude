@@ -43,6 +43,15 @@ Các bước (Claude tự làm khi connector đã nối đúng tài khoản):
 - Link sẽ đổi (link cũ thuộc `hayquen`). Muốn dùng lại link cũ: nối lại `hayquen` sau 01/11.
 - Không cần lưu mật khẩu/token nào vào repo; connector tự giữ đăng nhập.
 
+## Cập nhật 11/10 (chiều) — THỜI GIAN + BIỂU ĐỒ cho Leader/CEO (yêu cầu cháu Ly)
+Nhánh dự phòng trước khi làm: `du-phong-truoc-bieu-do` (= Bản 3).
+- **Một nguồn số theo thời gian: `src/period.ts`.** Hôm nay = dữ liệu thật trong state (hóa đơn, lịch, chấm công, chi tiêu, kho); ngày đã qua = số liệu mẫu cố định theo ngày (`pastDay`, có cache); tương lai = 0. Chi tiêu lễ tân nhập trong tháng hiện tại thay phần mẫu của đúng hạng mục. Tiền mặt bằng/điện/nước/wifi mẫu ghi một lần/tháng vào ngày cố định. Khi nối dữ liệu thật: chỉ thay `pastDay()` (và lọc theo ngày trong `todayReal`).
+- **Kỳ dùng chung toàn app**: `usePeriod()` (Ngày · Tuần (thứ Hai) · Tháng · Quý · Năm · Tùy chọn, tối đa từ đầu năm cách 3 năm). Kỳ so sánh = kỳ liền trước cắt cùng số ngày (`prevOf`). Mọi khối ghi rõ "dd/mm/yyyy – dd/mm/yyyy" và kỳ so sánh.
+- **Biểu đồ không thư viện: `src/charts.tsx`**: `PeriodBar`, `ColChart` (cột nhóm, số âm đỏ, chạm cột xem số), `HBars` (so sánh người, xếp hạng), `Donut` (cơ cấu, ≤6 phần). Màu theo biến giao diện (sáng/tối).
+- **Bảng dùng lại: `src/screens/timeDash.tsx`**: `HealthDash` (khách, tiền thu, tỷ lệ đến, chờ TB + 2 biểu đồ), `FinanceDash` (thu–chi–lợi nhuận + cơ cấu thu/chi/nguồn), `StaffCompare` (KTV/lễ tân: tour, doanh thu, khách yêu cầu, điểm, đi muộn, nghỉ — tổng theo người = tổng Home), `SourceDash`, `PeriodSummary`.
+- Gắn vào: CEO Hôm nay (tóm tắt kỳ), ① Tổng quan 1.1/1.2, ④ Khách hàng, ⑤ Nguồn khách, ⑧ Doanh thu–Chi phí–LN, ⑨ Dòng tiền, ⑩ Nhân sự, Chấm công; Leader Hôm nay (tóm tắt), ③ Vận hành, ④ Chi tổng, ⑤ Thu–LN, ⑥ Công nợ (ghi ngày), Đội ngũ: Hiệu suất, Chấm công, Điểm uy tín; Leader "Của tôi"; Thu ngân lễ tân (7 ngày/tháng có ngày). Trang nút cháu (CEO/Marketing) tự có biểu đồ: theo thời gian → cột, nguồn/bộ phận → tròn, còn lại → cột ngang; kỳ chưa hết không đem so cao/thấp.
+- Chi phí chưa gồm đủ lương (Chưa nối). Kiểm tra: `src/period.test.ts` (14 test).
+
 ## Cập nhật 11/10 — FIX LẦN 3 (Lark "Fix app Home lần 3") + đồng nhất cả app
 Chi tiết yêu cầu: tài liệu Project `claude/lark-fix-lan-3.md`. Nhánh dự phòng trước khi sửa: `du-phong-truoc-fix-3`.
 - **Quy tắc giao diện chung** (cuối `styles.css`, mục "FIX LẦN 3"): tiêu đề khối đậm trên dải xanh nhạt; nhãn mục (eyebrow) thành chip xanh; nhãn ô nhập đậm trên nền xanh; chạm/rê chuột vào nút → vàng (`--hov`); không cắt chữ/bóp cột (`.deep.bar`, `.g-auto`); hướng dẫn dài gập vào "Cách kéo thả".

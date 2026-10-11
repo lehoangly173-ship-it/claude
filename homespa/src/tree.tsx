@@ -6,6 +6,8 @@ import * as D from './data'
 import { MenuCtx, Icon, Pill, SubHead, Seg, Block } from './ui'
 import { useStore } from './store'
 import type { SpecRow } from './specs'
+import { lastRanges, metrics, cost as costOf, profit, prevOf, type Gran } from './period'
+import { ColChart, HBars, Donut } from './charts'
 
 export type Kid = { no?: string; l: string; onClick: () => void }
 export type TreeItem = { no?: ReactNode; t: string; d?: string; badge?: number; alert?: boolean; onClick: () => void; kids: Kid[] }
@@ -46,8 +48,9 @@ export function entities(s: St, ctx: string): { kind: string; rows: Ent[] } {
   const c = ctx.toLowerCase(), leader = D.STAFF.find(x => x.role === 'leader')?.name ?? 'Leader', mkt = D.STAFF.find(x => x.role === 'marketing')?.name ?? 'Marketing'
   const inv = s.invoices.filter(i => i.status !== 'Đã xóa' && i.status !== 'Nháp')
   if (/kết quả & năng lực/.test(c)) { const mine = s.programs.filter(p => D.staffName(p.ownerId) === mkt)
-    return { kind: 'Tuần', rows: ['Tuần 37', 'Tuần 38', 'Tuần 39', 'Tuần 40 (này)'].map((l, i) => { const k = i === 3 ? 1 : 0.7 + (h(l) % 40) / 100
-      return { l, v: Math.round(mine.reduce((t, p) => t + p.booked, 0) * k), rev: Math.round(mine.reduce((t, p) => t + p.revenue, 0) * k / 1e4) * 1e4, cost: Math.round(mine.reduce((t, p) => t + p.cost, 0) * k / 1e4) * 1e4, owner: mkt, ch: mine.map(p => p.type).join(', ') || '—', note: i === 3 ? 'Tuần hiện tại — số từ chiến dịch đang chạy' : 'Tuần trước (số liệu mẫu)', rate: Math.round(70 + (h(l) % 30)) } }) } }
+    const wk = lastRanges('week', 4)
+    return { kind: 'Tuần', rows: wk.map(r => r.name + (r.partial ? ' (này)' : '')).map((l, i) => { const k = i === 3 ? 1 : 0.7 + (h(l) % 40) / 100
+      return { l, date: wk[i].label, v: Math.round(mine.reduce((t, p) => t + p.booked, 0) * k), rev: Math.round(mine.reduce((t, p) => t + p.revenue, 0) * k / 1e4) * 1e4, cost: Math.round(mine.reduce((t, p) => t + p.cost, 0) * k / 1e4) * 1e4, owner: mkt, ch: mine.map(p => p.type).join(', ') || '—', note: i === 3 ? 'Tuần hiện tại — số từ chiến dịch đang chạy' : 'Tuần trước (số liệu mẫu)', rate: Math.round(70 + (h(l) % 30)) } }) } }
   if (/thiết bị|bảo dưỡng|sửa chữa/.test(c)) { const reqs = s.opsReqs.filter(r => r.kind === 'Thiết bị')
     return { kind: 'Thiết bị', rows: [...reqs.map(r => ({ l: r.title, v: r.status === 'Đã duyệt' ? 1 : 0, rev: 0, cost: r.cost, owner: D.staffName(r.by), ch: r.status, note: `${r.from ?? ''}${r.to ? ` → ${r.to}` : ''} · ${r.status}`, rate: r.status === 'Đã duyệt' ? 100 : 30, date: r.to })), ...['Điều hòa phòng 2', 'Máy giặt khăn', 'Bồn ngâm chân tầng 3'].map((l, i) => ({ l, v: 1, rev: 0, cost: [450000, 0, 120000][i], owner: D.STAFF.find(y => y.role === 'leader')?.name ?? '', ch: 'Bảo dưỡng định kỳ', note: ['Vệ sinh lưới lọc mỗi tháng', 'Hoạt động tốt', 'Thay gioăng chống rò'][i], rate: [80, 100, 60][i] }))] } }
   if (/sự cố|khiếu nại|tình huống/.test(c)) {
@@ -70,27 +73,17 @@ export function entities(s: St, ctx: string): { kind: string; rows: Ent[] } {
   if (/vật tư|tồn kho|nhập kho|(^|\s)kho(\s|$)|hàng hóa|nhà cung cấp/.test(c))
     return { kind: 'Mặt hàng', rows: D.STOCK_ITEMS.map(it => { const q = s.stockMoves.filter(m => m.item === it.id && !m.status).reduce((t, m) => t + (['Nhập', 'Hoàn trả', 'Kiểm kê'].includes(m.kind) ? m.qty : m.kind === 'Đề xuất mua' ? 0 : -m.qty), it.start)
       return { l: it.name, v: q, rev: s.stockMoves.filter(m => m.item === it.id && m.kind === 'Bán').reduce((t, m) => t + (m.price ?? 0) * m.qty, 0), cost: q * it.cost, owner: D.STAFF.find(y => y.role === 'reception')?.name ?? '', ch: it.unit, note: q < it.warn ? `Dưới ngưỡng — đề xuất mua ${it.keep - q} ${it.unit}` : 'Đủ hàng', rate: Math.round(q / it.keep * 100), target: it.keep } }) }
-  if (/tài chính|tiền|chi phí|doanh thu|quỹ|lợi nhuận|dòng tiền|thuế|công nợ|lương|ngân sách/.test(c)) {
-    const today = inv.reduce((t, i) => t + i.paid, 0) || 2500000, exp = s.expenses.reduce((t, e) => t + e.amount, 0)
-    return { kind: 'Tháng', rows: ['Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10 (đến nay)'].map((l, i) => { const k = 0.85 + (h(l) % 30) / 100, days = i === 3 ? D.TODAY.getDate() : 30
-      const rev = Math.round(today * days * k / 1e5) * 1e5, cost = Math.round((i === 3 ? exp : exp * k * 1.1) / 1e5) * 1e5
-      return { l, v: Math.round(days * 9 * k), rev, cost, owner: D.STAFF.find(y => y.role === 'ceo')?.name ?? 'CEO', ch: 'Tiền mặt · CK · thẻ', note: rev > cost ? 'Dòng tiền dương' : 'Chi vượt thu — xem lại chi phí', rate: rev ? Math.round((rev - cost) / rev * 100) : 0 } }) }
-  }
+  if (/tài chính|tiền|chi phí|doanh thu|quỹ|lợi nhuận|dòng tiền|thuế|công nợ|lương|ngân sách/.test(c)) // một nguồn: period.ts
+    return { kind: 'Tháng', rows: lastRanges('month', 4).reverse().map(r => { const m = metrics(s, r), rev = m.revenue, co = costOf(m)
+      return { l: r.name + (r.partial ? ' (đến nay)' : ''), date: r.label, v: m.guests, rev, cost: co, owner: D.STAFF.find(y => y.role === 'ceo')?.name ?? 'CEO', ch: 'Tiền mặt · CK · thẻ', note: profit(m) > 0 ? 'Dòng tiền dương' : 'Chi vượt thu — xem lại chi phí', rate: rev ? Math.round(profit(m) / rev * 100) : 0 } }) }
   if (/nhân sự|ktv|nhân viên|lễ tân|đội|tuyển|đào tạo|kpi|công suất|chất lượng|vệ sinh/.test(c))
     return { kind: 'Nhân sự', rows: s.staff.filter(x => x.role === 'ktv' || x.role === 'reception').slice(0, 7).map(x => { const ap = s.appts.filter(a => a.ktvId === x.id && !['cancelled', 'no_show'].includes(a.status)), fb = s.feedback.filter(f => f.ktvId === x.id)
       const rev = inv.reduce((t, i) => t + i.lines.filter(l => l.ktvId === x.id).reduce((y, l) => y + l.price - l.discount, 0), 0), pts = s.points.filter(p => p.staffId === x.id && p.status === 'Đã duyệt').reduce((t, p) => t + p.delta, 0)
       return { l: `${x.name} · ${x.role === 'ktv' ? 'KTV' : 'Lễ tân'}`, v: x.role === 'ktv' ? ap.length : inv.filter(i => i.creator === x.name).length, rev, cost: 0, owner: leader, ch: x.shift === 1 ? 'Ca sáng' : 'Ca chiều', note: fb.length ? `Khách chấm ${(fb.reduce((t, f) => t + f.rating, 0) / fb.length).toFixed(1)}/5` : `${pts} điểm uy tín`, rate: Math.min(100, Math.round(ap.length / 6 * 100)) } }) }
   const gran = /theo (ngày|tuần|tháng|quý|năm)/.exec(c)?.[1]
-  if (gran || /tăng trưởng|suy giảm/.test(c)) { const n = s.appts.filter(a => !['cancelled', 'no_show'].includes(a.status)).length || 20, cash = s.invoices.reduce((t, x) => t + x.paid, 0) || 2500000
-    const g = gran ?? 'tuần', mul = { ngày: 1, tuần: 6.5, tháng: 27, quý: 80, năm: 320 }[g as 'ngày']
-    const now = new Date(D.TODAY), lab = (i: number) => { const d = new Date(now)
-      if (g === 'ngày') { d.setDate(d.getDate() - i); return i ? D.dateShort(d).slice(0, 5) : 'Hôm nay' }
-      if (g === 'tuần') return i ? `${i} tuần trước` : 'Tuần này'
-      if (g === 'tháng') { d.setMonth(d.getMonth() - i); return i ? `Tháng ${d.getMonth() + 1}` : 'Tháng này' }
-      if (g === 'quý') { const q = Math.floor(now.getMonth() / 3) - i; return i ? `Quý ${((q % 4) + 4) % 4 + 1}${q < 0 ? '/' + (now.getFullYear() - 1) : ''}` : 'Quý này' }
-      return i ? String(now.getFullYear() - i) : 'Năm nay' }
-    return { kind: g[0].toUpperCase() + g.slice(1), rows: [0, 1, 2, 3].map(i => { const k = i ? 0.82 + (h(g + i) % 30) / 100 : 1, kp = 0.82 + (h(g + (i + 1)) % 30) / 100
-      return { l: lab(i), v: Math.round(n * mul * k), prev: Math.round(n * mul * kp), rev: Math.round(cash * mul * k / 1e5) * 1e5, cost: 0, owner: '', ch: '', note: i ? 'Ước theo nhịp hiện tại (số liệu mẫu)' : 'Số thật đến hiện tại', rate: 0 } }) } }
+  if (gran || /tăng trưởng|suy giảm/.test(c)) { const g = (gran ?? 'tuần') as 'ngày', G = ({ ngày: 'day', tuần: 'week', tháng: 'month', quý: 'quarter', năm: 'year' } as Record<string, Gran>)[g]
+    const rs = lastRanges(G, 4) // so mỗi kỳ với kỳ liền trước CÙNG số ngày (giống thẻ số ở màn tổng quan)
+    return { kind: g[0].toUpperCase() + g.slice(1), rows: rs.map(r => ({ r, m: metrics(s, r), pm: metrics(s, prevOf(r, G as 'day')) })).reverse().map(({ r, m, pm }) => ({ l: r.name + (r.partial ? ' (đến nay)' : ''), date: r.label, v: m.guests, prev: pm.guests, rev: m.revenue, cost: costOf(m), owner: '', ch: '', note: r.partial ? 'Hôm nay là số thật, ngày trước là số liệu mẫu' : 'Số liệu mẫu', rate: m.revenue ? Math.round(profit(m) / m.revenue * 100) : 0 })) } }
   const by = (r: D.Role) => s.staff.filter(x => x.role === r).length
   return { kind: 'Bộ phận', rows: [
     { l: 'Lễ tân', v: inv.length, rev: inv.reduce((t, i) => t + i.paid, 0), cost: 0, owner: leader, ch: `${by('reception')} người`, note: `${s.tasks.filter(t => ['open', 'doing'].includes(t.status) && s.staff.find(x => x.id === t.ownerId)?.role === 'reception').length} việc tồn` },
@@ -150,20 +143,35 @@ export function ChauPage({ row, idx, base, ctx }: { row: SpecRow; idx: number; b
   const data = ents.rows.map(e => ({ l: e.l, c: cs.map(c => cell(c, e)) }))
   const link = user.role === 'ceo' ? LINKS.find(([re]) => re.test(`${k} ${row.t}`)) : undefined
   const ni = cs.findIndex((_, j) => data.filter(r => r.c[j].n !== undefined).length > 1)
-  const sorted = ni >= 0 ? [...data].sort((a, b) => (b.c[ni].n ?? 0) - (a.c[ni].n ?? 0)) : []
+  const full = data.filter(r => !/\((đến nay|này)\)/.test(r.l)) // kỳ chưa hết không đem so cao/thấp
+  const sorted = ni >= 0 ? [...(full.length > 1 ? full : data)].sort((a, b) => (b.c[ni].n ?? 0) - (a.c[ni].n ?? 0)) : []
   return <>
-    <SubHead title={`${row.no}.${idx + 1} · ${k}`} sub={`${row.t} · theo ${ents.kind.toLowerCase()}`} onBack={() => go(`${base}/${row.no}`)} />
+    <SubHead title={`${row.no}.${idx + 1} · ${k}`} sub={<>{row.t} · theo {ents.kind.toLowerCase()} · <span className="rtag">📅 {TIME_KINDS.includes(ents.kind) ? `${ents.rows[ents.rows.length - 1]?.date?.split(' – ')[0] ?? ''} – ${ents.rows[0]?.date?.split(' – ').pop() ?? ''}` : `Hôm nay ${D.dateShort()} · ${D.hhmm(s.now)}`}</span></>} onBack={() => go(`${base}/${row.no}`)} />
     {ks.length > 1 && <div style={{ overflowX: 'auto' }}><Seg value={String(idx)} onChange={v => go(`${base}/${row.no}/${v}`)} items={ks.map((x, j) => ({ k: String(j), label: x }))} /></div>}
     <Block title={k} sub={`Chi tiết khi mở: ${cs.join(' · ')}`} right={<Pill tone="yellow">Dữ liệu app + {D.SAMPLE_NOTE}</Pill>}>
       <div className="tbl-wrap"><table><thead><tr><th>{ents.kind}</th>{cs.map(c => <th key={c}>{c}</th>)}</tr></thead>
         <tbody>{data.map(r => <tr key={r.l}><td className="strong">{r.l}</td>{r.c.map((x, j) => <td key={j} className={x.n !== undefined ? 'num' : 'small'}>{x.pill ? <Pill tone={x.pill === 'Đạt' ? 'green' : x.pill === 'Cần xử lý' ? 'red' : 'yellow'}>{x.v}</Pill> : x.v}</td>)}</tr>)}</tbody></table></div>
       <div className="tiny muted">Danh sách và số hiện tại lấy từ dữ liệu trong app (cập nhật ngay khi có thay đổi); mục tiêu, kỳ trước, các tháng cũ là {D.SAMPLE_NOTE} suy ra từ số hiện tại.</div>
     </Block>
+    {ni >= 0 && <ChauChart kind={ents.kind} col={cs[ni]} rows={data.map((r, j) => ({ l: r.l, v: r.c[ni].n ?? 0, date: ents.rows[j]?.date }))} money={/tiền|doanh thu|thu|chi phí|lợi nhuận|ngân sách|giá trị|lương|công nợ/i.test(cs[ni])} />}
     {link && <button className="softbtn wide" onClick={() => go(link[1])}>Mở màn liên quan: {link[2]}</button>}
     {sorted.length > 1 && <div className="note"><b>🌿 Mộc phân tích (giả lập — Chưa nối AI thật):</b> {sorted[0].l} cao nhất về "{cs[ni]}" ({sorted[0].c[ni].v}); {sorted[sorted.length - 1].l} thấp nhất ({sorted[sorted.length - 1].c[ni].v}) — nên xem nguyên nhân trước khi quyết định.</div>}
     {acts(row).length > 0 && <Block title="Thao tác"><div className="row">{acts(row).map(a0 => a0[0].toUpperCase() + a0.slice(1)).map(a => <button key={a} className={`btn${done.includes(a) ? '' : ' pri'}`} disabled={done.includes(a)} onClick={() => setDone([...done, a])}>{done.includes(a) ? `✓ ${a}` : a}</button>)}</div>
       {done.length > 0 && <div className="tiny muted">Đã ghi thao tác trong bản chạy thử (chưa lưu máy chủ).</div>}</Block>}
   </>
+}
+
+const TIME_KINDS = ['Ngày', 'Tuần', 'Tháng', 'Quý', 'Năm']
+/** Biểu đồ cho trang nút cháu: theo thời gian → cột (cũ → mới); cơ cấu một tổng → tròn; so sánh người/mục → cột ngang */
+function ChauChart({ kind, col, rows, money }: { kind: string; col: string; rows: { l: string; v: number; date?: string }[]; money: boolean }) {
+  const fmt = money ? D.vndShort : (n: number) => n.toLocaleString('vi-VN')
+  if (rows.length < 2) return null
+  if (TIME_KINDS.includes(kind)) { const r = [...rows].reverse()
+    return <Block title={`Biểu đồ ${col.toLowerCase()} theo ${kind.toLowerCase()}`} sub="Chạm vào cột để xem ngày cụ thể"><ColChart label={col} fmt={fmt} cats={r.map(x => x.l.replace(/^Tháng (\d+)\/\d{2}(\d{2})/, 'T$1/$2').replace(/^Quý (\d)\/\d{2}(\d{2})/, 'Q$1/$2').replace(/^Năm /, '').replace(/^Tuần /, '').replace(' (đến nay)', '*').replace(' (này)', '*'))} tips={r.map(x => `${x.l} · ${x.date ?? ''}`)} series={[{ name: col, color: 'var(--green)', values: r.map(x => x.v) }]} />
+      <div className="tiny muted">* kỳ hiện tại, tính đến hôm nay.</div></Block> }
+  if (['Nguồn khách', 'Bộ phận'].includes(kind) && rows.every(x => x.v >= 0) && !/tỷ lệ|tỉ lệ|%/i.test(col))
+    return <Block title={`Cơ cấu ${col.toLowerCase()} theo ${kind.toLowerCase()}`}><Donut label={col} fmt={fmt} parts={rows.map(x => ({ l: x.l, v: x.v }))} /></Block>
+  return <Block title={`So sánh ${col.toLowerCase()} theo ${kind.toLowerCase()}`}><HBars label={col} fmt={fmt} rows={rows.map(x => ({ l: x.l, v: x.v }))} unit={/tỷ lệ|tỉ lệ|%|hoàn thành|công suất/i.test(col) ? '%' : undefined} /></Block>
 }
 
 /** Hàng nút con của một nút mẹ → TreeItem.kids */

@@ -1,5 +1,6 @@
 // Thu ngân — đã sửa: phải chọn đúng thẻ mới trừ, hóa đơn chỉ dùng thẻ = "Dùng liệu trình",
 // dịch vụ lẻ phải thu đủ (chỉ gói mới được cọc), "đóng tiếp" tính trên số còn thiếu, hoa hồng chia đúng 100%.
+import { metrics, rangeOf, addDays, fmtD, today as todayD } from '../period'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useStore } from '../store'
 import * as D from '../data'
@@ -24,7 +25,9 @@ export function CashierScreen() {
   const valid = s.invoices.filter(i => i.status !== 'Nháp' && i.status !== 'Đã xóa')
   const today = { confirmed: valid.length, collected: valid.reduce((t, i) => t + i.paid, 0) }
   const owedAll = s.customers.flatMap(c => c.packages).reduce((t, p) => t + D.pkgOwed(p), 0)
-  const stats = range === 'day' ? { ...today, due: owedAll } : { confirmed: D.HISTORY[range].now.bookings, collected: D.HISTORY[range].now.revenue, due: owedAll }
+  const rg = range === 'day' ? rangeOf('day', todayD()) : range === 'week' ? { from: addDays(todayD(), -6), to: todayD(), label: `${fmtD(addDays(todayD(), -6))} – ${fmtD(todayD())}` } : rangeOf('month', todayD())
+  const pm = range === 'day' ? null : metrics(s, rg)
+  const stats = !pm ? { ...today, due: owedAll } : { confirmed: pm.guests, collected: pm.revenue, due: owedAll }
   const byCustomer = Array.from(new Set(bills.map(b => b.customerId)))
   return <>
     <PageHeader eyebrow="Điều phối hôm nay" title="Thu ngân" sub="Thanh toán, hóa đơn, thẻ liệu trình"
@@ -32,9 +35,9 @@ export function CashierScreen() {
     <Seg value={range} onChange={setRange} items={[{ k: 'day', label: 'Hôm nay' }, { k: 'week', label: '7 ngày' }, { k: 'month', label: 'Tháng này' }]} />
     <div className="grid g4">
       <Stat label="Chờ thanh toán" value={bills.length} tone="r-fg" sub="lượt phục vụ xong" />
-      <Stat label={range === 'day' ? 'Hóa đơn đã xác nhận' : 'Lượt phục vụ'} value={stats.confirmed} tone="g-fg" sub={range === 'day' ? 'hôm nay' : D.SAMPLE_NOTE} />
-      <Stat label="Tiền đã thu" value={D.vndShort(stats.collected)} tone="gold" sub={range === 'day' ? 'tiền mặt · CK · thẻ NH' : D.SAMPLE_NOTE} />
-      <Stat label="Còn phải thu (gói)" value={D.vndShort(stats.due)} tone="y-fg" sub="cọc & còn thiếu" />
+      <Stat label={range === 'day' ? 'Hóa đơn đã xác nhận' : 'Khách có hóa đơn'} value={stats.confirmed} tone="g-fg" sub={range === 'day' ? `hôm nay ${fmtD(todayD())}` : `${rg.label} · ${D.SAMPLE_NOTE} ngày trước`} />
+      <Stat label="Tiền đã thu" value={D.vndShort(stats.collected)} tone="gold" sub={range === 'day' ? `hôm nay ${fmtD(todayD())} · tiền mặt · CK · thẻ NH` : `${rg.label} · ${D.SAMPLE_NOTE} ngày trước`} />
+      <Stat label="Còn phải thu (gói)" value={D.vndShort(stats.due)} tone="y-fg" sub={`cọc & còn thiếu · đến ${fmtD(todayD())}`} />
     </div>
     <Seg value={tab} onChange={setTab} items={[{ k: 'waiting', label: 'Chờ thanh toán', badge: bills.length }, { k: 'invoices', label: 'Hóa đơn' }, { k: 'deposits', label: 'Cọc & còn thiếu' }, { k: 'cards', label: 'Thẻ liệu trình' }]} />
     {tab === 'waiting' && <div className="card list">{byCustomer.map(cid => { const mine = bills.filter(b => b.customerId === cid); const c = cust(s, cid)

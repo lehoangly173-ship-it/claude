@@ -13,6 +13,8 @@ import { LeaderToday, LeaderCustomers, MocScreen, ProgramsPanel, RoiPanel } from
 import { ApprovalsScreen, MembersScreen, MarketingScreen } from './ceo'
 import { OpsBase2, HandoverPage } from './reception2'
 import { TeamOps, LeaveApprove, OpsApprove, LeaderFin, LeaderMothers, StaffPerf, SalaryPage, TrainTree, LeaderCareTop } from './leader2'
+import { HealthDash, FinanceDash, StaffCompare, SourceDash, PeriodSummary } from './timeDash'
+import { HBars } from '../charts'
 
 /** Hub nút con theo bảng tài liệu: chạm nút con là xổ nút cháu; trang con → nút cháu → số liệu mẫu */
 function SpecHub({ rows, sub, leaf, base, title, tag, custom, intro }: { rows: SpecRow[]; sub?: string; leaf?: string; base: string; title: string; tag: string; custom?: Record<string, () => ReactNode>; intro?: ReactNode }) {
@@ -36,7 +38,7 @@ export function LeaderHome({ sub }: { sub: string[] }) {
   if (page) return <>{page}</>
   if (sub[0] === 'tasks') return <><BackBtn to="home" /><LeaderToday /></>
   if (sub[0] === 'ops') return <OpsHub sub={sub[1]} base="home/ops" />
-  if (sub[0] === 'attendance') return <AttendancePage back={back} />
+  if (sub[0] === 'attendance') return <><AttendancePage back={back} /><StaffCompare pick="late" /></>
   if (sub[0] === 'base') return <OpsBase2 key={sub[1]} sub={sub[1]} sub2={sub[2]} />
   if (sub[0] === 'handover') return <HandoverPage back={back} />
   if (sub[0] === 'leaveok') return <LeaveApprove back={back} />
@@ -55,6 +57,7 @@ export function LeaderHome({ sub }: { sub: string[] }) {
     <Tiles items={[{ v: redo, l: 'Task cần làm lại', tone: redo ? 'warn' : undefined, onClick: () => go('home/cleaning') }, { v: stock, l: 'Kho cần đối chiếu', onClick: () => go('home/products') }, { v: incidents, l: 'Sự cố chưa đóng', tone: incidents ? 'warn' : undefined, onClick: () => go('home/tasks') }, { v: tourIssues, l: 'Lệch tour', onClick: () => go('home/bills') }]} />
     <TeamOps />
     {s.opsReqs.some(r => r.status === 'Chờ duyệt') && <button className="softbtn wide" onClick={() => go('home/approve')}>Duyệt đề xuất vận hành của lễ tân ({s.opsReqs.filter(r => r.status === 'Chờ duyệt').length})</button>}
+    <PeriodSummary onOpen={() => go('home/fin/rev')} />
     <LeaderMothers />
     {opsBad > 0 && <Block title="Vấn đề cơ sở lễ tân báo"><div className="card list">{[...s.opsChecks.filter(x => !x.ok).map(x => ({ id: x.id, t: x.item, d: x.note, by: x.by, at: x.at })), ...s.xpChecks.filter(x => x.status === 'Không đạt – lễ tân xử lý' || x.help).map(x => ({ id: x.id, t: x.area, d: x.note || x.ai || '', by: x.by, at: x.at }))].map(x => <div key={x.id} className="item"><span className="sev cao" /><div className="body"><div className="t">{x.t}</div><div className="d">{x.d} · {D.staffName(x.by)} · {D.hhmm(x.at)}</div></div></div>)}</div></Block>}
   </>
@@ -66,7 +69,7 @@ export function TeamTab({ sub }: { sub: string[] }) {
   switch (sub[0]) {
     case 'staff': return <StaffPage back={back} />
     case 'roster': return <ShiftTourPage back={back} />
-    case 'attendance': return <AttendancePage back={back} />
+    case 'attendance': return <><AttendancePage back={back} /><StaffCompare pick="late" /></>
     case 'points': return <PointsPage back={back} />
     case 'leave': return <LeavePage back={back} />
     case 'perf': return <StaffPerf back={back} />
@@ -114,7 +117,7 @@ export function PointsPage({ back }: { back: () => void }) {
         <label className="f">Sự việc & minh chứng<input id="lp-r" className="inp" value={f.reason} onChange={e => setF({ ...f, reason: e.target.value })} /></label></div>
       <button className="btn pri" disabled={!f.staffId || !f.delta || !f.reason.trim()} onClick={() => { proposePoint(f.staffId, f.delta, f.reason.trim()); setF({ staffId: '', delta: 1, reason: '' }) }}>Ghi điểm</button>
     </Block>
-    <Block title="Bảng điểm hôm nay"><div className="card list">{rank.map((r, i) => <div key={r.x.id} className="item"><span className="num strong" style={{ width: 22 }}>{i + 1}</span><Av name={r.x.name} /><div className="body"><div className="t">{r.x.name}</div><div className="d">{D.ROLE_LABEL[r.x.role]}</div></div><span className="num strong">{r.p}</span></div>)}</div></Block>
+    <Block title="Bảng điểm uy tín" sub={`Điểm đã duyệt tích lũy đến hôm nay ${D.dateShort()}`}><HBars label="Điểm uy tín" rows={rank.map(r => ({ l: r.x.name, v: r.p, sub: D.ROLE_LABEL[r.x.role] }))} unit=" điểm" /></Block>
   </>
 }
 
@@ -154,8 +157,8 @@ export function CeoHome({ sub }: { sub: string[] }) {
   const page = dailySub(sub[0], back)
   if (page) return <>{page}</>
   if (sub[0] === 'ops') return <OpsHub sub={sub[1]} base="home/ops" />
-  if (sub[0] === 'attendance') return <AttendancePage back={back} />
-  if (sub[0] === 'n1') return <SpecHub rows={NM('NM1').rows} sub={sub[1]} leaf={sub[2]} base="home/n1" tag="① Hôm nay" title={NM('NM1').title} custom={{ '1.1': () => <CeoHealth />, '1.2': () => <CeoHealth />, '1.3': () => <AlertsList />, '1.7': () => <ApprovalsScreen /> }} />
+  if (sub[0] === 'attendance') return <><AttendancePage back={back} /><StaffCompare pick="late" /></>
+  if (sub[0] === 'n1') return <SpecHub rows={NM('NM1').rows} sub={sub[1]} leaf={sub[2]} base="home/n1" tag="① Hôm nay" title={NM('NM1').title} custom={{ '1.1': () => <HealthDash />, '1.2': () => <HealthDash />, '1.3': () => <AlertsList />, '1.7': () => <ApprovalsScreen /> }} />
   if (sub[0] === 'n2') return <SpecHub rows={NM('NM8').rows} sub={sub[1]} leaf={sub[2]} base="home/n2" tag="② Hôm nay" title={NM('NM8').title} custom={Object.fromEntries(NM('NM8').rows.map((r, i) => [r.no, () => i === 0 ? <button className="softbtn wide" onClick={() => go('home/ops')}>Mở trung tâm vận hành (lịch · hàng chờ · giường · thu ngân)</button> : /vệ sinh|chất lượng/i.test(r.t) ? <button className="softbtn" onClick={() => go('home/cleaning')}>Mở checklist dọn dẹp & điểm</button> : /vật tư|kho/i.test(r.t) ? <button className="softbtn" onClick={() => go('home/products')}>Mở đối chiếu sản phẩm</button> : /sự cố/i.test(r.t) ? <AlertsList /> : <NodeSpec rows={[{ t: r.t, d: r.d }]} />]))} />
   if (sub[0] === 'n3') return <SpecHub rows={NM('NM11').rows} sub={sub[1]} leaf={sub[2]} base="home/n3" tag="③ Hôm nay" title={NM('NM11').title} intro={<Initiatives />} />
   const o = overview(s)
@@ -169,8 +172,9 @@ export function CeoHome({ sub }: { sub: string[] }) {
       { v: s.productLogs.filter(p => !(p.ktvOk && p.recOk)).length, l: 'Kho cần đối chiếu', onClick: () => go('home/products') },
       { v: s.reviews.filter(r => r.status === 'Chờ đối soát').length + s.points.filter(p => p.status === 'Chờ duyệt').length, l: 'Review/điểm cần duyệt', onClick: () => go(s.points.some(p => p.status === 'Chờ duyệt') ? 'moc/points' : 'moc/reviews') },
       { v: billRows(s).filter(r => r.issue).length, l: 'Lệch đối soát tour', onClick: () => go('home/bills') },
-      { v: D.vndShort(o.revenue), l: 'Tiền đã thu hôm nay', tone: 'ok' }, { v: `${o.ktvBusy}/${o.ktvIn}`, l: 'KTV đang làm / trong ca' },
+      { v: D.vndShort(o.revenue), l: `Tiền đã thu hôm nay (${D.dateShort().slice(0, 5)})`, tone: 'ok', onClick: () => go('me/n8') }, { v: `${o.ktvBusy}/${o.ktvIn}`, l: 'KTV đang làm / trong ca' },
     ]} />
+    <PeriodSummary onOpen={() => go('me/n8')} />
     <ChipGrid items={[{ l: 'Ca & Tour', onClick: () => go('home/ops'), solid: true }, { l: 'Chấm công', onClick: () => go('home/attendance') }, { l: 'Lịch chia ca', onClick: () => go('home/shift') }, { l: 'Nhân viên', onClick: () => go('me/n10') }, { l: 'Cài đặt CEO & AI', onClick: () => go('me/settings') }, { l: 'Chiến dịch', onClick: () => go('cust/n6') }, { l: T.idea.inbox, onClick: () => go('home/ideas'), badge: inboxSuggestions(s, 'ceo').length }]} />
     <TreeNodes items={[
       { no: '①', t: NM('NM1').title, d: 'Sức khỏe Home · tăng/giảm · cảnh báo · ưu tiên', onClick: () => go('home/n1'), kids: kidsOf(NM('NM1').rows, 'home/n1', go) },
@@ -198,8 +202,8 @@ function CeoExport() {
 }
 export function CeoCust({ sub }: { sub: string[] }) {
   const { go } = useStore()
-  if (sub[0] === 'n4') return <SpecHub rows={NM('NM2').rows} sub={sub[1]} leaf={sub[2]} base="cust/n4" tag="④ Khách hàng" title={NM('NM2').title} intro={<button className="softbtn" onClick={() => go('cust/all')}>Mở danh sách khách & phản hồi</button>} />
-  if (sub[0] === 'n5') return <SpecHub rows={NM('NM3').rows} sub={sub[1]} leaf={sub[2]} base="cust/n5" tag="⑤ Khách hàng" title={NM('NM3').title} />
+  if (sub[0] === 'n4') return <SpecHub rows={NM('NM2').rows} sub={sub[1]} leaf={sub[2]} base="cust/n4" tag="④ Khách hàng" title={NM('NM2').title} intro={<><HealthDash /><button className="softbtn" onClick={() => go('cust/all')}>Mở danh sách khách & phản hồi</button></>} />
+  if (sub[0] === 'n5') return <SpecHub rows={NM('NM3').rows} sub={sub[1]} leaf={sub[2]} base="cust/n5" tag="⑤ Khách hàng" title={NM('NM3').title} intro={<SourceDash />} />
   if (sub[0] === 'n6') return <SpecHub rows={NM('NM4').rows} sub={sub[1]} leaf={sub[2]} base="cust/n6" tag="⑥ Khách hàng" title={NM('NM4').title} intro={<MarketingScreen />} />
   if (sub[0] === 'all') return <><BackBtn to="cust" /><LeaderCustomers /></>
   return <>
@@ -227,16 +231,11 @@ export function CeoMine({ sub }: { sub: string[] }) {
   if (sub[0] === 'settings') return <SettingsPage />
   const hit = map.find(m => m[0] === sub[0])
   if (hit) return <SpecHub rows={NM(hit[1]).rows} sub={sub[1]} leaf={sub[2]} base={`me/${hit[0]}`} tag={`${hit[2]} Của tôi`} title={NM(hit[1]).title}
-    intro={hit[0] === 'n10' ? <><MembersScreen /><button className="softbtn wide" onClick={() => go('moc/points')}>Điểm uy tín toàn Home</button></> : hit[0] === 'n13' ? <button className="softbtn wide" onClick={() => go('me/settings')}>Mở cài đặt phân khu dọn dẹp & quy tắc</button> : hit[0] === 'n8' ? <RevenueToday /> : undefined} />
+    intro={hit[0] === 'n10' ? <><StaffCompare /><MembersScreen /><button className="softbtn wide" onClick={() => go('moc/points')}>Điểm uy tín toàn Home</button></> : hit[0] === 'n13' ? <button className="softbtn wide" onClick={() => go('me/settings')}>Mở cài đặt phân khu dọn dẹp & quy tắc</button> : hit[0] === 'n8' ? <FinanceDash /> : hit[0] === 'n9' ? <FinanceDash show={['trend', 'cost']} /> : undefined} />
   return <>
     <Hero tag="Của tôi · CEO" title="Doanh nghiệp của chị" sub="Tài chính · dòng tiền · nhân sự · tổ chức · hồ sơ · cài đặt" />
     <TreeNodes items={map.map(([k, n, no]) => ({ no, t: NM(n).title, d: NM(n).rows.slice(0, 3).map(r => r.t).join(' · '), onClick: () => go(`me/${k}`), kids: kidsOf(NM(n).rows, `me/${k}`, go) }))} />
   </>
-}
-function RevenueToday() {
-  const { s } = useStore()
-  const inv = s.invoices.filter(i => i.status !== 'Nháp' && i.status !== 'Đã xóa')
-  return <Tiles items={[{ v: D.vndShort(inv.reduce((t, i) => t + i.paid, 0)), l: 'Tiền đã thu hôm nay', tone: 'ok' }, { v: inv.length, l: 'Hóa đơn đã xác nhận' }, { v: D.vndShort(D.HISTORY.month.now.revenue), l: 'Doanh thu tháng', s: D.SAMPLE_NOTE }, { v: D.vndShort(D.HISTORY.month.prev.revenue), l: 'Tháng trước', s: D.SAMPLE_NOTE }]} />
 }
 function SettingsPage() {
   const { s, go, setZoneOwner, setPrioCat } = useStore()
@@ -261,17 +260,6 @@ function SettingsPage() {
   </>
 }
 
-function CeoHealth() {
-  const [per, setPer] = useState<'week' | 'month'>('week')
-  const h = D.HISTORY[per]
-  const rows: [keyof typeof h.now, string, string?, boolean?][] = [['revenue', 'Tiền đã thu', 'đ'], ['newCust', 'Khách mới'], ['returning', 'Khách quay lại'], ['bookings', 'Lượt đặt lịch'], ['showRate', 'Tỷ lệ đến', '%'], ['waitAvg', 'Chờ trung bình', ' phút', true]]
-  const fmt = (n: number, u?: string) => (u === 'đ' ? D.vndShort(n) : `${n}${u ?? ''}`)
-  return <>
-    <div className="row"><Seg value={per} onChange={setPer} items={[{ k: 'week', label: 'Tuần' }, { k: 'month', label: 'Tháng' }]} /><Pill tone="yellow">{D.SAMPLE_NOTE} — sẽ tính từ hóa đơn khi nối dữ liệu</Pill></div>
-    <div className="tiles">{rows.map(([k, l, u, inv]) => { const v = h.now[k], p = h.prev[k], tg = h.target[k]; const hit = inv ? v <= tg : v >= tg
-      return <div key={k} className="tile"><span className="l">{l}</span><span className="v num">{fmt(v, u)}</span><Delta now={v} prev={p} invert={inv} unit={u === 'đ' ? 'đ' : u === '%' ? ' điểm %' : u} /><span className="s">Kỳ trước {fmt(p, u)} · mục tiêu {fmt(tg, u)} {hit ? '✓' : ''}</span></div> })}</div>
-  </>
-}
 
 /** Leader — nút mẹ ② Chăm sóc khách hàng Home */
 export function LeaderCare({ sub }: { sub: string[] }) {

@@ -1,5 +1,7 @@
 // FIX LẦN 1 — Leader (Lark "FIX LẦN 1 APP LEADER"): Hôm nay (Vận hành nhóm), Chăm sóc KH Home,
 // Vận hành, Chi tổng, Doanh thu – lợi nhuận, Công nợ, Nhân sự (lương · điểm · hiệu suất · đào tạo)
+import { FinanceDash, StaffCompare } from './timeDash'
+import { Donut } from '../charts'
 import { useState } from 'react'
 import { useStore } from '../store'
 import * as D from '../data'
@@ -79,6 +81,7 @@ export function LeaderMothers() {
 }
 
 // ── Tài chính Leader: bộ lọc thời gian chung · số liệu tính từ hóa đơn, kho, chi tiêu ──
+const monthLabel = () => `${D.TODAY.getMonth() + 1}/${D.TODAY.getFullYear()}`
 const IT = (id: string) => D.STOCK_ITEMS.find(x => x.id === id)!
 function useFin() {
   const { s } = useStore()
@@ -99,13 +102,16 @@ export function LeaderFin({ sub, back }: { sub: string[]; back: () => void }) {
   const [page, idx] = sub
   if (page === 'ops') return <>
     <SubHead title="③ Vận hành" sub="Chi phí sản phẩm (dầu massage, cao hổ, sữa chua, khăn lạnh, dầu gội, dầu xả) · chi phí duy trì" onBack={back} />
-    <Tiles items={[{ v: D.vndShort(f.prodCost), l: 'Chi phí sản phẩm', s: 'cấp − hoàn trả × giá vốn' }, { v: per(f.prodCost), l: 'Tổng chi phí SP / 1 khách', s: `${f.guests} khách có hóa đơn` }, { v: D.vndShort(f.keepCost), l: 'Chi phí duy trì', s: 'điện · nước · rác+wifi · mặt bằng' }]} />
+    <Tiles items={[{ v: D.vndShort(f.prodCost), l: 'Chi phí sản phẩm', s: `hôm nay ${D.dateShort()} · cấp − hoàn trả × giá vốn` }, { v: per(f.prodCost), l: 'Tổng chi phí SP / 1 khách', s: `hôm nay · ${f.guests} khách có hóa đơn` }, { v: D.vndShort(f.keepCost), l: 'Chi phí duy trì', s: `chứng từ tháng ${monthLabel()} · điện · nước · rác+wifi · mặt bằng` }]} />
+    <div className="grid g2">{f.prod.some(x => x.cost > 0) && <Block title="Chi phí sản phẩm theo loại" sub={`Hôm nay ${D.dateShort()}`}><Donut label="Chi phí sản phẩm" parts={f.prod.map(x => ({ l: x.it.name, v: x.cost }))} /></Block>}
+      <Block title="Chi phí duy trì theo hạng mục" sub={`Chứng từ tháng ${monthLabel()}`}><Donut label="Chi phí duy trì" parts={f.keep.map(e => ({ l: e.cat, v: e.amount }))} /></Block></div>
     {idx !== '1' && <Block title="Chi phí sản phẩm"><div className="card list">{f.prod.filter(x => x.v > 0).map(x => <div key={x.it.id} className="item"><div className="body"><div className="t">{x.it.name}</div><div className="d">{x.v.toLocaleString('vi-VN')} {x.it.unit} · giá vốn {D.SAMPLE_NOTE}</div></div><span className="num strong">{D.vnd(x.cost)}</span></div>)}{!f.prod.some(x => x.v > 0) && <Empty>Chưa xuất vật tư</Empty>}</div></Block>}
     {idx !== '0' && <Block title="Chi phí duy trì (điện, nước, mặt bằng…)"><div className="card list">{f.keep.map(e => <div key={e.id} className="item"><div className="body"><div className="t">{e.cat}</div><div className="d">{e.date} · {e.note}</div></div><span className="num strong">{D.vnd(e.amount)}</span></div>)}</div></Block>}
   </>
   if (page === 'spend') return <>
     <SubHead title="④ Chi tổng" sub="Chi phí tổng = sản phẩm + duy trì + chi khác (lương, quảng cáo, hàng hóa) · lễ tân nhập ở Chi tiêu vận hành" onBack={back} />
-    <Tiles items={[{ v: D.vndShort(f.total), l: 'Chi phí tổng' }, { v: per(f.total), l: 'Tổng chi phí / 1 khách' }, { v: D.vndShort(f.prodCost), l: 'Chi phí sản phẩm' }, { v: D.vndShort(f.keepCost), l: 'Chi phí duy trì' }]} />
+    <FinanceDash show={['kpi', 'trend', 'cost']} />
+    <Block title="Chứng từ chi đã nhập" sub={`Tháng ${monthLabel()} (chi tiêu lễ tân nhập) + vật tư hôm nay ${D.dateShort()}`}><Tiles items={[{ v: D.vndShort(f.total), l: 'Chi phí tổng' }, { v: per(f.total), l: 'Tổng chi phí / 1 khách' }, { v: D.vndShort(f.prodCost), l: 'Chi phí sản phẩm' }, { v: D.vndShort(f.keepCost), l: 'Chi phí duy trì' }]} /></Block>
     <ExpensePage readOnly />
   </>
   if (page === 'rev') {
@@ -117,6 +123,9 @@ export function LeaderFin({ sub, back }: { sub: string[]; back: () => void }) {
     const byKtv = D.ktvs().map(k => ({ k, v: f.inv.reduce((t, i) => t + i.lines.filter(l => l.ktvId === k.id).reduce((x, l) => x + l.price - l.discount, 0), 0) })).filter(x => x.v).sort((a, b) => b.v - a.v)
     return <>
       <SubHead title="⑤ Số tiền thu vào – Doanh thu – Lợi nhuận" sub="Tiền thu từ hóa đơn · lợi nhuận = thu − chi phí phân bổ theo tỉ lệ tiền thu" onBack={back} />
+      <FinanceDash />
+      <StaffCompare bar={false} pick="revenue" lockRole />
+      <div className="sec-title"><span className="eyebrow">Chi tiết hóa đơn hôm nay · {D.dateShort()}</span></div>
       <Tiles items={[{ v: D.vndShort(f.cashIn), l: 'Số tiền thu vào', tone: 'ok' }, { v: D.vndShort(f.inv.reduce((t, i) => t + i.total, 0)), l: 'Doanh thu' }, { v: D.vndShort(f.cashIn - f.total), l: 'Lợi nhuận tổng', s: 'chi phí gồm hóa đơn tháng — số liệu mẫu', tone: f.cashIn - f.total < 0 ? 'warn' : 'ok' }]} />
       <Block title="Lợi nhuận trên từng nhóm khách">{byGroup.map(([g, list]) => { const v = list.reduce((t, i) => t + i.paid, 0); return <div key={g} className="col" style={{ gap: 4 }}><div className="row small"><b>{g}</b><span className="right-al">thu {D.vnd(v)} · LN ≈ {D.vnd(v * (1 - share))}</span></div>
         <div className="tiny muted">Nguồn khách: {bySrc(list).map(([k, n]) => `${k} ${D.vndShort(n)}`).join(' · ') || '—'}</div></div> })}</Block>
@@ -132,7 +141,7 @@ export function LeaderFin({ sub, back }: { sub: string[]; back: () => void }) {
       return <div key={x.p.cardCode} className="item"><div className="body"><div className="t">{x.c.name} · {x.p.cardCode}</div><div className="d">{x.p.name} · còn {D.pkgLeftLabel(x.p)} · hạn {x.p.expiry}{D.pkgOwed(x.p) ? ` · còn thiếu ${D.vnd(D.pkgOwed(x.p))}` : ''}</div></div><span className="small">lợi nhuận <b>{D.vnd(v - cost)}</b></span></div> })}{!items.length && <Empty>Không có</Empty>}</div></Block>
     const sorted = [...d.left].sort((a, b) => b.p.expiry.split('/').reverse().join('').localeCompare(a.p.expiry.split('/').reverse().join('')))
     return <>
-      <SubHead title="⑥ Công nợ" sub={`Số buổi spa đang nợ khách · chi phí/tour ước theo định mức vật tư (${D.SAMPLE_NOTE})`} onBack={back} />
+      <SubHead title="⑥ Công nợ" sub={`Tính đến hôm nay ${D.dateShort()} · số buổi spa đang nợ khách · chi phí/tour ước theo định mức vật tư (${D.SAMPLE_NOTE})`} onBack={back} />
       <Tiles items={[{ v: d.sessionsOwed, l: 'Số buổi spa đang nợ khách' }, { v: D.vndShort(d.sessionsOwed * perTour), l: 'Chi phí từ công nợ' }, { v: D.vndShort(d.left.reduce((t, x) => t + d.owedValue(x.p), 0) - d.sessionsOwed * perTour), l: 'Lợi nhuận từ công nợ' }, { v: D.vndShort(d.depositPaid), l: 'Tổng công nợ cọc', s: `còn thiếu ${D.vndShort(d.depositMissing)}` }, { v: D.vndShort(d.depositPaid - d.deposit.reduce((t, x) => t + (x.p.type === 'session' ? D.pkgLeft(x.p) * perTour : 0), 0)), l: 'Tổng lợi nhuận từ cọc' }, { v: D.vndShort(d.deposit.reduce((t, x) => t + x.p.finalPrice, 0) - d.deposit.reduce((t, x) => t + (x.p.type === 'session' ? D.pkgLeft(x.p) * perTour : 0), 0)), l: 'LN ước tính nếu khách hoàn thành gói' }, { v: D.vndShort(d.fullValue), l: 'Công nợ khách đã hoàn thành gói' }]} />
       <Block title="Danh sách khách còn buổi ở spa" sub="Xếp theo hạn từ xa tới gần"><div className="card list">{sorted.map(x => <div key={x.p.cardCode} className="item"><div className="body"><div className="t">{x.c.name}</div><div className="d">{x.p.cardCode} · còn {D.pkgLeftLabel(x.p)} · hạn {x.p.expiry}</div></div></div>)}{!sorted.length && <Empty>Không có</Empty>}</div></Block>
       <L title="Liệu trình Việt — cọc tiền chưa đi hết" items={list(false, true)} />
@@ -177,6 +186,8 @@ export function StaffPerf({ back }: { back: () => void }) {
   return <>
     <SubHead title="Hiệu suất nhân sự" sub="Chọn kĩ thuật viên hoặc lễ tân · mục chưa có dữ liệu ghi Chưa nối" onBack={back} />
     <Seg value={role} onChange={r => { setRole(r); setId('') }} items={[{ k: 'ktv', label: 'Kĩ thuật viên' }, { k: 'reception', label: 'Lễ tân' }]} />
+    <StaffCompare key={role} role={role} lockRole />
+    <div className="sec-title"><span className="eyebrow">Chi tiết từng người · hôm nay {D.dateShort()}</span></div>
     <select className="inp" value={cur} onChange={e => setId(e.target.value)} aria-label="Chọn nhân sự">{ppl.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
     {cur && <PerfView id={cur} extra />}
   </>

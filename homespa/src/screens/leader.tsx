@@ -1,6 +1,7 @@
 // LEADER HOME — theo tài liệu "Leader Home":
 // Hôm nay = việc cần làm · Khách hàng = quá trình theo từng khách · Hỏi đáp Mộc = hướng dẫn · Của tôi = kết quả & năng lực.
 // Một việc chỉ nhập kết quả MỘT lần → tự cập nhật hồ sơ khách và chỉ số cá nhân.
+import { HealthDash } from './timeDash'
 import { useMemo, useState } from 'react'
 import { useStore, BUDGET_LIMIT } from '../store'
 import * as D from '../data'
@@ -279,23 +280,10 @@ export function MocScreen({ groups }: { groups?: { t: string; q: string }[] }) {
 }
 
 // ═══════════════════════════ 4. CỦA TÔI ═══════════════════════════
-type Per = 'day' | 'week' | 'month'
-const METRICS: { k: keyof typeof D.HISTORY.day.prev; label: string; unit?: string; invert?: boolean }[] = [
-  { k: 'newCust', label: 'Khách mới' }, { k: 'returning', label: 'Khách quay lại' }, { k: 'revenue', label: 'Tiền đã thu', unit: 'đ' },
-  { k: 'bookings', label: 'Lượt đặt lịch' }, { k: 'showRate', label: 'Tỷ lệ đến', unit: '%' }, { k: 'waitAvg', label: 'Chờ trung bình', unit: ' phút', invert: true },
-]
 export function MineScreen() {
   const st = useStore(); const { s, me } = st
-  const [per, setPer] = useState<Per>('week')
   const [report, setReport] = useState(false)
   const [ini, setIni] = useState<string | 'new' | null>(null)
-  const todayNow = useMemo(() => {
-    const past = s.appts.filter(a => a.start <= s.now)
-    return { newCust: s.customers.filter(c => c.firstVisit === D.dateShort()).length, returning: s.appts.filter(a => ['in_service', 'done', 'paid'].includes(a.status) && cust(s, a.customerId).visits > 1).length,
-      revenue: s.invoices.filter(i => i.status !== 'Nháp' && i.status !== 'Đã xóa').reduce((t, i) => t + i.paid, 0), bookings: s.appts.length,
-      showRate: past.length ? Math.round(past.filter(a => a.status !== 'no_show' && !(a.status === 'booked' && s.now - a.start > 10)).length / past.length * 100) : 100, waitAvg: (() => { const w = s.appts.filter(a => a.waitMin != null); return w.length ? Math.round(w.reduce((t, a) => t + a.waitMin!, 0) / w.length) : D.HISTORY.day.prev.waitAvg })() }
-  }, [s])
-  const cur = per === 'day' ? todayNow : D.HISTORY[per].now, prev = D.HISTORY[per].prev, target = D.HISTORY[per].target
   const myTasks = s.tasks.filter(t => t.ownerId === me.id || t.createdBy === me.id)
   const done = myTasks.filter(t => t.status === 'done' && t.startedMin != null && t.doneMin != null)
   const avgHandle = done.length ? Math.round(done.reduce((x, t) => x + (t.doneMin! - t.startedMin!), 0) / done.length) : 0
@@ -317,12 +305,8 @@ export function MineScreen() {
   const sent = s.approvals.filter(a => a.fromId === me.id)
   return <>
     <PageHeader eyebrow={`Leader ${me.name}`} title="Của tôi" sub="Kết quả quản lý & đóng góp phát triển — liên kết với dữ liệu ở “Hôm nay”, không cần nhập lại"
-      right={<><Seg value={per} onChange={setPer} items={[{ k: 'day', label: 'Ngày' }, { k: 'week', label: 'Tuần' }, { k: 'month', label: 'Tháng' }]} /><button className="btn pri" onClick={() => setReport(true)}>Báo cáo tuần</button></>} />
-    <Sec eyebrow="Home đang tăng hay giảm" right={<span className="tiny muted">So kỳ tương đương & mục tiêu · luôn hiện số tuyệt đối và % <Pill tone="yellow">{per === 'day' ? 'Kỳ trước & mục tiêu: ' : ''}{D.SAMPLE_NOTE}</Pill></span>}>
-      <div className="grid g3">{METRICS.map(m => { const v = cur[m.k], p = prev[m.k], tg = target[m.k]; const fmt = (n: number) => (m.unit === 'đ' ? D.vndShort(n) : `${n}${m.unit ?? ''}`)
-        const hit = m.invert ? v <= tg : v >= tg
-        return <div key={m.k} className="card stat" style={{ ['--tone' as any]: hit ? 'var(--g-fg)' : 'var(--y-fg)' }}><span className="l">{m.label}</span><span className="v num">{fmt(v)}</span><Delta now={v} prev={p} invert={m.invert} unit={m.unit === 'đ' ? 'đ' : m.unit === '%' ? ' điểm %' : m.unit} /><span className="tiny muted">Kỳ trước {fmt(p)} · mục tiêu {fmt(tg)} {hit ? '✓' : `· còn thiếu ${fmt(Math.abs(tg - v))}`}</span></div> })}</div>
-    </Sec>
+      right={<button className="btn pri" onClick={() => setReport(true)}>Báo cáo tuần</button>} />
+    <HealthDash />
     <div className="split">
       <Sec eyebrow="KPI quản lý lễ tân & KTV">
         <div className="card list">
