@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useStore } from '../store'
 import * as D from '../data'
 import { stockQty, heldBy, usage, buySuggest } from '../logic'
-import { SubHead, Seg, Block, PhotoInput, Pill, Empty, Tiles, Thumb, NumInput } from '../ui'
+import { SubHead, Seg, Block, PhotoInput, RefPhoto, Pill, Empty, Tiles, Thumb, NumInput } from '../ui'
 
 const AI_NOTE = 'Giả lập — Chưa nối AI thật'
 const tone = (st?: string) => st === 'Đạt' || st === 'Đã duyệt' || st === 'Đồng ý' || st === 'Đã xử lý' ? 'green' : st?.startsWith('Không') || st === 'Từ chối' || st === 'Cần xử lý' ? 'red' : 'yellow'
@@ -43,8 +43,7 @@ function LaborPage() {
       <div className="card list">{std.map((t, j) => <label key={t} className="item" style={{ cursor: 'pointer' }}><input type="checkbox" checked={!!ticks[j]} onChange={e => { const n = [...ticks]; n[j] = e.target.checked; setTicks(n) }} /><div className="body"><div className="t">{t}</div></div></label>)}</div>
     </Block>
     <Block title="Ảnh mẫu → tải ảnh báo cáo theo mẫu">
-      <div className="row small"><span className="thumb">🖼</span><span className="muted">Ảnh mẫu Home: tệp ảnh Chưa nối — chụp đúng góc như ảnh mẫu.</span></div>
-      <PhotoInput value={photo} onChange={setPhoto} label="Tải ảnh báo cáo theo mẫu" />
+      <PhotoInput value={photo} onChange={setPhoto} label="Ảnh báo cáo theo mẫu" refKey="ops-report" refHint="Chụp đúng góc như ảnh mẫu Home." />
       <button className="btn pri" disabled={!photo} onClick={send}>Gửi duyệt</button>
       <div className="tiny muted">Phản hồi (AI quét): {AI_NOTE}. Đạt → lưu kết quả; không đạt → lễ tân xử lý và bấm "Đã xử lý".</div>
     </Block>
@@ -72,7 +71,7 @@ function XpPage() {
     <button className="back" onClick={() => setK(null)}>← 9 nội dung kiểm tra</button>
     <Block title={`${k + 1}. ${t}`} sub="Tiêu chuẩn Home"><div className="small">{d}</div>
       {direct && <div className="note small">Mục này nhân viên <b>kiểm tra trực tiếp rồi xác nhận</b>; ảnh chỉ hỗ trợ đối chiếu.</div>}
-      <div className="row small"><span className="thumb">🖼</span><span className="muted">Ảnh mẫu Home: Chưa nối tệp ảnh</span></div></Block>
+      <RefPhoto k={`xp:${k}`} title={t} hint="Ảnh chuẩn Home để đối chiếu khi kiểm tra." /></Block>
     <Block title="Kết quả">
       <Seg value={f.res} onChange={v => setF({ ...f, res: v })} items={[{ k: 'Đạt', label: 'Đạt' }, { k: 'Cần xử lý', label: 'Cần xử lý' }, { k: 'Không áp dụng', label: 'Không áp dụng' }]} />
       <PhotoInput value={f.photo} onChange={v => setF({ ...f, photo: v })} label={direct ? 'Ảnh hỗ trợ (không bắt buộc)' : 'Tải ảnh thực tế'} />
@@ -112,7 +111,7 @@ function StockIn() {
         <label className="f">Người đi mua<input className="inp" value={f.buyer} onChange={e => setF({ ...f, buyer: e.target.value })} /></label>
         <label className="f">Lô / hạn sử dụng (nếu có)<input className="inp" value={f.lot} onChange={e => setF({ ...f, lot: e.target.value })} /></label></div>
       <div className="small">Thành tiền: <b>{D.vnd(f.packs * (f.price || it.cost * it.pack))}</b> · Người nhận kho: <b>{me.name}</b> · quy đổi = {qtyL(f.item, f.packs * it.pack)}</div>
-      <PhotoInput value={f.photo} onChange={v => setF({ ...f, photo: v })} label="Ảnh hóa đơn nhập" />
+      <PhotoInput value={f.photo} onChange={v => setF({ ...f, photo: v })} label="Ảnh hóa đơn nhập" refKey="stock-in" refHint="Chụp hóa đơn nhập kèm hàng, thấy rõ số lượng." />
       <button className="btn pri" disabled={f.packs <= 0 || !f.supplier.trim() || !f.photo} onClick={() => { addStock({ item: f.item, kind: 'Nhập', qty: f.packs * it.pack, price: f.price || it.cost * it.pack, supplier: f.supplier.trim(), note: `Mua: ${f.buyer || me.name}${f.lot ? ` · lô/HSD ${f.lot}` : ''} · có ảnh hóa đơn` }); setF({ ...f, packs: 1, supplier: '', buyer: '', lot: '', photo: '' }) }}>Lưu phiếu nhập</button>
     </Block>
     <Block title="Phiếu nhập gần đây"><Hist empty="Chưa có phiếu nhập" rows={s.stockMoves.filter(m => m.kind === 'Nhập').map(m => ({ k: m.id, t: `${IT(m.item).name} +${qtyL(m.item, m.qty)}`, d: `${m.supplier ?? ''} · ${D.vnd((m.qty / IT(m.item).pack) * (m.price ?? 0))} · ${m.note} · ${D.staffName(m.by)} ${D.hhmm(m.at)}` }))} /></Block>
@@ -149,7 +148,7 @@ function StockSell() {
         <label className="f">Giảm giá<NumInput className="inp num" min={0} value={f.disc} onChange={v => setF({ ...f, disc: v })} /></label>
         <label className="f">Tiền đã thu<NumInput className="inp num" min={0} value={f.paid} placeholder={String(total)} onChange={v => setF({ ...f, paid: v })} /></label></div>
       <div className="small">Thành tiền: <b>{D.vnd(total)}</b></div>
-      <PhotoInput value={f.photo} onChange={v => setF({ ...f, photo: v })} label="Ảnh hóa đơn" />
+      <PhotoInput value={f.photo} onChange={v => setF({ ...f, photo: v })} label="Ảnh hóa đơn" refKey="invoice" refHint="Chụp thẳng, rõ số tiền, ngày và nơi bán." />
       <button className="btn pri" disabled={f.qty <= 0 || !f.cust || stockQty(s, f.item) < f.qty} onClick={() => { addStock({ item: f.item, kind: 'Bán', qty: f.qty, staffId: f.seller, price: total / f.qty, note: `Bán cho ${s.customers.find(c => c.id === f.cust)?.name} · thu ${D.vnd(f.paid || total)}${f.photo ? ' · có hóa đơn' : ''}` }); setF({ ...f, cust: '', qty: 1, disc: 0, paid: 0, photo: '' }) }}>Lưu giao dịch bán</button>
       {stockQty(s, f.item) < f.qty && <div className="tiny" style={{ color: 'var(--r-fg)' }}>Kho không đủ hàng.</div>}
       <div className="tiny muted">Trả hàng / hoàn tiền: ghi phiếu "Nhân viên hoàn trả" ở mục 2 kèm lý do.</div>
@@ -231,7 +230,7 @@ function ReqPage({ kind }: { kind: D.OpsReq['kind'] }) {
       <label className="f">{eq ? 'Thiết bị cần sửa' : 'Tên hoạt động'} *<input className="inp" value={f.title} onChange={e => setF({ ...f, title: e.target.value })} placeholder={eq ? 'VD: máy sấy tóc tầng 3' : 'VD: sinh nhật KTV Lan tháng 10'} /></label>
       <label className="f">Chi phí (đồng)<NumInput className="inp num" min={0} value={f.cost} onChange={v => setF({ ...f, cost: v })} /></label>
       {eq && <div className="grid g3"><label className="f">Sửa từ ngày *<input className="inp" type="date" value={f.from} onChange={e => setF({ ...f, from: e.target.value })} /></label><label className="f">Tới ngày *<input className="inp" type="date" value={f.to} onChange={e => setF({ ...f, to: e.target.value })} /></label></div>}
-      {eq && <PhotoInput value={f.photo} onChange={v => setF({ ...f, photo: v })} label="Tải ảnh thiết bị" />}
+      {eq && <PhotoInput value={f.photo} onChange={v => setF({ ...f, photo: v })} refKey="equipment" refHint="Chụp toàn bộ thiết bị và vị trí hỏng." label="Tải ảnh thiết bị" />}
       <button className="btn pri" disabled={!okForm} onClick={() => { addOpsReq({ kind, title: f.title.trim(), cost: f.cost, from: f.from || undefined, to: f.to || undefined, photo: f.photo || undefined }); setF({ title: '', cost: 0, from: '', to: '', photo: '' }) }}>Gửi duyệt</button>
       {eq && f.from && f.to && f.from > f.to && <div className="tiny" style={{ color: 'var(--r-fg)' }}>Ngày kết thúc phải sau ngày bắt đầu.</div>}
     </Block>
@@ -293,7 +292,7 @@ export function ExpensePage({ readOnly }: { readOnly?: boolean }) {
         <label className="f">Số tiền *<NumInput className="inp num" min={0} value={f.amount} onChange={v => setF({ ...f, amount: v })} /></label>
         <label className="f">Ngày<input className="inp" type="date" value={f.date} onChange={e => setF({ ...f, date: e.target.value })} /></label></div>
       <label className="f">Ghi chú<input className="inp" value={f.note} onChange={e => setF({ ...f, note: e.target.value })} /></label>
-      <PhotoInput value={f.photo} onChange={v => setF({ ...f, photo: v })} label="Ảnh hóa đơn" />
+      <PhotoInput value={f.photo} onChange={v => setF({ ...f, photo: v })} label="Ảnh hóa đơn" refKey="invoice" refHint="Chụp thẳng, rõ số tiền, ngày và nơi bán." />
       <button className="btn pri" disabled={f.amount <= 0 || !f.photo || !f.date} onClick={() => { const [y, m, d] = f.date.split('-'); addExpense({ cat: f.cat, amount: f.amount, date: `${d}/${m}/${y}`, note: f.note.trim(), photo: f.photo }); setF({ ...f, amount: 0, note: '', photo: '' }) }}>Lưu chi phí</button>
       {f.cat === 'Lương cơ sở' && <div className="tiny muted">Bảng lương nhân sự từng tháng: CEO ⑨ Dòng tiền & lương — Chưa nối.</div>}
     </Block>}

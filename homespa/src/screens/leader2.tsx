@@ -142,7 +142,19 @@ export function LeaderFin({ sub, back }: { sub: string[]; back: () => void }) {
     const sorted = [...d.left].sort((a, b) => b.p.expiry.split('/').reverse().join('').localeCompare(a.p.expiry.split('/').reverse().join('')))
     return <>
       <SubHead title="⑥ Công nợ" sub={`Tính đến hôm nay ${D.dateShort()} · số buổi spa đang nợ khách · chi phí/tour ước theo định mức vật tư (${D.SAMPLE_NOTE})`} onBack={back} />
-      <Tiles items={[{ v: d.sessionsOwed, l: 'Số buổi spa đang nợ khách' }, { v: D.vndShort(d.sessionsOwed * perTour), l: 'Chi phí từ công nợ' }, { v: D.vndShort(d.left.reduce((t, x) => t + d.owedValue(x.p), 0) - d.sessionsOwed * perTour), l: 'Lợi nhuận từ công nợ' }, { v: D.vndShort(d.depositPaid), l: 'Tổng công nợ cọc', s: `còn thiếu ${D.vndShort(d.depositMissing)}` }, { v: D.vndShort(d.depositPaid - d.deposit.reduce((t, x) => t + (x.p.type === 'session' ? D.pkgLeft(x.p) * perTour : 0), 0)), l: 'Tổng lợi nhuận từ cọc' }, { v: D.vndShort(d.deposit.reduce((t, x) => t + x.p.finalPrice, 0) - d.deposit.reduce((t, x) => t + (x.p.type === 'session' ? D.pkgLeft(x.p) * perTour : 0), 0)), l: 'LN ước tính nếu khách hoàn thành gói' }, { v: D.vndShort(d.fullValue), l: 'Công nợ khách đã hoàn thành gói' }]} />
+      {(() => { const cost = d.sessionsOwed * perTour, depCost = d.deposit.reduce((t, x) => t + (x.p.type === 'session' ? D.pkgLeft(x.p) * perTour : 0), 0)
+        return <div className="debt2">
+          <div className="col"><span className="eyebrow">Công nợ</span><Tiles items={[
+            { v: D.vndShort(d.depositDebt + d.fullValue), l: 'Tổng công nợ', s: 'giá trị buổi Home còn nợ khách (cọc + đã trả đủ)', color: 'deep' },
+            { v: d.sessionsOwed, l: 'Số buổi spa đang nợ khách' },
+            { v: D.vndShort(d.depositDebt), l: 'Tổng công nợ cọc', s: `đã cọc ${D.vndShort(d.depositPaid)} · khách còn thiếu ${D.vndShort(d.depositMissing)}` },
+            { v: D.vndShort(d.fullValue), l: 'Công nợ khách đã hoàn thành gói' },
+            { v: D.vndShort(cost), l: 'Chi phí từ công nợ', s: 'vật tư cho các buổi còn nợ' }]} /></div>
+          <div className="col"><span className="eyebrow">Lợi nhuận</span><Tiles items={[
+            { v: D.vndShort(d.left.reduce((t, x) => t + d.owedValue(x.p), 0) - cost), l: 'Lợi nhuận từ công nợ' },
+            { v: D.vndShort(d.depositPaid - depCost), l: 'Tổng lợi nhuận từ cọc' },
+            { v: D.vndShort(d.deposit.reduce((t, x) => t + x.p.finalPrice, 0) - depCost), l: 'LN ước tính nếu khách hoàn thành gói' }]} /></div>
+        </div> })()}
       <Block title="Danh sách khách còn buổi ở spa" sub="Xếp theo hạn từ xa tới gần"><div className="card list">{sorted.map(x => <div key={x.p.cardCode} className="item"><div className="body"><div className="t">{x.c.name}</div><div className="d">{x.p.cardCode} · còn {D.pkgLeftLabel(x.p)} · hạn {x.p.expiry}</div></div></div>)}{!sorted.length && <Empty>Không có</Empty>}</div></Block>
       <L title="Liệu trình Việt — cọc tiền chưa đi hết" items={list(false, true)} />
       <L title="Liệu trình nước ngoài — cọc tiền chưa đi hết" items={list(true, true)} />

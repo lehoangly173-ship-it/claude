@@ -43,6 +43,16 @@ Các bước (Claude tự làm khi connector đã nối đúng tài khoản):
 - Link sẽ đổi (link cũ thuộc `hayquen`). Muốn dùng lại link cũ: nối lại `hayquen` sau 01/11.
 - Không cần lưu mật khẩu/token nào vào repo; connector tự giữ đăng nhập.
 
+## Cập nhật 12/10 — ngày làm việc, ảnh mẫu, ghi nhận CSKH, cài đặt, lương mẫu
+Nhánh dự phòng trước đợt này: `du-phong-truoc-anh-ngay`.
+- **Ô 📅 trên đầu chọn được ngày** (period.ts `setWorkDay/useWorkDay/isPastDay`, đổi `D.TODAY`; tối đa lùi 1 năm). Mỗi ngày một bộ dữ liệu riêng trong store (cất/mở theo ngày; ngày chưa có → dữ liệu mẫu). Ngày đã qua: chỉ Leader/CEO ghi/sửa (mutate/tryMutate/addCustomer/confirmInvoice/reset chặn), người khác chỉ xem + thanh "Về hôm nay".
+- **Ảnh minh chứng**: `PhotoInput` có Chụp ảnh (camera) + Chọn ảnh có sẵn; `RefPhoto` ảnh mẫu đối chiếu (s.refPhotos, chỉ Leader/CEO sửa); trang quản lý chung `home/refphotos` (Leader Hôm nay, CEO Cài đặt).
+- **KTV Ghi nhận chăm sóc khách** (screens/careNote.tsx): nút trong "Tour hôm nay"; chỉ khách KTV đã làm hôm nay; 5 phần theo mẫu; lưu `customer.careNotes`, không ghi đè sức khỏe/sở thích gốc; hồ sơ khách hiện "Ghi nhận gần nhất"; KTV chỉ thấy ghi nhận của mình, không thấy tiềm năng chi.
+- **⑬ Cài đặt hệ thống** (screens/settings.tsx): 16 mục bấm được, dữ liệu thật nếu app có, còn lại ghi "số liệu mẫu".
+- **Thu nhập của tôi**: chọn tháng, ngày công, ngày nghỉ, hoa hồng, thưởng, phạt, Tổng lương thưởng, phiếu 3 tháng (`PAY_RULE/payslip` — số liệu mẫu, chờ CEO cài công thức).
+- **Công nợ**: 2 cột (trái công nợ + Tổng công nợ = nợ cọc + nợ khách đã trả đủ; phải lợi nhuận); nợ cọc = giá trị buổi còn lại − phần khách còn thiếu.
+- Giao diện: ô số lớn nền xanh nhạt cả app; sơ đồ giường tên tầng đỏ + gạch ngăn; không còn trôi ngang (`.main{overflow-x:hidden}`, thẻ cây co theo màn); đổi trang tự cuộn lên đầu.
+
 ## Cập nhật 11/10 (20h) — rà soát logic + deploy
 - "Tiền đã thu" mọi màn (CEO Hôm nay, Điều phối, Thu ngân, CEO/Leader theo kỳ) = hóa đơn + bán sản phẩm (`soldToday` trong logic.ts) → cùng một số. Chốt ca chỉ đối chiếu hóa đơn theo phương thức, ghi rõ khoản bán sản phẩm đếm riêng.
 - Nút cây: menu máy tính mở bằng bàn phím (onFocus), nút mẹ không có con thì chạm là vào trang; `iconFor` sửa nhận nhầm "giá"; ② Chăm sóc KH: nút con cuộn tới đúng khối.

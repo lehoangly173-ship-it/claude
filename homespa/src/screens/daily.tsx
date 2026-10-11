@@ -5,7 +5,7 @@ import { useStore } from '../store'
 import * as D from '../data'
 import { prioOf, canSee, cust, myZones, zoneReport, canSendReport, tourOrder, billRows, ktvState, pointsOf, unreadCount, cleanDetail, zoneKey, ktvCustomers, buyerSuggestions, validateReceive, canSeeBuyer, isoToday, isoToVi, mySuggestions, inboxSuggestions, suggestionError } from '../logic'
 import { T } from '../i18n'
-import { Pill, Empty, Modal, SubHead, Block, Tiles, PhotoInput, Thumb, Seg, Av, Icon, Nodes, NumInput } from '../ui'
+import { Pill, Empty, Modal, SubHead, Block, Tiles, PhotoInput, RefPhoto, Thumb, Seg, Av, Icon, Nodes, NumInput } from '../ui'
 import { ApptPill, BedsScreen, ScheduleScreen } from './ops'
 
 type P = { back: () => void }
@@ -177,8 +177,7 @@ function ZoneModal({ zone, onClose }: { zone: number; onClose: () => void }) {
     <div className="col" style={{ gap: 2 }}><div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><span className="eyebrow" style={{ marginRight: 'auto' }}>Tiêu chuẩn & việc cần làm</span><button className="btn sm" onClick={() => setShowStd(true)}>{T.clean.stdButton}</button></div>
       {own && <label className="check"><input type="checkbox" checked={!!s.zoneRead[key]} onChange={e => setZoneRead(zone, e.target.checked)} />{T.clean.readTask}</label>}
       {z.std.map((x, i) => <label key={i} className="check"><input type="checkbox" disabled={!canTick} checked={!!checks[i]} onChange={() => toggleZoneCheck(zone, i, checks)} />{x}</label>)}</div>
-    <div className="note">Ảnh mẫu: chụp toàn cảnh khu vực, đủ sáng, thấy rõ các điểm trong tiêu chuẩn. Ảnh là căn cứ chấm điểm.</div>
-    {canSend ? <PhotoInput value={photo} onChange={setPhoto} label="Tải ảnh khu vực đã dọn" /> : !own ? <div className="small muted">Khu này không phải của bạn hôm nay.</div> : <div className="small muted">Đã gửi — chờ kết quả kiểm tra. Bạn vẫn tích được các việc đang làm.</div>}
+    {canSend ? <PhotoInput value={photo} onChange={setPhoto} label="Ảnh khu vực đã dọn" refKey={`zone:${zone}`} refHint="Chụp toàn cảnh khu vực, đủ sáng, thấy rõ các điểm trong tiêu chuẩn. Ảnh là căn cứ chấm điểm." /> : !own ? <div className="small muted">Khu này không phải của bạn hôm nay.</div> : <div className="small muted">Đã gửi — chờ kết quả kiểm tra. Bạn vẫn tích được các việc đang làm.</div>}
   </Modal>{showStd && <StdModal zone={zone} onClose={() => setShowStd(false)} />}</>
 }
 
@@ -207,7 +206,7 @@ function ZoneView({ zone, tab, setTab, justSent, onSent, back }: { zone: number;
     {!own ? <div className="small muted">{T.clean.notYours}.</div> : <>
       <Seg value={tab} onChange={setTab} items={[{ k: 'photo', label: T.clean.great1 }, { k: 'std', label: T.clean.great2 }]} />
       {tab === 'photo' && <div className="card pad col">
-        <div className="note">{T.clean.photoNote}</div>
+        <RefPhoto k={`zone:${zone}`} title={`Khu ${zone} · ${z.name}`} hint={T.clean.photoNote} />
         <div className="row">{photo ? <Thumb src={photo} /> : null}<span className="small">{photo ? T.clean.hasPhoto : T.clean.noPhoto}</span></div>
         <input ref={snap} type="file" accept="image/*" capture="environment" hidden onChange={onFile} /><input ref={pick} type="file" accept="image/*" hidden onChange={onFile} />
         {err && <div className="err small" role="alert">{err}</div>}
@@ -293,7 +292,7 @@ export function BillsPage({ back }: P) {
     <SubHead title={isRec ? 'Bill Money nhóm chung' : 'Bill Money'} sub="Chọn ca → tải ảnh bill. Hệ thống đối soát ngầm với tour đã làm để xác nhận bill." onBack={back} />
     {canUpload && <Block title="Tải ảnh bill" sub={`Ngày ${D.dateShort()}`}>
       <Seg value={shift} onChange={setShift} items={[{ k: '1', label: 'Ca sáng' }, { k: '2', label: 'Ca chiều' }]} />
-      <PhotoInput value={photo} onChange={setPhoto} label="Chụp / chọn ảnh bill" />
+      <PhotoInput value={photo} onChange={setPhoto} label="Ảnh bill" refKey="bill" refHint="Chụp thẳng, đủ 4 góc bill, đọc rõ tên dịch vụ và số tiền." />
       <input id="bill-note" className="inp" value={note} onChange={e => setNote(e.target.value)} placeholder="Ghi chú (tùy chọn) — VD: bill 2 khách gộp" />
       <button className="btn pri" disabled={!photo} onClick={() => { uploadBill(+shift as 1 | 2, photo, note.trim()); setPhoto(''); setNote('') }}>Gửi ảnh bill</button>
       <div className="row">{s.bills.filter(b => b.staffId === me.id).map(b => <span key={b.id} className="row small"><Thumb src={b.photo} />{D.hhmm(b.at)} · ca {b.shift}</span>)}</div>
@@ -321,7 +320,7 @@ export function ReviewsPage({ back }: P) {
     {(user.role === 'ktv' || user.role === 'reception') && <Block title="Gửi minh chứng đánh giá">
       <Seg value={platform} onChange={setPlatform} items={[{ k: 'Google', label: 'Google Maps' }, { k: 'Facebook', label: 'Facebook' }]} />
       <label className="f">Khách của tour<select id="rv-cust" className="inp" value={cid} onChange={e => setCid(e.target.value)}><option value="">— chọn khách —</option>{(user.role === 'ktv' ? myCust : s.customers.map(c => c.id)).map(id => <option key={id} value={id}>{cust(s, id).name}</option>)}</select></label>
-      <PhotoInput value={photo} onChange={setPhoto} label="Ảnh chụp đánh giá của khách" />
+      <PhotoInput value={photo} onChange={setPhoto} label="Ảnh đánh giá của khách" refKey="review" refHint="Chụp màn hình đánh giá có tên khách, số sao và ngày." />
       <button className="btn pri" disabled={!photo || !cid} onClick={() => { addReview(platform, cid, photo); setPhoto(''); setCid('') }}>Gửi đối soát</button>
     </Block>}
     <Block title="Danh sách minh chứng"><div className="card list">{list.map(r => <div key={r.id} className="item"><Thumb src={r.photo} /><div className="body"><div className="t">{r.platform} · {r.customerId ? cust(s, r.customerId).name : '—'}</div><div className="d">{D.staffName(r.staffId)} · {D.hhmm(r.at)}{r.checker ? ` · kiểm: ${D.staffName(r.checker)}` : ''}</div></div>
@@ -359,7 +358,7 @@ export function ProductsPage({ back }: P) {
       <div className="grid g3"><label className="f">Sản phẩm<select id="pr-p" className="inp" value={f.product} onChange={e => setF({ ...f, product: e.target.value })}>{D.PRODUCTS.map(p => <option key={p}>{p}</option>)}</select></label>
         <label className="f">Số lượng<NumInput id="pr-q" className="inp num" min={0} value={f.qty} onChange={v => setF({ ...f, qty: v })} /></label>
         {isRec && <label className="f">KTV nhận<select id="pr-k" className="inp" value={f.ktvId} onChange={e => setF({ ...f, ktvId: e.target.value })}>{D.ktvs().map(k => <option key={k.id} value={k.id}>{k.name}</option>)}</select></label>}</div>
-      <PhotoInput value={photo} onChange={v => { setPhoto(v); setErr('') }} label="Ảnh xác minh sản phẩm" />
+      <PhotoInput value={photo} onChange={v => { setPhoto(v); setErr('') }} label="Ảnh xác minh sản phẩm" refKey="product" refHint="Chụp sản phẩm và nhãn, thấy rõ dung tích / số lượng." />
       {isKtv && <div className="col" style={{ gap: 8 }}>
         <span className="eyebrow">{T.product.purposeTitle}</span>
         <label className="radio"><input type="radio" name="pr-purpose" checked={purpose === 'ban_khach'} onChange={() => { setPurpose('ban_khach'); setErr('') }} />{T.product.sell}</label>
@@ -367,7 +366,7 @@ export function ProductsPage({ back }: P) {
         {purpose === 'ban_khach' && <>
           <label className="f">{T.product.buyerLabel}<input id="pr-buyer" className="inp" autoComplete="off" value={buyer} placeholder={T.product.buyerPlaceholder} onChange={e => { setBuyer(e.target.value); setErr('') }} /></label>
           {sugg.length > 0 && <ul className="suggest">{sugg.map(c => <li key={c.id} role="option" aria-selected={false} onClick={() => setBuyer(`${c.name} (${c.code})`)}>{c.name} <span className="tiny muted">· mã {c.code}</span></li>)}</ul>}
-          <PhotoInput value={invoice} onChange={v => { setInvoice(v); setErr('') }} label={T.product.invoiceButton} />
+          <PhotoInput value={invoice} onChange={v => { setInvoice(v); setErr('') }} label={T.product.invoiceButton} refKey="invoice" refHint="Chụp thẳng, rõ số tiền, ngày và nơi bán." />
         </>}
       </div>}
       {err && <div className="err small" role="alert">{err}</div>}

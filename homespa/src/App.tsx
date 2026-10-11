@@ -1,6 +1,7 @@
 // Khung ứng dụng: MỘT codebase — điện thoại (thanh tab dưới) và máy tính (thanh bên).
 // Mỗi vai trò có 4 nút mẹ theo sơ đồ: HÔM NAY · KHÁCH HÀNG · HỎI ĐÁP MỘC · CỦA TÔI (+ tab vận hành riêng).
-import { ReactNode, useEffect, useState } from 'react'
+import { useWorkDay, setWorkDay, realToday, isPastDay, iso, addDays } from './period'
+import { ReactNode, useEffect, useRef, useState } from 'react'
 import { useStore, defaultStaffFor } from './store'
 import * as D from './data'
 import { Icon, CustomerModal, MenuCtx } from './ui'
@@ -63,6 +64,9 @@ function useDesktop() {
 
 export default function App() {
   const { s, user, setUser, me, page, go, profile, openCustomer, toast, advance, reset } = useStore()
+  const wd = useWorkDay(), past = isPastDay(), canWrite = user.role === 'leader' || user.role === 'ceo'
+  const mainRef = useRef<HTMLElement>(null)
+  useEffect(() => { mainRef.current?.scrollTo?.({ top: 0 }); window.scrollTo?.({ top: 0 }) }, [page, user.role]) // sang trang mới luôn bắt đầu từ đầu trang
   const r = route(user.role, page)
   const tabs = TABS[user.role]
   const unread = unreadCount(s, user.role, me.id)
@@ -103,7 +107,7 @@ export default function App() {
       <div className="fm-top"><b>Hôm nay</b><button className="x" onClick={closeMenu} aria-label="Đóng">×</button></div>
       <div className="fm-body" ref={setHost} />
     </div>
-    <main className="main">
+    <main className="main" ref={mainRef}>
       {D.DEMO && <div className="rolebar">
         <div className="rb-top"><span>Demo — chuyển vai trò</span><span>Bấm để xem giao diện khác</span></div>
         <div className="chips">{ROLE_ORDER.map(ro => <button key={ro} className={`rchip${user.role === ro ? ' on' : ''}`} onClick={() => switchRole(ro)}>{ROLE_CHIP[ro]}</button>)}</div>
@@ -117,10 +121,12 @@ export default function App() {
         <span className="avatar">{me.name.replace('Chị ', '')[0]}</span>
         <div className="who"><small>{user.role === 'ceo' ? 'CEO' : user.role === 'ktv' ? 'KTV Trị liệu' : D.ROLE_LABEL[user.role]}</small><b>{user.role === 'ceo' ? 'Dr. Quyên' : me.name}</b></div>
         <span className="grow" />
-        <span className="today-chip" title="Hôm nay">📅 {D.TODAY.toLocaleDateString('vi-VN', { weekday: 'short' })} {D.dateShort()}</span>
+        <label className={`today-chip${past ? ' past' : ''}`} title="Chọn ngày làm việc">📅 {D.TODAY.toLocaleDateString('vi-VN', { weekday: 'short' })} {D.dateShort()} ▾
+          <input type="date" aria-label="Chọn ngày làm việc" min={iso(addDays(realToday(), -365))} max={iso(realToday())} value={iso(D.TODAY)} onClick={e => { try { (e.currentTarget as HTMLInputElement & { showPicker?: () => void }).showPicker?.() } catch { /* trình duyệt cũ */ } }} onChange={e => e.target.value && setWorkDay(e.target.value)} /></label>
         <button className="iconbtn" onClick={() => nav('home/notices')} aria-label={`Thông báo${unread ? `, ${unread} chưa đọc` : ''}`}><Icon n="bell" s={18} />{unread > 0 && <span className="dot" />}</button>
       </div>
-      <div className="page" key={user.role + r.join('/')}>
+      {past && <div className={`pastbar${canWrite ? ' w' : ''}`}>{canWrite ? `Đang ghi/sửa cho ngày ${D.dateShort()}` : `Đang xem ngày ${D.dateShort()} — chỉ xem`}<button className="btn sm" onClick={() => setWorkDay(iso(realToday()))}>Về hôm nay</button></div>}
+      <div className="page" key={user.role + r.join('/') + wd}>
         <MenuCtx.Provider value={menuMode && host ? { host, close: closeMenu } : null}>{screenFor(user.role, r)}</MenuCtx.Provider>
         {menuMode && !menuOpen && <button className="fm-hint" onClick={() => setMenuOpen(true)}><Icon n="home" s={16} />Mở danh mục việc hôm nay</button>}
       </div>

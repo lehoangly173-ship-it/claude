@@ -329,7 +329,7 @@ export function BedsScreen() {
   const counts = D.BEDS.map(b => bedState(s, b).label)
   return <>
     <PageHeader eyebrow="Điều phối hôm nay" title="Sơ đồ giường" sub={`${D.BEDS.length} giường · ${counts.filter(c => c === 'Trống').length} trống · ${counts.filter(c => c === 'Đang làm' || c === 'Sắp xong').length} đang dùng · ${counts.filter(c => c === 'Đang dọn').length} đang dọn`} />
-    {([1, 2, 3] as const).map(fl => <Sec key={fl} eyebrow={`Tầng ${fl}`}><div className="beds">{D.BEDS.filter(b => b.floor === fl).map(b => { const st = bedState(s, b)
+    {([1, 2, 3] as const).map(fl => <Sec key={fl} eyebrow={`Tầng ${fl}`} cls="floor"><div className="beds">{D.BEDS.filter(b => b.floor === fl).map(b => { const st = bedState(s, b)
       return <button key={b.id} className={`bed t-${st.tone}`} onClick={() => st.appt && (user.role !== 'ktv' || st.appt.ktvId === user.staffId) ? setSel(st.appt.id) : undefined} style={{ cursor: st.appt && (user.role !== 'ktv' || st.appt.ktvId === user.staffId) ? 'pointer' : 'default' }}>
         <div className="row"><b>{b.id}</b><span className="tiny right-al">{b.zone === 'wash' ? 'Gội' : 'Trị liệu'}</span></div>
         <span className="small strong">{st.label}</span>

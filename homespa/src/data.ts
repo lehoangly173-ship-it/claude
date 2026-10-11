@@ -78,6 +78,19 @@ export const pkgLeftLabel = (p: Package) => (p.type === 'session' ? `${pkgLeft(p
 export const pkgUsable = (p: Package, serviceId: string) => p.group === 'Tất cả' || p.group === svc(serviceId).group
 
 // ── Khách hàng ──
+/** Ghi nhận chăm sóc của KTV sau buổi — lưu vào hồ sơ khách để cá nhân hóa lần sau */
+export type CareNote = { at: string; date: string; by: string; byId: string
+  pain: { area: string; type: string; side: string; level: number }
+  findings: { stiff: string; numb: string; stress: string; other: string }
+  pref: { force: string; technique: string; wish: string }
+  after: { relief: string; reliefPct: number; remain: string; remainLevel: number }
+  spend: string; unhappy: string[]; unhappyOther: string }
+export const careSummary = (n: CareNote) => `${n.pain.area}${n.pain.side ? ` (${n.pain.side})` : ''}${n.pain.type ? ` · ${n.pain.type}` : ''} · mức ${n.pain.level}/10 · lực ${n.pref.force.toLowerCase()}${n.after.relief ? ` · sau buổi giảm ${n.after.reliefPct}% ở ${n.after.relief}` : ''}${n.after.remain ? `, còn đau ${n.after.remain} ${n.after.remainLevel}/10` : ''}`
+export const CARE_OPTS = {
+  area: ['Cổ vai gáy', 'Lưng trên', 'Thắt lưng', 'Hông', 'Chân', 'Đầu', 'Tay'], type: ['Âm ỉ', 'Nhói', 'Mỏi', 'Căng tức'], side: ['Trái', 'Phải', 'Hai bên'],
+  stress: ['Không', 'Nhẹ', 'Vừa', 'Nặng'], force: ['Nhẹ', 'Vừa', 'Mạnh'], spend: ['Thấp', 'Trung bình', 'Cao', 'Rất cao (VIP)'],
+  unhappy: ['Không gian', 'Nhiệt độ phòng', 'Âm thanh', 'Mùi hương', 'Vệ sinh', 'Thời gian chờ', 'Thái độ phục vụ', 'Giá'],
+} as const
 export type CareEntry = { at: string; by: string; text: string; kind?: 'Nhắn tin' | 'Gọi điện'; ok?: boolean; replied?: boolean; came?: boolean }
 export type Customer = {
   id: string; code: string; name: string; phone: string; group: 'VN' | 'NN'; dob?: string
@@ -86,6 +99,7 @@ export type Customer = {
   address?: string; budget?: number; referredBy?: string; qrCare?: boolean
   /** m4 (số liệu mẫu): có phản hồi chưa hài lòng · khách NN đã rời Đà Nẵng · tiến triển từng lần */
   unhappy?: boolean; departed?: boolean; progress?: string[]
+  careNotes?: CareNote[]
 }
 
 // ── Lịch phục vụ: vòng đời 1 lượt khách ──

@@ -1,4 +1,5 @@
 // KTV & LỄ TÂN — 4 nút mẹ: HÔM NAY · (CÔNG VIỆC / VẬN HÀNH) · KHÁCH HÀNG · HỎI ĐÁP MỘC · CỦA TÔI
+import { Income } from './mine'
 import { OpsBase2, HandoverPage } from './reception2'
 import { ReactNode, useState, useRef } from 'react'
 import { useStore } from '../store'
@@ -315,8 +316,7 @@ export function MyPage({ sub }: { sub: string[] }) {
       <div className="note">Tiêu chí điểm uy tín: chuyên môn · chăm sóc khách · khách yêu cầu lại · feedback · tinh thần · chủ động · tuân thủ quy trình · học tập · văn hóa Home · sáng tạo.</div></>
     case 'train': return <><SubHead title="Đào tạo" sub="Học → Test → Tìm điểm yếu → Lộ trình → Nhắc luyện → Test lại" onBack={back} />
       <NodeSpec rows={[{ t: 'Khóa đang học', d: 'Danh sách bài học theo vai trò' }, { t: 'Video / SOP cần xem', d: D.SOPS.map(x => x.title).join(' · ') }, { t: 'Bài test & kết quả', d: 'Điểm từng lần test, phần còn yếu' }, { t: 'Kỹ năng đã đạt / cần cải thiện', d: 'Do Leader / người phụ trách đào tạo xác nhận' }, { t: 'Lộ trình phát triển', d: 'Mục tiêu học & người hướng dẫn' }]} /></>
-    case 'income': return <><SubHead title="Thu nhập & yêu cầu" onBack={back} />
-      <NodeSpec rows={[{ t: 'Lương cơ bản · công thực tế', d: 'Từ bảng chấm công đã chốt' }, { t: 'Hoa hồng · thưởng · phạt', d: 'Theo tour, khách chốt liệu trình, điểm uy tín' }, { t: 'Tổng thu nhập dự kiến · phiếu lương', d: 'Từng tháng — chỉ bạn và CEO xem' }]} />
+    case 'income': return <><Income back={back} />
       <Block title="Lịch sử yêu cầu"><div className="card list">{[...s.leaves.filter(l => l.staffId === me.id).map(l => ({ k: l.id, t: `${l.kind} ${l.date}`, d: l.detail, st: l.status })), ...s.tasks.filter(t => t.earlyReport && t.createdBy === me.id && t.status !== 'transferred').map(t => ({ k: t.id, t: 'Báo sự cố', d: t.detail, st: t.status === 'done' ? 'Đã xử lý' : 'Đang xử lý' }))].map(r => <div key={r.k} className="item"><div className="body"><div className="t">{r.t}</div><div className="d">{r.d}</div></div><Pill tone={r.st === 'Đã duyệt' || r.st === 'Đã xử lý' ? 'green' : r.st === 'Từ chối' ? 'red' : 'yellow'}>{r.st}</Pill></div>)}</div></Block></>
   }
   return <>

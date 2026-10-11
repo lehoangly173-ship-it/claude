@@ -47,6 +47,7 @@ export type State = {
   adjusts: import('./data').AdjustReq[]
   prioCat: Record<string, import('./data').Prio>
   prioSet: Record<string, import('./data').Prio>
+  refPhotos: Record<string, string> // ảnh mẫu đối chiếu theo mục (Leader/CEO cấp)
 }
 
 const LIVE: Appt['status'][] = ['booked', 'checked_in', 'in_service']
@@ -292,7 +293,7 @@ export function aiCheck(checks: boolean[], photo: string): AiResult {
 // ── m3: Góp ý / sáng kiến ──
 type Sug = import('./data').Suggestion
 /** Ngày hôm nay dạng yyyy-mm-dd (giờ máy) cho ô chọn ngày */
-export const isoToday = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+export const isoToday = (d = new Date(D.TODAY)) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 /** yyyy-mm-dd → dd/mm/yyyy */
 export const isoToVi = (iso: string) => { const [y, m, d] = iso.split('-'); return y && m && d ? `${d}/${m}/${y}` : iso }
 /** Ý kiến do chính người này gửi (mới nhất trước) */
@@ -462,7 +463,9 @@ export function debtSummary(s: State) {
   const deposit = pk.filter(x => D.pkgOwed(x.p) > 0), full = left.filter(x => D.pkgOwed(x.p) === 0)
   const perSession = (p: D.Package) => p.type === 'session' ? p.finalPrice / Math.max(1, (p.sessions ?? 0) + (p.bonus ?? 0)) : 1
   const owedValue = (p: D.Package) => p.type === 'session' ? D.pkgLeft(p) * perSession(p) : D.pkgLeft(p)
-  return { left, deposit, full, sessionsOwed: left.filter(x => x.p.type === 'session').reduce((t, x) => t + D.pkgLeft(x.p), 0), owedValue, depositPaid: deposit.reduce((t, x) => t + D.pkgPaid(x.p), 0), depositMissing: deposit.reduce((t, x) => t + D.pkgOwed(x.p), 0), fullValue: full.reduce((t, x) => t + owedValue(x.p), 0) }
+  return { left, deposit, full, sessionsOwed: left.filter(x => x.p.type === 'session').reduce((t, x) => t + D.pkgLeft(x.p), 0), owedValue, depositPaid: deposit.reduce((t, x) => t + D.pkgPaid(x.p), 0), depositMissing: deposit.reduce((t, x) => t + D.pkgOwed(x.p), 0), fullValue: full.reduce((t, x) => t + owedValue(x.p), 0),
+    /** Home còn nợ khách cọc = giá trị buổi chưa làm − phần khách còn thiếu (không âm), chỉ gói còn buổi */
+    depositDebt: deposit.filter(x => D.pkgLeft(x.p) > 0).reduce((t, x) => t + Math.max(0, owedValue(x.p) - D.pkgOwed(x.p)), 0) }
 }
 /** Hiệu suất nhân sự theo sơ đồ (5 nhóm). null = Chưa nối (chưa có dữ liệu/công thức). Không tự cộng điểm. */
 export function ktvPerf(s: State, id: string, extra = false): { g: string; rows: { t: string; v: string | null }[] }[] {

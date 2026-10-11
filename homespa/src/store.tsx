@@ -1,6 +1,7 @@
 // Kho dữ liệu chung + mọi thao tác. Màn hình chỉ gọi hành động ở đây,
 // nên một thay đổi (chia tour, thu tiền, xong việc) cập nhật mọi nơi cùng lúc.
-import { createContext, useContext, useState, ReactNode } from 'react'
+import { isPastDay, useWorkDay, iso } from './period'
+import { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react'
 import * as D from './data'
 import { State, markReadIn, markUnreadIn, zoneKey, ktvConflict, bedConflict, custConflict, cust, shiftInvoices, CLEAN_MIN, canSee, aiCheck, canSendReport, zoneReport, suggestionError } from './logic'
 import { T } from './i18n'
@@ -45,7 +46,7 @@ const initial = (): State => ({
   ],
   opsChecks: [],
   zoneRead: {}, zoneChecks: {},
-  suggestions: [], prioCat: { ...D.PRIO_DEFAULT }, prioSet: {},
+  suggestions: [], prioCat: { ...D.PRIO_DEFAULT }, prioSet: {}, refPhotos: {},
   stockMoves: clone(D.SEED_STOCK_MOVES), opsReqs: [{ id: 'or1', kind: 'Thiết bị', title: 'Máy sấy tóc tầng 3 kêu to', cost: 350000, from: D.daysAhead(1), to: D.daysAhead(2), photo: 'maysay.jpg', by: 'lam', at: 9 * 60, status: 'Chờ duyệt' }],
   xpChecks: [], handovers: [{ id: 'ho1', from: 'lam', to: 'mai', text: 'Thu hộ 300.000đ tiền mặt của khách Hà (tour 18:00) — nộp lại lễ tân ca 2', at: 9 * 60 + 30, status: 'Chờ xác nhận' }],
   expenses: clone(D.SEED_EXPENSES), profiles: {}, adjusts: [],
@@ -58,6 +59,8 @@ export const useStore = () => useContext(StoreCtx)!
 // Ngưỡng quyền hạn Leader/Marketing: vượt ngưỡng → gửi chị (CEO) duyệt trước
 export const BUDGET_LIMIT = 2000000
 
+const BLOCK_MSG = 'Ngày đã qua chỉ xem — chỉ Leader và CEO được ghi hoặc sửa'
+const lastBlock = { t: 0 }
 function useStoreValue() {
   const [s, setS] = useState<State>(initial)
   const [user, setUser] = useState<User>({ role: 'ktv', staffId: 'mai' })
@@ -67,20 +70,26 @@ function useStoreValue() {
   const [draftBill, setDraftBill] = useState<string | null>(null) // apptId mở sẵn ở Thu ngân
   D.setStaffLive(s.staff)
   const me = s.staff.find(x => x.id === user.staffId)!
-  const say = (t: string) => { setToast(t); window.clearTimeout((say as any)._t); (say as any)._t = window.setTimeout(() => setToast(null), 2600) }
+  const say = (t: string) => { if (Date.now() - lastBlock.t < 400 && t !== BLOCK_MSG) return; setToast(t); window.clearTimeout((say as any)._t); (say as any)._t = window.setTimeout(() => setToast(null), 2600) }
 
   // mutate: sao chép trạng thái, sửa trên bản sao, ghi lại
-  const mutate = (fn: (d: State) => void) => setS(prev => { const d = clone(prev); fn(d); return d })
+  // Mỗi ngày làm việc giữ một bộ dữ liệu riêng: đổi ngày → cất dữ liệu ngày cũ, mở dữ liệu ngày mới (ngày chưa có → dữ liệu mẫu)
+  const wd = useWorkDay(), dayKey = useRef(iso(D.TODAY)), days = useRef(new Map<string, State>())
+  useEffect(() => { const k = iso(D.TODAY); if (k === dayKey.current) return
+    days.current.set(dayKey.current, s); setS(days.current.get(k) ?? initial()); dayKey.current = k }, [wd])
+  const blocked = () => isPastDay() && user.role !== 'leader' && user.role !== 'ceo'
+  const mutate = (fn: (d: State) => void) => { if (blocked()) { lastBlock.t = Date.now(); say(BLOCK_MSG); return } setS(prev => { const d = clone(prev); fn(d); return d }) }
   const id = (d: State, p: string) => `${p}${++d.seq}`
   // kiểm tra trên dữ liệu hiện tại, rồi kiểm tra lại ngay lúc ghi (chống bấm đúp / dữ liệu cũ)
   const tryMutate = (check: (d: State) => string | null, apply: (d: State) => void, ok?: string): string | null => {
+    if (blocked()) { lastBlock.t = Date.now(); say(BLOCK_MSG); return BLOCK_MSG }
     const e = check(s); if (e) return e
     mutate(d => { if (!check(d)) apply(d) }); if (ok) say(ok); return null
   }
   const notify = (d: State, n: Omit<D.Notif, 'id' | 'min' | 'readBy'>) => d.notifs.unshift({ ...n, id: id(d, 'n'), min: d.now, readBy: [] })
 
   const actions = {
-    reset: () => { setS(initial()); say('Đã khôi phục dữ liệu mẫu') },
+    reset: () => { if (blocked()) { lastBlock.t = Date.now(); return say(BLOCK_MSG) } setS(initial()); say('Đã khôi phục dữ liệu mẫu') },
     advance: (m: number) => mutate(d => { d.now = Math.min(20 * 60, d.now + m) }),
 
     // ── Lịch hẹn ── (kiểm tra 2 lần: trước khi bấm và ngay lúc ghi, để bấm đúp không tạo trùng)
@@ -159,15 +168,27 @@ function useStoreValue() {
     removeQueue: (qid: string) => mutate(d => { d.queue = d.queue.filter(x => x.id !== qid) }),
 
     addCustomer: (c: Pick<D.Customer, 'name' | 'phone' | 'group' | 'source'> & { code?: string }): D.Customer | string => {
+      if (blocked()) { lastBlock.t = Date.now(); say(BLOCK_MSG); return BLOCK_MSG }
       if (c.code && s.customers.some(x => x.code === c.code)) return `Mã ${c.code} đã tồn tại`
       const n = s.customers.filter(x => x.code.startsWith('KL')).length + 101
       const nc: D.Customer = { id: 'c' + Date.now(), code: c.code || 'KL' + String(n).padStart(4, '0'), name: c.name || 'Khách mới', phone: c.phone, group: c.group, source: c.source, firstVisit: D.dateShort(), visits: 0, lastVisitDays: 0, totalPaid: 0, packages: [], care: [] }
       mutate(d => { d.customers.push(nc) }); return nc
     },
+    /** KTV ghi nhận chăm sóc: chỉ khách mình đã phục vụ hôm nay (đang làm / xong / đã thanh toán) */
+    addCareNote: (customerId: string, n: Omit<D.CareNote, 'at' | 'date' | 'by' | 'byId'>) => {
+      if (me.role !== 'ktv' || !s.appts.some(a => a.ktvId === me.id && a.customerId === customerId && ['in_service', 'done', 'paid'].includes(a.status))) return say('Chỉ ghi nhận khách bạn đã chăm sóc hôm nay')
+      mutate(d => { const c = cust(d, customerId)
+        const note: D.CareNote = { ...n, at: D.stamp(d.now), date: D.dateShort(), by: me.name, byId: me.id }
+        ;(c.careNotes ??= []).unshift(note)
+        // không ghi đè lưu ý sức khỏe / sở thích gốc của khách — ghi nhận mới hiện riêng ("Ghi nhận gần nhất")
+        c.care.unshift({ at: note.at, by: me.name, text: `Ghi nhận chăm sóc: ${D.careSummary(note)}` }) })
+      say('Đã lưu ghi nhận vào hồ sơ khách')
+    },
     addCare: (customerId: string, text: string) => mutate(d => { cust(d, customerId).care.unshift({ at: D.stamp(d.now), by: me.name, text }) }),
 
     // ── Thu ngân ──
     confirmInvoice: (inv: Omit<D.Invoice, 'code' | 'createdAt' | 'createdMin' | 'creator' | 'log'>, pkgNew?: D.Package, pkgCollect = 0): string => {
+      if (blocked()) { lastBlock.t = Date.now(); say(BLOCK_MSG); return '' }
       let code = ''
       mutate(d => {
         code = 'HD' + String(150 + ++d.seq).padStart(6, '0')
@@ -431,6 +452,7 @@ function useStoreValue() {
     flagBed: (text: string) => { mutate(d => { notify(d, { cat: 'Điều phối', text: `${me.name} báo xếp giường/lịch có thể nhầm`, detail: text, roles: ['reception', 'leader'], nav: 'beds' }) }); say('Đã báo lễ tân kiểm tra') },
     // FIX LẦN 3 — mức ưu tiên (Leader/CEO điều khiển) + ghim thông báo
     setPrio: (nid: string, p: D.Prio) => { if (!['leader', 'ceo'].includes(me.role)) return say('Chỉ Leader/CEO đặt mức ưu tiên'); mutate(d => { d.prioSet[nid] = p }) },
+    setRefPhoto: (k: string, url: string | null) => { if (me.role !== 'leader' && me.role !== 'ceo') return say('Chỉ Leader và CEO được cấp/sửa ảnh mẫu'); mutate(d => { if (url) d.refPhotos[k] = url; else delete d.refPhotos[k] }); say(url ? 'Đã cập nhật ảnh mẫu' : 'Đã xóa ảnh mẫu') },
     setPrioCat: (k: string, p: D.Prio) => { if (me.role !== 'ceo') return say('Chỉ CEO đổi mặc định'); mutate(d => { d.prioCat[k] = p }) },
     pinNotice: (tag: string, title: string, p: D.Prio) => { if (!['leader', 'ceo'].includes(me.role)) return say('Chỉ Leader/CEO ghim thông báo'); mutate(d => { const nid = id(d, 'an'); d.notifs.unshift({ id: nid, cat: 'Leader', tag, by: me.name, pinned: true, text: title, detail: me.name, min: d.now, roles: ['ktv', 'reception', 'leader', 'marketing', 'ceo'], readBy: [me.id] }); if (d.prioCat[tag] !== p) d.prioSet[nid] = p }); say('Đã ghim cho cả Home') },
     // FIX LẦN 1 — Lễ tân / KTV / Leader

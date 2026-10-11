@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useStore } from '../store'
 import * as D from '../data'
 import { pointsOf } from '../logic'
+import { staffMetrics, payslip, PAY_RULE, rangeOf, today } from '../period'
 import { Hero, Nodes, SubHead, Block, Pill, Empty, Tiles, Seg, PhotoInput, Icon } from '../ui'
 import { LeaveModal } from './daily'
 import { PerfView } from './leader2'
@@ -107,10 +108,34 @@ function Train({ back }: { back: () => void }) {
   </>
 }
 
-function Income({ back }: { back: () => void }) {
+export function Income({ back }: { back: () => void }) {
+  const { s, me } = useStore()
+  const t = today(), [ym, setYm] = useState(`${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}`)
+  const [y, m] = ym.split('-').map(Number), r = rangeOf('month', new Date(y, m - 1, 1))
+  const role = me.role === 'reception' ? 'reception' : 'ktv'
+  const sm = staffMetrics(s, r, role).find(x => x.id === me.id), ps = sm ? payslip(sm) : null
+  const months = [0, 1, 2].map(i => rangeOf('month', new Date(t.getFullYear(), t.getMonth() - i, 1)))
+  const v = (n: number) => D.vnd(n)
   return <>
-    <SubHead title="Thu nhập của tôi" sub="Chỉ bạn và CEO xem · số liệu hiện khi nối bảng lương" onBack={back} />
-    <div className="card list">{['Lương cơ bản', 'Công thực tế', 'Hoa hồng', 'Thưởng', 'Phạt', 'Tổng thu nhập dự kiến', 'Phiếu lương từng tháng'].map(t => <Line key={t} t={t} />)}</div>
+    <SubHead title="Thu nhập của tôi" sub={<>Chỉ bạn và CEO xem · <span className="rtag">📅 {r.label}</span></>} onBack={back} />
+    <label className="f" style={{ maxWidth: 220 }}>Chọn tháng<input className="inp" type="month" value={ym} max={`${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}`} onChange={e => e.target.value && setYm(e.target.value)} /></label>
+    {!sm || !ps ? <Empty>Chưa nối bảng lương cho vai trò này</Empty> : <>
+      <Tiles items={[{ v: D.vndShort(ps.total), l: 'Tổng lương thưởng tôi nhận', s: r.partial ? 'tính đến hôm nay' : r.name, color: 'deep' }, { v: `${sm.days}/${PAY_RULE.stdDays}`, l: 'Ngày công' }, { v: sm.leave, l: 'Ngày nghỉ', s: 'nghỉ phép đã duyệt' }, { v: sm.late, l: 'Lần đi muộn' }]} />
+      <div className="card list">
+        <Line t="Lương cơ bản" v={<span className="num strong">{v(ps.base)}/tháng</span>} />
+        <Line t={`Công thực tế (${sm.days}/${PAY_RULE.stdDays} công)`} v={<span className="num strong">{v(ps.byDays)}</span>} />
+        <Line t="Ngày nghỉ" v={<span className="num strong">{sm.leave} ngày</span>} />
+        <Line t={`Hoa hồng (${Math.round((PAY_RULE.commission[role] ?? 0) * 100)}% của ${D.vndShort(sm.revenue)})`} v={<span className="num strong">{v(ps.commission)}</span>} />
+        <Line t={`Thưởng (${Math.max(0, sm.points)} điểm uy tín × ${D.vndShort(PAY_RULE.perPoint)})`} v={<span className="num strong">{v(ps.bonus)}</span>} />
+        <Line t={`Phạt (${sm.late} lần đi muộn × ${D.vndShort(PAY_RULE.perLate)})`} v={<span className="num strong" style={{ color: ps.penalty ? 'var(--r-fg)' : undefined }}>−{v(ps.penalty)}</span>} />
+        <Line t="Tổng lương thưởng tôi nhận" v={<span className="num strong" style={{ color: 'var(--g-fg)', fontSize: 16 }}>{v(ps.total)}</span>} />
+      </div>
+      <Block title="Phiếu lương từng tháng" sub="3 tháng gần nhất">
+        <div className="card list">{months.map(mr => { const x = staffMetrics(s, mr, role).find(z => z.id === me.id), p0 = x ? payslip(x) : null
+          return <div key={mr.name} className="item"><div className="body"><div className="t">{mr.name}{mr.partial ? ' (đến nay)' : ''}</div><div className="d">{mr.label} · {x?.days ?? 0} công · {x?.leave ?? 0} ngày nghỉ</div></div><span className="num strong">{p0 ? v(p0.total) : '—'}</span></div> })}</div>
+      </Block>
+      <div className="tiny muted">{D.SAMPLE_NOTE}: công thức tạm (lương cơ bản theo công chuẩn {PAY_RULE.stdDays} ngày + hoa hồng + thưởng điểm − phạt đi muộn). CEO cài công thức thật ở ⑨ Dòng tiền & lương. Hôm nay lấy từ chấm công, lịch, điểm thật trong app.</div>
+    </>}
   </>
 }
 

@@ -34,10 +34,10 @@ export function CashierScreen() {
       right={<>{user.role === 'ceo' && <button className="btn" onClick={() => setOpening(true)}>⇪ Số dư đầu kỳ</button>}{user.role === 'reception' && <button className="btn pri" onClick={() => setEditor({ apptIds: [] })}><Icon n="plus" />Tạo hóa đơn</button>}</>} />
     <Seg value={range} onChange={setRange} items={[{ k: 'day', label: 'Hôm nay' }, { k: 'week', label: '7 ngày' }, { k: 'month', label: 'Tháng này' }]} />
     <div className="grid g4">
-      <Stat label="Chờ thanh toán" value={bills.length} tone="r-fg" sub="lượt phục vụ xong" />
-      <Stat label={range === 'day' ? 'Hóa đơn đã xác nhận' : 'Khách có hóa đơn'} value={stats.confirmed} tone="g-fg" sub={range === 'day' ? `hôm nay ${fmtD(todayD())}` : `${rg.label} · ${D.SAMPLE_NOTE} ngày trước`} />
-      <Stat label="Tiền đã thu" value={D.vndShort(stats.collected)} tone="gold" sub={range === 'day' ? `hôm nay ${fmtD(todayD())} · hóa đơn ${D.vndShort(today.collected)}${pm.prodPart ? ` + bán sản phẩm ${D.vndShort(pm.prodPart)}` : ''}` : `${rg.label} · ${D.SAMPLE_NOTE} ngày trước`} />
-      <Stat label="Còn phải thu (gói)" value={D.vndShort(stats.due)} tone="y-fg" sub={`cọc & còn thiếu · đến ${fmtD(todayD())}`} />
+      <Stat label="Chờ thanh toán" value={bills.length} tone="green" sub="lượt phục vụ xong" />
+      <Stat label={range === 'day' ? 'Hóa đơn đã xác nhận' : 'Khách có hóa đơn'} value={stats.confirmed} tone="green" sub={range === 'day' ? `hôm nay ${fmtD(todayD())}` : `${rg.label} · ${D.SAMPLE_NOTE} ngày trước`} />
+      <Stat label="Tiền đã thu" value={D.vndShort(stats.collected)} tone="green" sub={range === 'day' ? `hôm nay ${fmtD(todayD())} · hóa đơn ${D.vndShort(today.collected)}${pm.prodPart ? ` + bán sản phẩm ${D.vndShort(pm.prodPart)}` : ''}` : `${rg.label} · ${D.SAMPLE_NOTE} ngày trước`} />
+      <Stat label="Còn phải thu (gói)" value={D.vndShort(stats.due)} tone="green" sub={`cọc & còn thiếu · đến ${fmtD(todayD())}`} />
     </div>
     <Seg value={tab} onChange={setTab} items={[{ k: 'waiting', label: 'Chờ thanh toán', badge: bills.length }, { k: 'invoices', label: 'Hóa đơn' }, { k: 'deposits', label: 'Cọc & còn thiếu' }, { k: 'cards', label: 'Thẻ liệu trình' }]} />
     {tab === 'waiting' && <div className="card list">{byCustomer.map(cid => { const mine = bills.filter(b => b.customerId === cid); const c = cust(s, cid)

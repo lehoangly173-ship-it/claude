@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { useStore } from './store'
 import { Tone, cust, ktvCanOpen, dobNoYear } from './logic'
 import { T } from './i18n'
+import { CareNotesList } from './screens/careNote'
 import * as D from './data'
 
 const P: Record<string, string> = {
@@ -63,8 +64,8 @@ export function Modal({ title, onClose, children, footer, wide }: { title: React
   </div></div>
 }
 export const Empty = ({ children }: { children: ReactNode }) => <div className="empty">{children}</div>
-export const Sec = ({ eyebrow, title, right, children }: { eyebrow?: string; title?: string; right?: ReactNode; children: ReactNode }) =>
-  <section><div className="sec-title">{eyebrow && <span className="eyebrow">{withDay(eyebrow)}</span>}{title && <h2>{withDay(title)}</h2>}{right}</div>{children}</section>
+export const Sec = ({ eyebrow, title, right, children, cls }: { eyebrow?: string; title?: string; right?: ReactNode; children: ReactNode; cls?: string }) =>
+  <section className={cls}><div className="sec-title">{eyebrow && <span className="eyebrow">{withDay(eyebrow)}</span>}{title && <h2>{withDay(title)}</h2>}{right}</div>{children}</section>
 // ── Bộ khung theo phong cách Home (video mẫu) ──
 export function Hero({ tag, title, sub, children }: { tag: string; title: ReactNode; sub?: ReactNode; children?: ReactNode }) {
   return <div className="hero"><span className="tag">{withDay(tag)}</span><h1>{title}</h1>{sub && <p>{sub}</p>}{children && <div className="hrow">{children}</div>}</div>
@@ -109,12 +110,32 @@ export function SubHead({ title, sub, onBack, right }: { title: string; sub?: Re
     <div className="row" style={{ alignItems: 'flex-end' }}><div style={{ minWidth: 0, flex: 1 }}><h1>{title}</h1>{sub && <p>{sub}</p>}</div>{right}</div></div>
 }
 /** Ảnh minh chứng: chọn ảnh thật từ máy/điện thoại (giữ trong phiên chạy thử) */
-export function PhotoInput({ value, onChange, label = 'Tải ảnh lên' }: { value: string; onChange: (v: string) => void; label?: string }) {
-  return <label className={`photo${value ? ' done' : ''}`}>
-    <input type="file" accept="image/*" capture="environment" onChange={e => { const f = e.target.files?.[0]; if (f) onChange(URL.createObjectURL(f)) }} />
-    {value ? (value.startsWith('blob:') ? <img src={value} alt="Ảnh đã chọn" /> : <span className="ph-ic">🖼</span>) : <span className="ph-ic"><Icon n="camera" s={20} /></span>}
-    <span>{value ? 'Đã có ảnh · bấm để đổi' : label}<span className="tiny muted" style={{ display: 'block', fontWeight: 400 }}>Không chụp được ảnh? Báo quản lý kiểm tra hệ thống.</span></span>
-  </label>
+/** Ảnh mẫu minh họa mặc định (chưa có ảnh thật Leader/CEO cấp) */
+const sampleSvg = (t: string) => 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 110"><rect width="160" height="110" rx="10" fill="#e5f3e8"/><rect x="14" y="14" width="132" height="62" rx="6" fill="#cfe9d6"/><path d="M30 70l26-30 20 22 14-14 26 22z" fill="#1f6b3a" opacity=".55"/><circle cx="118" cy="32" r="8" fill="#f2c230"/><text x="80" y="92" font-family="sans-serif" font-size="9" font-weight="700" fill="#1f6b3a" text-anchor="middle">${t.replace(/[<&]/g, '')}</text><text x="80" y="104" font-family="sans-serif" font-size="7" fill="#4a5a4d" text-anchor="middle">ảnh mẫu minh họa</text></svg>`)
+/** Ảnh mẫu đối chiếu: ai cũng xem; chỉ Leader/CEO thêm – đổi – xóa */
+export function RefPhoto({ k, title, hint }: { k: string; title: string; hint?: string }) {
+  const { s, user, setRefPhoto } = useStore()
+  const can = user.role === 'leader' || user.role === 'ceo', own = s.refPhotos[k]
+  return <div className="refp"><img src={own ?? sampleSvg(title)} alt={`Ảnh mẫu: ${title}`} />
+    <div className="col" style={{ gap: 4, minWidth: 0 }}><b className="small">Ảnh mẫu đối chiếu</b><span className="tiny muted">{hint ?? 'Chụp đúng góc, đủ sáng như ảnh mẫu.'}{own ? '' : ' (đang dùng ảnh minh họa)'}</span>
+      {can ? <div className="row" style={{ gap: 6 }}><label className="btn sm">{own ? 'Đổi ảnh mẫu' : 'Thêm ảnh mẫu'}<input hidden type="file" accept="image/*" onChange={e => { const f = e.target.files?.[0]; if (f) setRefPhoto(k, URL.createObjectURL(f)); e.target.value = '' }} /></label>{own && <button className="btn sm danger" onClick={() => setRefPhoto(k, null)}>Xóa</button>}</div>
+        : <span className="tiny muted">Chỉ Leader và CEO được cấp/sửa ảnh mẫu.</span>}</div></div>
+}
+/** Ảnh minh chứng: 2 nút Chụp ảnh (mở camera) · Chọn ảnh có sẵn; có ảnh mẫu thì hiện bên cạnh để đối chiếu */
+export function PhotoInput({ value, onChange, label = 'Tải ảnh lên', refKey, refHint }: { value: string; onChange: (v: string) => void; label?: string; refKey?: string; refHint?: string }) {
+  const pick = (f?: File) => { if (f) onChange(URL.createObjectURL(f)) }
+  return <div className="col photo-box">
+    {refKey && <RefPhoto k={refKey} title={label} hint={refHint} />}
+    <div className={`photo${value ? ' done' : ''}`}>
+      {value ? (value.startsWith('blob:') || value.startsWith('data:') ? <img src={value} alt="Ảnh đã chọn" /> : <span className="ph-ic">🖼</span>) : <span className="ph-ic"><Icon n="camera" s={20} /></span>}
+      <span style={{ flex: 1, minWidth: 0 }}>{value ? 'Đã có ảnh · chụp lại hoặc chọn ảnh khác' : label}<span className="tiny muted" style={{ display: 'block', fontWeight: 400 }}>Không chụp được ảnh? Báo quản lý kiểm tra hệ thống.</span></span>
+    </div>
+    <div className="row" style={{ gap: 8 }}>
+      <label className="btn pri sm"><Icon n="camera" s={16} />Chụp ảnh<input hidden type="file" accept="image/*" capture="environment" onChange={e => { pick(e.target.files?.[0]); e.target.value = '' }} /></label>
+      <label className="btn sm">🖼 Chọn ảnh có sẵn<input hidden type="file" accept="image/*" onChange={e => { pick(e.target.files?.[0]); e.target.value = '' }} /></label>
+      {value && <button className="btn sm ghost" onClick={() => onChange('')}>Bỏ ảnh</button>}
+    </div>
+  </div>
 }
 export const Thumb = ({ src }: { src: string }) => <span className="thumb">{src.startsWith('blob:') ? <img src={src} alt="" /> : '🖼'}</span>
 /** Nút chưa nối dữ liệu: vẫn hiện đủ cấu trúc theo sơ đồ để kiểm tra luồng */
@@ -141,7 +162,7 @@ export function CustomerModal({ customerId, onClose }: { customerId: string; onC
     {tab === 'profile' && <CustomerProfile customerId={c.id} />}
     {tab === 'info' && <div className="grid g2">
       <div className="col small"><span className="eyebrow">Liên hệ</span><span><span className="kv-l">SĐT:</span> {user.role === 'reception' || user.role === 'ceo' ? c.phone || '—' : 'ẩn (chỉ lễ tân thấy)'}</span><span><span className="kv-l">Sinh nhật:</span> {(user.role === 'ktv' ? dobNoYear(c.dob) : c.dob) || '—'}</span><span><span className="kv-l">Khách từ:</span> {c.firstVisit}</span>{canSeeMoney && <span><span className="kv-l">Tổng chi:</span> <b className="num">{D.vnd(c.totalPaid)}</b></span>}</div>
-      <div className="col small"><span className="eyebrow">Lưu ý khi phục vụ</span><span><span className="kv-l">Sức khỏe:</span> {c.health || 'Không có lưu ý'}</span><span><span className="kv-l">Sở thích:</span> {c.preference || '—'}</span></div>
+      <div className="col small"><span className="eyebrow">Lưu ý khi phục vụ</span>{c.careNotes?.[0] && <span><span className="kv-l">Ghi nhận gần nhất ({c.careNotes[0].date} · KTV {c.careNotes[0].by}):</span> {D.careSummary(c.careNotes[0])}</span>}<span><span className="kv-l">Sức khỏe:</span> {c.health || 'Không có lưu ý'}</span><span><span className="kv-l">Sở thích:</span> {c.preference || '—'}</span></div>
       <div className="col small" style={{ gridColumn: '1 / -1' }}><span className="eyebrow">Hôm nay</span>{visits.length ? visits.map(a => <span key={a.id}>{D.hhmm(a.start)} · {D.svc(a.serviceId).name} · KTV {D.staffName(a.ktvId)} · {a.bedId}</span>) : <span className="muted">Không có lịch hôm nay</span>}</div>
     </div>}
     {tab === 'pkg' && (c.packages.length ? c.packages.map(p => <div key={p.cardCode} className="card pad col">
@@ -152,6 +173,7 @@ export function CustomerModal({ customerId, onClose }: { customerId: string; onC
     {tab === 'care' && <div className="col">
       <div className="row"><input id="care-note" className="inp" style={{ flex: 1 }} placeholder="Ghi chú chăm sóc (VD: đã gọi hỏi thăm sau buổi 3)" value={note} onChange={e => setNote(e.target.value)} /><button className="btn pri" disabled={!note.trim()} onClick={() => { addCare(c.id, note.trim()); setNote('') }}>Lưu</button></div>
       {fb.map(f => <div key={f.id} className="row small"><Pill tone={f.rating >= 4 ? 'green' : f.rating === 3 ? 'yellow' : 'red'}>{f.rating}/5 · {f.group}</Pill><span>{f.text}</span><span className="muted">{f.daysAgo === 0 ? 'hôm nay' : `${f.daysAgo} ngày trước`} · {f.status}</span></div>)}
+      <CareNotesList c={c} />
       {c.care.length ? c.care.map((x, i) => <div key={i} className="small"><b>{x.at}</b> · {x.by}: {x.text}</div>) : <span className="muted small">Chưa có ghi chú chăm sóc</span>}
     </div>}
   </Modal>
@@ -174,7 +196,7 @@ export function CustomerProfile({ customerId }: { customerId: string }) {
     {row(3, contact ? v(c.phone) : T.cust.hidden)}
     <div className="item"><div className="body"><span className="kv-l">5. {F[4]}:</span>{hist.length ? hist.map((h, i) => <div key={i} className="small">{h}</div>) : <> <b>{U}</b></>}</div></div>
     {row(5, c.budget != null ? D.vnd(c.budget) : U)}
-    <div className="item"><div className="body"><span className="kv-l">7. {F[6]}:</span> <b>{v(c.health)}</b><div className="tiny muted">{T.cust.selfEval}</div></div></div>
+    <div className="item"><div className="body"><span className="kv-l">7. {F[6]}:</span> <b>{v(c.health)}</b>{c.careNotes?.[0] && <div className="small">Ghi nhận gần nhất {c.careNotes[0].date}: {D.careSummary(c.careNotes[0])}</div>}<div className="tiny muted">{T.cust.selfEval}</div></div></div>
     {row(7, v(c.source))}
     {row(8, c.qrCare == null ? U : c.qrCare ? T.cust.qrYes : T.cust.qrNo)}
   </div>

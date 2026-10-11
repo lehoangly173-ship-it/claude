@@ -13,6 +13,7 @@ import { LeaderToday, LeaderCustomers, MocScreen, ProgramsPanel, RoiPanel } from
 import { ApprovalsScreen, MembersScreen, MarketingScreen } from './ceo'
 import { OpsBase2, HandoverPage } from './reception2'
 import { TeamOps, LeaveApprove, OpsApprove, LeaderFin, LeaderMothers, StaffPerf, SalaryPage, TrainTree, LeaderCareTop } from './leader2'
+import { SettingDetail, RefPhotosPage } from './settings'
 import { HealthDash, FinanceDash, StaffCompare, SourceDash, PeriodSummary } from './timeDash'
 import { HBars } from '../charts'
 
@@ -42,6 +43,7 @@ export function LeaderHome({ sub }: { sub: string[] }) {
   if (sub[0] === 'base') return <OpsBase2 key={sub[1]} sub={sub[1]} sub2={sub[2]} />
   if (sub[0] === 'handover') return <HandoverPage back={back} />
   if (sub[0] === 'leaveok') return <LeaveApprove back={back} />
+  if (sub[0] === 'refphotos') return <RefPhotosPage back={back} />
   if (sub[0] === 'approve') return <OpsApprove back={back} />
   if (sub[0] === 'fin') return <LeaderFin sub={sub.slice(1)} back={back} />
   const redo = s.cleanReports.filter(r => r.status === 'Chưa đạt' && zoneReport(s, r.zone)?.id === r.id).length
@@ -58,6 +60,7 @@ export function LeaderHome({ sub }: { sub: string[] }) {
     <TeamOps />
     {s.opsReqs.some(r => r.status === 'Chờ duyệt') && <button className="softbtn wide" onClick={() => go('home/approve')}>Duyệt đề xuất vận hành của lễ tân ({s.opsReqs.filter(r => r.status === 'Chờ duyệt').length})</button>}
     <PeriodSummary onOpen={() => go('home/fin/rev')} />
+    <button className="softbtn wide" onClick={() => go('home/refphotos')}>🖼 Ảnh mẫu đối chiếu (Leader/CEO cấp & sửa)</button>
     <LeaderMothers />
     {opsBad > 0 && <Block title="Vấn đề cơ sở lễ tân báo"><div className="card list">{[...s.opsChecks.filter(x => !x.ok).map(x => ({ id: x.id, t: x.item, d: x.note, by: x.by, at: x.at })), ...s.xpChecks.filter(x => x.status === 'Không đạt – lễ tân xử lý' || x.help).map(x => ({ id: x.id, t: x.area, d: x.note || x.ai || '', by: x.by, at: x.at }))].map(x => <div key={x.id} className="item"><span className="sev cao" /><div className="body"><div className="t">{x.t}</div><div className="d">{x.d} · {D.staffName(x.by)} · {D.hhmm(x.at)}</div></div></div>)}</div></Block>}
   </>
@@ -158,6 +161,7 @@ export function CeoHome({ sub }: { sub: string[] }) {
   if (page) return <>{page}</>
   if (sub[0] === 'ops') return <OpsHub sub={sub[1]} base="home/ops" />
   if (sub[0] === 'attendance') return <><AttendancePage back={back} /><StaffCompare pick="late" /></>
+  if (sub[0] === 'refphotos') return <RefPhotosPage back={back} />
   if (sub[0] === 'n1') return <SpecHub rows={NM('NM1').rows} sub={sub[1]} leaf={sub[2]} base="home/n1" tag="① Hôm nay" title={NM('NM1').title} custom={{ '1.1': () => <HealthDash />, '1.2': () => <HealthDash />, '1.3': () => <AlertsList />, '1.7': () => <ApprovalsScreen /> }} />
   if (sub[0] === 'n2') return <SpecHub rows={NM('NM8').rows} sub={sub[1]} leaf={sub[2]} base="home/n2" tag="② Hôm nay" title={NM('NM8').title} custom={Object.fromEntries(NM('NM8').rows.map((r, i) => [r.no, () => i === 0 ? <button className="softbtn wide" onClick={() => go('home/ops')}>Mở trung tâm vận hành (lịch · hàng chờ · giường · thu ngân)</button> : /vệ sinh|chất lượng/i.test(r.t) ? <button className="softbtn" onClick={() => go('home/cleaning')}>Mở checklist dọn dẹp & điểm</button> : /vật tư|kho/i.test(r.t) ? <button className="softbtn" onClick={() => go('home/products')}>Mở đối chiếu sản phẩm</button> : /sự cố/i.test(r.t) ? <AlertsList /> : <NodeSpec rows={[{ t: r.t, d: r.d }]} />]))} />
   if (sub[0] === 'n3') return <SpecHub rows={NM('NM11').rows} sub={sub[1]} leaf={sub[2]} base="home/n3" tag="③ Hôm nay" title={NM('NM11').title} intro={<Initiatives />} />
@@ -228,6 +232,7 @@ export function CeoMoc({ sub }: { sub: string[] }) {
 export function CeoMine({ sub }: { sub: string[] }) {
   const { go } = useStore()
   const map: [string, string, string][] = [['n8', 'NM5', '⑧'], ['n9', 'NM6', '⑨'], ['n10', 'NM7', '⑩'], ['n11', 'NM9', '⑪'], ['n12', 'NM10', '⑫'], ['n13', 'NM13', '⑬']]
+  if (sub[0] === 'settings' && sub[1]) return <SettingDetail no={sub[1]} back={() => go('me/settings')} />
   if (sub[0] === 'settings') return <SettingsPage />
   const hit = map.find(m => m[0] === sub[0])
   if (hit) return <SpecHub rows={NM(hit[1]).rows} sub={sub[1]} leaf={sub[2]} base={`me/${hit[0]}`} tag={`${hit[2]} Của tôi`} title={NM(hit[1]).title}
@@ -256,7 +261,8 @@ function SettingsPage() {
       ['Điểm dọn dẹp đạt chuẩn', `+${D.ZONE_POINTS} điểm / khu`], ['Điểm lễ tân ghi nhận', 'Leader/CEO duyệt trước khi tính'],
       ['Đơn nghỉ / đổi ca', 'Leader hoặc CEO duyệt → bảng chia ca tự cập nhật'], ['Màu ưu tiên cả app', 'Đỏ làm ngay · Vàng quan trọng · Xanh vừa · Trắng bình thường'], ['Dữ liệu khách', 'SĐT chỉ lễ tân thấy · chỉ CEO xuất file'],
     ].map(([a, b]) => <div key={a} className="item"><div className="body"><div className="t">{a}</div><div className="d">{b}</div></div><Icon n="check" /></div>)}</div></Block>
-    <NodeSpec rows={NM('NM13').rows.map(r => ({ t: `${r.no}. ${r.t}`, d: r.d.split(' → ')[0] }))} />
+    <button className="softbtn wide" onClick={() => go('home/refphotos')}>🖼 Ảnh mẫu đối chiếu (cấp & sửa)</button>
+    <Block title="Cài đặt hệ thống" sub="Chạm từng mục để xem và sửa"><div className="nodes">{NM('NM13').rows.map(r => <button key={r.no} className="node" onClick={() => go(`me/settings/${r.no}`)}><span className="no ic"><Icon n={iconFor(r.t)} s={19} /></span><span className="body"><span className="t" style={{ display: 'block' }}>{r.t}</span><span className="d" style={{ display: 'block' }}>{r.d.split(' → ')[0]}</span></span><span className="arr"><Icon n="arrow" s={18} /></span></button>)}</div></Block>
   </>
 }
 

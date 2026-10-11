@@ -84,6 +84,19 @@ export const trendCount: Record<Gran, number> = { day: 7, week: 8, month: 6, qua
 export const customUnit = (p: Period): Exclude<Gran, 'custom'> => { const { cur } = periodRanges(p); const n = days(cur.from, cur.to); return n <= 31 ? 'day' : n <= 182 ? 'week' : 'month' }
 export const trendUnit = (g: Gran, p: Period) => g !== 'custom' ? GRANS.find(x => x.k === g)!.label.toLowerCase() : (() => { const { cur } = periodRanges(p); const n = days(cur.from, cur.to); return n <= 31 ? 'ngày' : n <= 182 ? 'tuần' : 'tháng' })()
 
+// ── Ngày làm việc đang chọn (ô 📅 trên đầu): đổi D.TODAY cho cả app; chỉ chọn ngày đã qua, tối đa 1 năm ──
+const REAL = new Date(D.TODAY)
+let wv = 0; const wsubs = new Set<() => void>()
+export const realToday = () => startOf(REAL)
+export const isPastDay = () => startOf(D.TODAY) < startOf(REAL)
+export function setWorkDay(isoStr: string) {
+  let d = fromIso(isoStr); const t = realToday(), min = addDays(t, -365)
+  if (isNaN(+d)) return
+  if (d > t) d = t; if (d < min) d = min
+  D.TODAY.setFullYear(d.getFullYear(), d.getMonth(), d.getDate()); wv++; wsubs.forEach(f => f()); subs.forEach(f => f())
+}
+export const useWorkDay = () => useSyncExternalStore(f => { wsubs.add(f); return () => { wsubs.delete(f) } }, () => wv)
+
 // ── Kỳ đang chọn: dùng chung cho mọi màn Leader/CEO (đổi ở đâu, cập nhật mọi nơi) ──
 let cur: Period = { g: 'month' }
 const subs = new Set<() => void>()
@@ -199,11 +212,18 @@ export function targetFor(r: { from: Date; to: Date }) {
 export const hasPast = (r: { from: Date }) => r.from < today()
 
 // ── Nhân sự theo kỳ ──
-export type StaffM = { id: string; name: string; role: D.Role; tours: number; revenue: number; requested: number; points: number; late: number; leave: number; rating: number | null }
+export type StaffM = { id: string; name: string; role: D.Role; days: number; tours: number; revenue: number; requested: number; points: number; late: number; leave: number; rating: number | null }
+/** Bảng lương MẪU theo kỳ (chờ CEO cài công thức thật): lương theo công + hoa hồng + thưởng − phạt */
+export const PAY_RULE = { base: { ktv: 6000000, reception: 6500000 } as Record<string, number>, stdDays: 26, commission: { ktv: 0.1, reception: 0.01 } as Record<string, number>, perPoint: 20000, perLate: 50000 }
+export function payslip(m: StaffM) {
+  const base = PAY_RULE.base[m.role] ?? 7000000, byDays = Math.round(base * Math.min(m.days, PAY_RULE.stdDays) / PAY_RULE.stdDays / 1000) * 1000
+  const commission = Math.round(m.revenue * (PAY_RULE.commission[m.role] ?? 0) / 1000) * 1000, bonus = Math.max(0, m.points) * PAY_RULE.perPoint, penalty = m.late * PAY_RULE.perLate
+  return { base, byDays, commission, bonus, penalty, total: byDays + commission + bonus - penalty }
+}
 export function staffMetrics(s: State, r: { from: Date; to: Date }, role: 'ktv' | 'reception' = 'ktv'): StaffM[] {
   const t = today(), inv = okInv(s)
   return s.staff.filter(x => x.role === role).map(x => {
-    const o: StaffM = { id: x.id, name: x.name, role: x.role, tours: 0, revenue: 0, requested: 0, points: 0, late: 0, leave: 0, rating: null }
+    const o: StaffM = { id: x.id, name: x.name, role: x.role, days: 0, tours: 0, revenue: 0, requested: 0, points: 0, late: 0, leave: 0, rating: null }
     for (let d = startOf(r.from); d <= r.to && d <= t; d = addDays(d, 1)) {
       if (+d === +t) {
         const ap = s.appts.filter(a => a.ktvId === x.id && !['cancelled', 'no_show'].includes(a.status))
@@ -212,13 +232,14 @@ export function staffMetrics(s: State, r: { from: Date; to: Date }, role: 'ktv' 
         o.revenue += role === 'ktv' ? inv.reduce((a, i) => a + i.lines.filter(l => l.ktvId === x.id).reduce((b, l) => b + l.price - l.discount, 0), 0) : inv.filter(i => i.creator === x.name).reduce((a, i) => a + i.paid, 0)
         o.points += s.points.filter(p => p.staffId === x.id && p.status === 'Đã duyệt').reduce((a, p) => a + p.delta, 0)
         const at = s.attendance[x.id], st = x.shift ? D.SHIFTS[x.shift].start : null
+        if (at?.in != null) o.days++
         if (at?.in != null && st != null && at.in > st) o.late++ // cùng quy tắc màn Chấm công
         if (s.leaves.some(l => l.staffId === x.id && l.status === 'Đã duyệt' && l.kind === 'Nghỉ phép' && l.date === D.dateShort(d))) o.leave++
         continue
       }
       const sh = shareOf(s, d, role).get(x.id)
       if (!sh) { if (rnd(iso(d) + x.id + 'lv') < 0.12) o.leave++; continue } // ngày nghỉ trong tuần
-      o.tours += sh.tours; o.revenue += sh.revenue; o.requested += sh.requested
+      o.days++; o.tours += sh.tours; o.revenue += sh.revenue; o.requested += sh.requested
       const k = iso(d) + x.id
       if (rnd(k + 'pt') < 0.12) o.points += rnd(k + 'ps') < 0.8 ? 2 : -1
       if (rnd(k + 'late') < 0.06 * (1.5 - sh.skill)) o.late++

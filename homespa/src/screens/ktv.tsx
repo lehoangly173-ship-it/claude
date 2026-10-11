@@ -7,6 +7,7 @@ import { cust, ktvState } from '../logic'
 import { Pill, PageHeader, Sec, Empty, Modal } from '../ui'
 import { ApptPill } from './ops'
 import { T } from '../i18n'
+import { CareNoteModal } from './careNote'
 
 export function MyWorkScreen() {
   const { s, me, setApptStatus, bedReady, openCustomer, startTask, completeTask, addTask } = useStore()
@@ -20,6 +21,7 @@ export function MyWorkScreen() {
   const [txt, setTxt] = useState('')
   const [doneFor, setDoneFor] = useState<string | null>(null)
   const [result, setResult] = useState('')
+  const [careFor, setCareFor] = useState(false)
   const counts = { all: mine.filter(a => a.status !== 'no_show').length, done: mine.filter(a => a.status === 'done' || a.status === 'paid').length, active: mine.filter(a => a.status === 'in_service').length }
   return <>
     <PageHeader eyebrow={`KTV ${me.name} · ${me.shift ? D.SHIFTS[me.shift].label : ''}`} title="Công việc của tôi" sub={<>Trạng thái: <Pill tone={st.tone} dot>{st.label}{st.until ? ` · ${D.hhmm(st.until)}` : ''}</Pill></>}
@@ -55,12 +57,14 @@ export function MyWorkScreen() {
       </div>
       <Sec eyebrow="Tour hôm nay">
         <div className="card pad col">
+          <button className="btn pri" onClick={() => setCareFor(true)}>📝 Ghi nhận chăm sóc khách hàng</button>
           <div className="grid g3">{[[counts.all, 'tour'], [counts.done, 'hoàn thành'], [counts.active, 'đang làm']].map(([n, l]) => <div key={l as string}><div className="num" style={{ fontSize: 24, fontWeight: 800 }}>{n}</div><div className="tiny muted">{l}</div></div>)}</div>
           {mine.map(a => <div key={a.id} className="row small" style={{ borderTop: '1px solid var(--line)', paddingTop: 8 }}><span className="num strong">{D.hhmm(a.start)}</span><span style={{ flex: 1, minWidth: 0 }}>{cust(s, a.customerId).name}{a.requested && <span className="tiny muted"> · yêu cầu bạn</span>}</span><ApptPill a={a} now={s.now} /></div>)}
           {!mine.length && <Empty>Chưa có tour</Empty>}
         </div>
       </Sec>
     </div>
+    {careFor && <CareNoteModal onClose={() => setCareFor(false)} />}
     {report && <Modal title="Báo sự cố sớm cho Leader" onClose={() => setReport(false)} footer={<><button className="btn" onClick={() => setReport(false)}>Hủy</button><button className="btn pri" disabled={!txt.trim()} onClick={() => { addTask({ title: `KTV ${me.name} báo: ${txt.trim().slice(0, 60)}`, detail: txt.trim(), category: 'Vận hành', priority: 'vừa', ownerId: D.firstOf('leader'), earlyReport: true }); setReport(false); setTxt('') }}>Gửi Leader</button></>}>
       <div className="small muted">Báo sớm được ghi nhận tích cực, không trừ điểm. Leader nhận việc ngay trong mục "Hôm nay".</div>
       <textarea id="rp-txt" className="inp" value={txt} onChange={e => setTxt(e.target.value)} placeholder="VD: máy xông giường TL-08 yếu, khách phàn nàn lạnh" />

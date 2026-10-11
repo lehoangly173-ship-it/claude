@@ -535,3 +535,31 @@ details.howto ul { margin: 8px 0 0; padding-left: 18px }
 .main { overflow-x: hidden }
 .page, .nodes, .tnode, .tnode .node, .tnode .thead { min-width: 0; max-width: 100% }
 .tnode .thead .body { min-width: 0; overflow: hidden }
+
+/* Ô số lớn cả app: nền xanh nhạt của màu chủ đạo (yêu cầu 11/10) */
+.tile:not(.deep):not(.gold), .card.stat { background: var(--mint); border-color: var(--mint-2) }
+.tile:not(.deep):not(.gold) .l, .card.stat .l { color: var(--mint-ink) }
+.tile:not(.deep):not(.gold) .s, .card.stat .muted, .card.stat .tiny { color: var(--ink-2) }
+/* Sơ đồ giường: tên tầng màu đỏ, gạch ngang ngăn các tầng */
+.floor .sec-title .eyebrow { background: var(--r-bg); color: var(--r-fg); font-size: 13px }
+.floor + .floor { border-top: 2px solid var(--line); padding-top: 14px; margin-top: 4px }
+/* Công nợ: cột trái công nợ, cột phải lợi nhuận (cả điện thoại) */
+.debt2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; align-items: start }
+.debt2 .col { gap: 8px; min-width: 0 } .debt2 .tiles { grid-template-columns: minmax(0, 1fr) !important }
+.debt2 .eyebrow { align-self: stretch; text-align: center }
+.care-sec { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--line); padding-top: 10px }
+div.f { display: flex; flex-direction: column; gap: 6px; background: var(--mint); color: var(--mint-ink); font-size: 12px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; padding: 7px 9px 9px; border-radius: 12px; min-width: 0 }
+.f .btn { text-transform: none; letter-spacing: 0 }
+.org { display: flex; flex-direction: column; align-items: center; gap: 8px }
+.org-n { background: var(--mint); color: var(--mint-ink); border: 1px solid var(--mint-2); border-radius: 12px; padding: 8px 14px; font-weight: 700; text-align: center }
+.org-n.top { background: var(--green); color: #fff; border-color: var(--green) }
+.org-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; width: 100% }
+.org-n.sm { display: flex; flex-direction: column; gap: 2px; font-weight: 600; padding: 8px }
+.photo-box { gap: 8px }
+.refp { display: flex; gap: 10px; align-items: center; background: var(--card); border: 1px dashed var(--mint-2); border-radius: 12px; padding: 8px }
+.refp img { width: 96px; height: 66px; object-fit: cover; border-radius: 8px; flex: none; background: var(--mint) }
+.today-chip { position: relative; cursor: pointer }
+.today-chip input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; border: 0 }
+.today-chip.past { background: var(--y-bg); color: var(--y-fg) }
+.pastbar { display: flex; align-items: center; gap: 10px; justify-content: space-between; margin: 0 16px 6px; padding: 8px 12px; border-radius: 12px; background: var(--y-bg); color: var(--y-fg); font-size: 13px; font-weight: 700 }
+.pastbar.w { background: var(--mint); color: var(--mint-ink) }
