@@ -71,7 +71,7 @@ export function LeaderMothers() {
   const { go } = useStore()
   const k = (base: string, ls: string[]) => ls.map((l, i) => ({ no: String(i + 1), l, onClick: () => go(`${base}/${i}`) }))
   return <TreeNodes items={[
-    { no: '②', t: 'Chăm sóc khách hàng Home', d: 'Chiến lược · tin nhắn · phân quyền gọi · kết quả · 4 nhóm khách', onClick: () => go('cust'), kids: [{ l: 'Chiến lược chăm sóc', onClick: () => go('cust') }, { l: 'Kích hoạt luồng tin nhắn', onClick: () => go('cust') }, { l: 'Phân quyền gọi điện → Kết quả', onClick: () => go('cust') }, { l: 'Khách lẻ / liệu trình Việt & nước ngoài', onClick: () => go('cust') }] },
+    { no: '②', t: 'Chăm sóc khách hàng Home', d: 'Chiến lược · tin nhắn · phân quyền gọi · kết quả · 4 nhóm khách', onClick: () => go('cust'), kids: [['Chiến lược chăm sóc', 'care-1'], ['Kích hoạt luồng tin nhắn', 'care-2'], ['Phân quyền gọi điện → Kết quả', 'care-3'], ['Khách lẻ / liệu trình Việt & nước ngoài', 'care-4']].map(([l, id]) => ({ l, onClick: () => { go('cust'); setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 120) } })) },
     { no: '③', t: 'Vận hành', d: 'Chi phí sản phẩm · chi phí duy trì', onClick: () => go('home/fin/ops'), kids: k('home/fin/ops', ['Chi phí sản phẩm / 1 khách', 'Chi phí duy trì']) },
     { no: '④', t: 'Chi tổng', d: 'Chi phí tổng · tổng chi phí / 1 khách', onClick: () => go('home/fin/spend'), kids: k('home/fin/spend', ['Chi phí tổng', 'Tổng chi phí / 1 khách']) },
     { no: '⑤', t: 'Số tiền thu vào – Doanh thu – Lợi nhuận', d: 'Theo nhóm khách · nguồn khách · KTV · tổng', onClick: () => go('home/fin/rev'), kids: k('home/fin/rev', ['Lợi nhuận từng nhóm khách', 'Lợi nhuận tổng', 'Lợi nhuận từng nguồn khách', 'Theo kĩ thuật viên']) },
@@ -163,12 +163,15 @@ export function LeaderCareTop() {
   const groups = ['Khách lẻ Việt', 'Khách liệu trình Việt', 'Khách liệu trình nước ngoài', 'Khách lâu chưa quay lại (tệp 1–5)']
   const logs = s.customers.flatMap(c => c.care.filter(x => x.kind))
   return <>
+    <div id="care-1" />
     <Block title="Chiến lược chăm sóc" sub="Cập nhật sau qua file, video — Chưa nối"><div className="card list">{groups.map(g => <div key={g} className="item"><div className="body"><div className="t">{g}</div><div className="d">Kịch bản & tài liệu: Chưa nối</div></div></div>)}</div></Block>
+    <div id="care-2" />
     <Block title="Kích hoạt luồng tin nhắn" sub="Chọn nền tảng tin nhắn → chọn tệp khách (giả lập — chưa gửi thật)">
       <Seg value={ch} onChange={setCh} items={[{ k: 'Facebook', label: 'Facebook' }, { k: 'Zalo', label: 'Zalo' }, { k: 'SĐT', label: 'SĐT (gọi/nhắn)' }]} />
       <div className="row">{groups.map(g => { const k = `${ch}|${g}`; return <button key={k} className={`btn sm${on.includes(k) ? '' : ' pri'}`} onClick={() => setOn(on.includes(k) ? on.filter(x => x !== k) : [...on, k])}>{on.includes(k) ? `✓ ${g}` : `Kích hoạt: ${g}`}</button> })}</div>
       {ch === 'SĐT' && <div className="tiny muted">Leader không xem SĐT khách — luồng gọi giao cho lễ tân ở mục Phân quyền gọi điện.</div>}
     </Block>
+    <div id="care-3" />
     <Block title="Phân quyền gọi điện → Kết quả">
       <div className="card list">{groups.map(g => <div key={g} className="item"><div className="body"><div className="t">{g}</div></div><select className="inp" style={{ width: 160 }} value={caller[g] ?? ''} onChange={e => setCaller({ ...caller, [g]: e.target.value })} aria-label={`Người gọi ${g}`}><option value="">— lễ tân gọi —</option>{recs.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}</select></div>)}</div>
       <Tiles items={[{ v: logs.filter(x => x.kind === 'Gọi điện' && x.ok).length, l: 'Gọi thành công' }, { v: logs.filter(x => x.kind === 'Nhắn tin' && x.ok).length, l: 'Nhắn tin thành công' }, { v: logs.filter(x => x.replied).length, l: 'Khách phản hồi' }, { v: logs.filter(x => x.came).length, l: 'Khách hẹn tới', tone: 'ok' }]} />

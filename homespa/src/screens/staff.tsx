@@ -3,7 +3,7 @@ import { OpsBase2, HandoverPage } from './reception2'
 import { ReactNode, useState, useRef } from 'react'
 import { useStore } from '../store'
 import * as D from '../data'
-import { prioOf, canSee, unreadCount, cust, myZones, zoneReport, tourOrder, billRows, overview, alerts, pointsOf, expectedByMethod, ktvState, lastCloseAt } from '../logic'
+import { prioOf, canSee, unreadCount, cust, myZones, zoneReport, tourOrder, billRows, overview, alerts, pointsOf, expectedByMethod, ktvState, lastCloseAt, soldToday } from '../logic'
 import { Hero, Tiles, Nodes, Block, ChipGrid, SubHead, Pill, Empty, Modal, Seg, Av, PhotoInput, NodeSpec, Icon, NumInput } from '../ui'
 import { ShiftTourPage, CleaningPage, BoardPage, KtvCustomersPage, NoticesPage, BillsPage, ReviewsPage, ProductsPage, LeavePage, IncidentPage, LeaveModal, IdeaPage, IdeasInboxPage } from './daily'
 import { T } from '../i18n'
@@ -197,10 +197,11 @@ function CloseShiftPage({ back }: { back: () => void }) {
   const done = s.shiftCloses.filter(x => x.staffId === me.id)
   return <>
     <SubHead title="Chốt ca" sub="Tiền → công việc sổ sách. Lệch tiền phải ghi lý do; Leader & chị nhận thông báo." onBack={back} />
-    <Block title="1. Tiền" sub="Số hệ thống tính từ hóa đơn đã xác nhận hôm nay">
+    <Block title="1. Tiền" sub={`Số hệ thống = hóa đơn đã xác nhận từ lần chốt ca trước · ${D.dateShort()}`}>
       <div className="card tbl-wrap"><table><thead><tr><th>Phương thức</th><th>Hệ thống</th><th>Thực đếm / sao kê</th><th>Lệch</th></tr></thead><tbody>
         {methods.map(m => { const d = (counted[m] || 0) - exp[m]; return <tr key={m}><td className="strong">{m}</td><td className="num">{D.vnd(exp[m])}</td><td><NumInput className="inp num" step={1000} min={0} value={counted[m]} onChange={v => setCounted({ ...counted, [m]: Math.max(0, v) })} aria-label={`Thực đếm ${m}`} style={{ maxWidth: 160 }} /></td><td className="num strong" style={{ color: d ? 'var(--r-fg)' : 'var(--g-fg)' }}>{d ? `${d > 0 ? '+' : ''}${D.vnd(d)}` : 'Khớp'}</td></tr> })}
       </tbody></table></div>
+      {soldToday(s) > 0 && <div className="tiny muted">Tiền bán sản phẩm hôm nay {D.vnd(soldToday(s))} (ghi ở Kho, chưa chia theo phương thức) không nằm trong bảng này — đếm và nộp riêng. Ô "Tiền đã thu" ở Thu ngân là cả ngày, gồm cả khoản này.</div>}
       <div className={absDiff ? 'err small' : 'ok small'}>{absDiff ? `Tổng lệch ${diff > 0 ? '+' : ''}${D.vnd(diff)} — ghi rõ lý do bên dưới` : 'Tiền khớp với hệ thống'}</div>
     </Block>
     <Block title="2. Công việc sổ sách">

@@ -26,8 +26,8 @@ export function CashierScreen() {
   const today = { confirmed: valid.length, collected: valid.reduce((t, i) => t + i.paid, 0) }
   const owedAll = s.customers.flatMap(c => c.packages).reduce((t, p) => t + D.pkgOwed(p), 0)
   const rg = range === 'day' ? rangeOf('day', todayD()) : range === 'week' ? { from: addDays(todayD(), -6), to: todayD(), label: `${fmtD(addDays(todayD(), -6))} – ${fmtD(todayD())}` } : rangeOf('month', todayD())
-  const pm = range === 'day' ? null : metrics(s, rg)
-  const stats = !pm ? { ...today, due: owedAll } : { confirmed: pm.guests, collected: pm.revenue, due: owedAll }
+  const pm = metrics(s, rg) // một nguồn với CEO/Leader: hóa đơn + bán sản phẩm
+  const stats = range === 'day' ? { ...today, collected: pm.revenue, due: owedAll } : { confirmed: pm.guests, collected: pm.revenue, due: owedAll }
   const byCustomer = Array.from(new Set(bills.map(b => b.customerId)))
   return <>
     <PageHeader eyebrow="Điều phối hôm nay" title="Thu ngân" sub="Thanh toán, hóa đơn, thẻ liệu trình"
@@ -36,7 +36,7 @@ export function CashierScreen() {
     <div className="grid g4">
       <Stat label="Chờ thanh toán" value={bills.length} tone="r-fg" sub="lượt phục vụ xong" />
       <Stat label={range === 'day' ? 'Hóa đơn đã xác nhận' : 'Khách có hóa đơn'} value={stats.confirmed} tone="g-fg" sub={range === 'day' ? `hôm nay ${fmtD(todayD())}` : `${rg.label} · ${D.SAMPLE_NOTE} ngày trước`} />
-      <Stat label="Tiền đã thu" value={D.vndShort(stats.collected)} tone="gold" sub={range === 'day' ? `hôm nay ${fmtD(todayD())} · tiền mặt · CK · thẻ NH` : `${rg.label} · ${D.SAMPLE_NOTE} ngày trước`} />
+      <Stat label="Tiền đã thu" value={D.vndShort(stats.collected)} tone="gold" sub={range === 'day' ? `hôm nay ${fmtD(todayD())} · hóa đơn ${D.vndShort(today.collected)}${pm.prodPart ? ` + bán sản phẩm ${D.vndShort(pm.prodPart)}` : ''}` : `${rg.label} · ${D.SAMPLE_NOTE} ngày trước`} />
       <Stat label="Còn phải thu (gói)" value={D.vndShort(stats.due)} tone="y-fg" sub={`cọc & còn thiếu · đến ${fmtD(todayD())}`} />
     </div>
     <Seg value={tab} onChange={setTab} items={[{ k: 'waiting', label: 'Chờ thanh toán', badge: bills.length }, { k: 'invoices', label: 'Hóa đơn' }, { k: 'deposits', label: 'Cọc & còn thiếu' }, { k: 'cards', label: 'Thẻ liệu trình' }]} />

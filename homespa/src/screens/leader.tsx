@@ -198,7 +198,7 @@ const PERMS: Record<D.Role, { can: string[]; cannot: string[] }> = {
 function answer(s: State, q: string, me?: D.Staff): Answer {
   const t = q.toLowerCase()
   const { cur: wc, prev: wp } = periodRanges({ g: 'week' }), wN = metrics(s, wc), wP = metrics(s, wp)
-  const w = { now: { returning: wN.returning, showRate: showRate(wN) ?? 0, waitAvg: waitAvg(wN) ?? 0 }, prev: { returning: wP.returning, showRate: showRate(wP) ?? 0, waitAvg: waitAvg(wP) ?? 0 }, target: D.HISTORY.week.target, label: `${wc.label} so với ${wp.label}` }
+  const w = { now: { returning: wN.returning, showRate: showRate(wN) ?? '—', waitAvg: waitAvg(wN) ?? '—' }, prev: { returning: wP.returning, showRate: showRate(wP) ?? '—', waitAvg: waitAvg(wP) ?? '—' }, target: D.HISTORY.week.target, label: `${wc.label} so với ${wp.label}` }
   if (me) {
     if (/ca nào|tour thứ|thứ tự tour/.test(t)) { const o = tourOrder(s); const pos = o.indexOf(me.id)
       return { q, title: 'Ca & tour hôm nay của bạn', facts: [me.shift ? `Bạn làm ${D.SHIFTS[me.shift].label}.` : 'Bạn không xếp ca theo giờ.', ...(pos >= 0 ? [`Bạn đang đứng thứ ${pos + 1}/${o.length} trong hàng xoay tour.`] : []), `Chấm công: ${s.attendance[me.id]?.in != null ? `đã vào lúc ${D.hhmm(s.attendance[me.id].in!)}` : 'chưa chấm — bấm "Quét QR chấm công" ở Hôm nay'}.`], hyps: [], next: ['Muốn đổi ca: Hôm nay → mục 1 → "Xin đổi ca" → CEO duyệt.'] } }
@@ -343,7 +343,7 @@ export function MineScreen() {
 function WeeklyReportModal({ onClose }: { onClose: () => void }) {
   const { s, sendReport, me } = useStore()
   const { cur: wc, prev: wp } = periodRanges({ g: 'week' }), wN = metrics(s, wc), wP = metrics(s, wp)
-  const w = { now: { returning: wN.returning, showRate: showRate(wN) ?? 0, waitAvg: waitAvg(wN) ?? 0 }, prev: { returning: wP.returning, showRate: showRate(wP) ?? 0, waitAvg: waitAvg(wP) ?? 0 }, target: D.HISTORY.week.target, label: `${wc.label} so với ${wp.label}` }
+  const w = { now: { returning: wN.returning, showRate: showRate(wN) ?? '—', waitAvg: waitAvg(wN) ?? '—' }, prev: { returning: wP.returning, showRate: showRate(wP) ?? '—', waitAvg: waitAvg(wP) ?? '—' }, target: D.HISTORY.week.target, label: `${wc.label} so với ${wp.label}` }
   const doneT = s.tasks.filter(t => t.status === 'done' && (t.ownerId === me.id || t.createdBy === me.id))
   const QUESTIONS = ['Tuần này kết quả thay đổi thế nào so với mục tiêu và kỳ trước?', 'Điểm nghẽn lớn nhất nằm ở đâu?', 'Nguyên nhân nào đã có bằng chứng, nguyên nhân nào đang kiểm tra?', 'Leader đã chủ động làm gì và kết quả ra sao?', 'Tuần tới ưu tiên 3 việc nào?', 'Cần chị quyết định hoặc hỗ trợ điều gì, trước ngày nào?']
   const [a, setA] = useState<string[]>([

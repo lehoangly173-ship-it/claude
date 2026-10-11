@@ -24,7 +24,7 @@ function SpecHub({ rows, sub, leaf, base, title, tag, custom, intro }: { rows: S
   if (row) return <ConPage row={row} base={base} back={() => go(base)} custom={custom?.[row.no]?.()} />
   return <>
     {base.includes('/') && <BackBtn to={base.split('/')[0]} />}
-    <Hero tag={tag} title={title} sub="Chạm vào nút con để xổ nút cháu · bấm lần nữa để mở" />
+    <Hero tag={tag} title={title} sub={T.tree.hint} />
     {intro}
     <TreeNodes items={rows.map(r => ({ icon: iconFor(r.t), t: r.t, d: chau(r).join(' · '), onClick: () => go(`${base}/${r.no}`), kids: chau(r).map((k, i) => ({ no: `${r.no}.${i + 1}`, l: k, onClick: () => go(`${base}/${r.no}/${i}`) })) }))} />
   </>
@@ -268,6 +268,7 @@ export function LeaderCare({ sub }: { sub: string[] }) {
   return <>
     <Hero tag="② Chăm sóc khách hàng Home" title="Chăm sóc khách hàng" sub="Chọn thời gian · 4 nhóm khách · chiến lược · luồng tin nhắn · phân quyền gọi · kết quả" />
     <LeaderCareTop />
+    <div id="care-4" />
     <ReceptionCustomers embed />
     <button className="softbtn wide" onClick={() => go('cust/all')}>Danh sách khách, VIP, phản hồi, hiệu quả chương trình</button>
   </>

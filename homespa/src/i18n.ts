@@ -34,6 +34,7 @@ export const T = {
     errFuture: 'Không chọn ngày trong tương lai',
   },
   notice: { markRead: 'Đã đọc', markUnread: 'Chưa đọc' },
+  tree: { hint: 'Chạm vào mục để xem các phần bên trong · mũi tên → để mở trang' },
   clean: {
     myZones: 'Khu của tôi',
     todayPoints: 'Điểm hôm nay',

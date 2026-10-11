@@ -5,7 +5,7 @@
 //          ngày tương lai = 0 (không bịa).
 import { useSyncExternalStore } from 'react'
 import * as D from './data'
-import type { State } from './logic'
+import { soldToday, type State } from './logic'
 
 // ── Kỳ thời gian ──
 export type Gran = 'day' | 'week' | 'month' | 'quarter' | 'year' | 'custom'
@@ -115,7 +115,7 @@ const isPkg = (i: D.Invoice) => !!i.pkgSale || i.lines.some(l => l.cardCode)
 function todayReal(s: State): Metrics {
   const m = zero(), inv = okInv(s)
   for (const i of inv) { m.revenue += i.paid; (isPkg(i) ? (m.pkgPart += i.paid) : (m.lePart += i.paid)); const src = sourceOf(s, i.customerId); m.bySource[src] = (m.bySource[src] ?? 0) + i.paid }
-  const sold = s.stockMoves.filter(x => x.kind === 'Bán' && !x.status).reduce((t, x) => t + (x.price ?? 0) * x.qty, 0)
+  const sold = soldToday(s)
   m.prodPart = sold; m.revenue += sold
   if (sold) m.bySource['Khác'] = (m.bySource['Khác'] ?? 0) + sold // bán lẻ sản phẩm không gắn khách → để tổng theo nguồn khớp tổng tiền thu
   const ok = s.stockMoves.filter(x => x.status !== 'Chờ duyệt' && x.status !== 'Từ chối')

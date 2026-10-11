@@ -39,8 +39,8 @@ export function Stat({ label, value, sub, tone, onClick, extra }: { label: strin
 /** So sánh kỳ: luôn hiện cả số tuyệt đối lẫn % */
 /** Chữ có "hôm nay" mà chưa ghi ngày → tự thêm ngày (dd/mm) để mọi số liệu trong ngày đều có mốc thời gian */
 export function withDay<T>(x: T): T | string {
-  if (typeof x !== 'string' || !/hôm nay/i.test(x) || /\d{1,2}\/\d{1,2}/.test(x)) return x
-  return `${x} · ${D.dateShort().slice(0, 5)}`
+  if (typeof x !== 'string' || !/hôm nay/i.test(x) || /\b\d{2}\/\d{2}\b|tháng \d/i.test(x)) return x
+  return x.replace(/hôm nay/i, m => `${m} ${D.dateShort().slice(0, 5)}`) // "Khách mới hôm nay 11/10", "Hôm nay 11/10 của tôi"
 }
 export function Delta({ now, prev, invert, unit = '' }: { now: number; prev: number; invert?: boolean; unit?: string }) {
   const diff = now - prev, pct = D.pctChange(now, prev)

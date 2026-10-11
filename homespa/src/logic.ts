@@ -146,7 +146,7 @@ export function overview(s: State) {
   const states = ktvs().map(k => ktvState(s, k.id))
   const beds = BEDS.map(b => bedState(s, b))
   const today = s.appts.filter(a => a.status !== 'cancelled' && a.status !== 'no_show')
-  const paidToday = s.invoices.filter(i => i.status !== 'Nháp' && i.status !== 'Đã xóa').reduce((t, i) => t + i.paid, 0)
+  const paidToday = s.invoices.filter(i => i.status !== 'Nháp' && i.status !== 'Đã xóa').reduce((t, i) => t + i.paid, 0) + soldToday(s)
   return {
     ktvIn: working.length, ktvBusy: states.filter(x => x.label === 'Đang làm' || x.label === 'Sắp xong').length,
     ktvFree: states.filter(x => x.label === 'Rảnh' || x.label === 'Chuẩn bị đón khách').length,
@@ -195,6 +195,8 @@ export const canSendReport = (r?: { status: string }) => !r || r.status === 'Ch�
 export const zoneReport = (s: State, zone: number) => s.cleanReports.filter(r => r.zone === zone).sort((a, b) => b.at - a.at)[0]
 /** Thứ tự tour hôm nay: ca sáng trước, ca chiều sau (theo hàng xoay tour hiện tại) */
 export const tourOrder = (s: State) => [...s.rotation[1], ...s.rotation[2]]
+/** Tiền bán sản phẩm hôm nay (ghi ở Kho, không qua hóa đơn) — dùng chung cho mọi ô "Tiền đã thu" */
+export const soldToday = (s: State) => s.stockMoves.filter(x => x.kind === 'Bán' && !x.status).reduce((t, x) => t + (x.price ?? 0) * x.qty, 0)
 export const pointsOf = (s: State, staffId: string) => s.points.filter(p => p.staffId === staffId && p.status === 'Đã duyệt').reduce((t, p) => t + p.delta, 0)
 /** Tour hôm nay cần đối soát bill: lượt đã/đang phục vụ */
 export function billRows(s: State) {

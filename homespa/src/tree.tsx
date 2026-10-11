@@ -17,7 +17,7 @@ export function TreeNodes({ items }: { items: TreeItem[] }) {
   const hov = useRef(false) // mở do rê chuột → cú bấm đầu tiên giữ mở, không đóng lại
   const m = useContext(MenuCtx)
   if (m) return createPortal(<div className="fm-group">{items.map((n, i) => <div key={i}>
-    <button className={`fm-item${n.alert ? ' alert' : ''}`} onMouseEnter={() => setOpen(i)} onClick={() => { m.close(); n.onClick() }}><span className="no">{n.no ?? i + 1}</span><span className="t">{n.t}</span>{n.badge ? <span className="badge red">{n.badge}</span> : null}</button>
+    <button className={`fm-item${n.alert ? ' alert' : ''}`} aria-expanded={open === i} onMouseEnter={() => setOpen(i)} onFocus={() => setOpen(i)} onClick={() => { m.close(); n.onClick() }}><span className="no">{n.no ?? i + 1}</span><span className="t">{n.t}</span>{n.badge ? <span className="badge red">{n.badge}</span> : null}</button>
     {open === i && n.kids.map(k => <button key={k.l} className="fm-item fm-kid" onClick={() => { m.close(); k.onClick() }}><span className="t">{k.l}</span></button>)}
   </div>)}</div>, m.host)
   // Điện thoại & máy tính: chạm vào nút mẹ để mở/đóng danh sách nút con NGAY TRONG thẻ (kiểu danh sách cài đặt iOS),
@@ -25,15 +25,15 @@ export function TreeNodes({ items }: { items: TreeItem[] }) {
   return <div className="nodes tree">{items.map((n, i) => { const on = open === i, id = `tk-${i}`
     return <div key={i} className={`tnode${on ? ' on' : ''}`} onPointerEnter={e => { if (e.pointerType === 'mouse' && open !== i) { hov.current = true; setOpen(i) } }} onPointerLeave={e => { if (e.pointerType === 'mouse' && hov.current) setOpen(o => (o === i ? null : o)) }}>
       <div className={`node${n.alert ? ' alert' : ''}`}>
-        <button className="thead" aria-expanded={on} aria-controls={id} onClick={() => { if (on && hov.current) { hov.current = false; return } hov.current = false; setOpen(on ? null : i) }}>
+        <button className="thead" aria-expanded={n.kids.length ? on : undefined} aria-controls={n.kids.length ? id : undefined} onClick={() => { if (!n.kids.length) return n.onClick(); if (on && hov.current) { hov.current = false; return } hov.current = false; setOpen(on ? null : i) }}>
           <span className={`no${n.icon ? ' ic' : ''}`}>{n.icon ? <Icon n={n.icon} s={19} /> : n.no ?? i + 1}</span><span className="body"><span className="t" style={{ display: 'block' }}>{n.t}</span>{n.d && <span className="d" style={{ display: 'block' }}>{n.d}</span>}</span>
           {n.kids.length > 0 && <span className="tchev" aria-hidden="true">{n.kids.length}<i>▾</i></span>}
         </button>
         {n.badge ? <span className="badge red">{n.badge}</span> : null}
         <button className="arr tgo" aria-label={`Mở ${n.t}`} onClick={n.onClick}><Icon n="arrow" s={18} /></button>
       </div>
-      {on && n.kids.length > 0 && <div className="tkids" id={id} role="list">
-        {n.kids.map(k => <button key={k.l} role="listitem" className="tkid" onClick={k.onClick}><span>{k.l}</span></button>)}
+      {on && n.kids.length > 0 && <div className="tkids" id={id}>
+        {n.kids.map(k => <button key={k.l} className="tkid" onClick={k.onClick}><span>{k.l}</span></button>)}
         <button className="tkid tall" onClick={n.onClick}><span>Xem tổng hợp · {n.t}</span></button>
       </div>}
     </div> })}</div>
@@ -127,7 +127,7 @@ export function ConPage({ row, base, back, custom }: { row: SpecRow; base: strin
     <SubHead title={row.t} sub={`${ks.length} mục: ${ks.join(' · ')}`} onBack={back} />
     {custom}
     <div className="nodes">{ks.map((k, i) => <button key={k} className="node" onClick={() => go(`${base}/${row.no}/${i}`)}>
-      <span className="no ic"><Icon n={iconFor(`${k} ${row.t}`)} s={19} /></span><span className="body"><span className="t" style={{ display: 'block' }}>{k}</span><span className="d" style={{ display: 'block' }}>{cols(row).join(' · ')}</span></span><span className="arr"><Icon n="arrow" s={18} /></span></button>)}</div>
+      <span className="no ic"><Icon n={iconFor(k) !== 'more' ? iconFor(k) : iconFor(row.t)} s={19} /></span><span className="body"><span className="t" style={{ display: 'block' }}>{k}</span><span className="d" style={{ display: 'block' }}>{cols(row).join(' · ')}</span></span><span className="arr"><Icon n="arrow" s={18} /></span></button>)}</div>
   </>
 }
 
@@ -185,9 +185,10 @@ function ChauChart({ kind, col, rows, money }: { kind: string; col: string; rows
 export function iconFor(t: string): string {
   const c = t.toLowerCase()
   const M: [RegExp, string][] = [
+    [/đánh giá|giám sát|chất lượng/, 'star'],
     [/công việc|nhiệm vụ|việc được giao|việc cần|việc tồn/, 'work'],
     [/duyệt|quy định|hợp đồng|hồ sơ|kiểm tra|pháp|rủi ro|bảo mật/, 'shield'], [/marketing|chiến dịch|quảng cáo|kênh|nội dung|bài|facebook|tiktok|instagram|google|website|truyền thông|đăng/, 'mega'],
-    [/tiền|chi phí|ngân sách|lương|quỹ|công nợ|thuế|dòng tiền|giá|thanh toán|thu nhập|cọc/, 'cash'], [/doanh thu|lợi nhuận|báo cáo|kpi|hiệu quả|tổng quan|tăng|giảm|chỉ số|kết quả/, 'chart'],
+    [/tiền|chi phí|ngân sách|lương|quỹ|công nợ|thuế|dòng tiền|(^|\s)giá(\s|$)|thanh toán|thu nhập|cọc/, 'cash'], [/doanh thu|lợi nhuận|báo cáo|kpi|hiệu quả|tổng quan|tăng|giảm|chỉ số|kết quả/, 'chart'],
     [/cskh|mộc|(^|\s)ai(\s|$)|phản hồi|tin nhắn|chăm sóc/, 'chat'], [/khách|vip|giới thiệu|nguồn|tệp/, 'users'], [/nhân sự|ktv|nhân viên|đội|tuyển|đào tạo|năng lực|lễ tân/, 'team'],
     [/lịch|ca |ca$|thời gian|hạn|tuần|tháng/, 'cal'], [/kho|vật tư|sản phẩm|thiết bị|hàng/, 'box'], [/sáng kiến|dự án|chiến lược|mục tiêu|chất lượng|đánh giá|điểm/, 'star'],
     [/cài đặt|tổ chức|hệ thống|phân quyền|quy trình/, 'gear'], [/vận hành|giường|tour|dịch vụ|massage|gội/, 'ops'],
