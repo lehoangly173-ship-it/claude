@@ -170,7 +170,7 @@ export function OpsHub({ sub, base }: { sub?: string; base: string }) {
   const cur = tabs.some(t => t.k === want) ? want : 'overview'
   return <>
     {base !== 'ops' && <BackBtn to={base.split('/')[0]} />}
-    <div style={{ overflowX: 'auto' }}><Seg value={cur} onChange={v => go(`${base}/${v}`)} items={tabs.map(t => ({ ...t, badge: t.k === 'queue' ? s.queue.length : t.k === 'cashier' ? overview(s).bills.length : undefined }))} /></div>
+    <div className="ops-tabs"><Seg value={cur} onChange={v => go(`${base}/${v}`)} items={tabs.map(t => ({ ...t, badge: t.k === 'queue' ? s.queue.length : t.k === 'cashier' ? overview(s).bills.length : undefined }))} /></div>
     {cur === 'overview' && <OverviewScreen readonly={readonly} />}
     {cur === 'schedule' && <ScheduleScreen key={sub} openNew={sub === 'schedule:new'} />}
     {cur === 'queue' && <QueueScreen />}

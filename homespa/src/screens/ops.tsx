@@ -23,10 +23,8 @@ export function OverviewScreen({ readonly }: { readonly?: boolean }) {
   const al = alerts(s).filter(a => a.who === 'reception')
   const myTasks = s.tasks.filter(t => t.ownerId === me.id && (t.status === 'open' || t.status === 'doing'))
   const [modal, setModal] = useState<null | 'ktv' | 'finishing' | 'done'>(null)
-  const hello = s.now < 11 * 60 ? 'Chào buổi sáng' : s.now < 14 * 60 ? 'Chào buổi trưa' : 'Chào buổi chiều'
-  return <>
-    <PageHeader eyebrow={readonly ? 'Vận hành · chỉ xem' : 'Điều phối hôm nay'} title={`${hello}, ${me.name}`} sub={`${D.dateLabel()} · Home Spa Đà Nẵng`}
-      right={!readonly && user.role === 'reception' && <><button className="btn" onClick={() => go('queue')}><Icon n="queue" />Thêm khách chờ</button><button className="btn pri" onClick={() => go('schedule:new')}><Icon n="plus" />Tạo lịch nhanh</button></>} />
+  return <div className="col ovw">
+    {!readonly && user.role === 'reception' && <div className="row ovw-act"><button className="btn" onClick={() => go('queue')}><Icon n="queue" />Thêm khách chờ</button><button className="btn pri" onClick={() => go('schedule:new')}><Icon n="plus" />Tạo lịch nhanh</button></div>}
     <Sec eyebrow="Vận hành hôm nay">
       <div className="grid g3">
         <Stat label="KTV trong ca" value={o.ktvIn} tone="g-fg" sub={`${D.ktvs().filter(k => k.shift === 1).length} Ca 1 · ${D.ktvs().filter(k => k.shift === 2).length} Ca 2`} onClick={() => setModal('ktv')} extra={<><Pill tone="green">{o.ktvBusy} đang làm</Pill><Pill>{o.ktvFree} rảnh</Pill></>} />
@@ -51,7 +49,7 @@ export function OverviewScreen({ readonly }: { readonly?: boolean }) {
     </div>
     {modal === 'ktv' && <Modal title="KTV trong ca hôm nay" onClose={() => setModal(null)}>{D.ktvs().map(k => { const st = ktvState(s, k.id); return <div key={k.id} className="row"><Av name={k.name} /><b>{k.name}</b><span className="muted small">{D.SHIFTS[k.shift!].label}</span><span className="right-al"><Pill tone={st.tone} dot>{st.label}{st.until ? ` · ${D.hhmm(st.until)}` : ''}</Pill></span></div> })}</Modal>}
     {modal === 'finishing' && <Modal title="Sắp hoàn thành (30 phút tới)" onClose={() => setModal(null)}>{o.finishing.length ? o.finishing.map(a => <div key={a.id} className="row"><b>{cust(s, a.customerId).name}</b><span className="muted small">KTV {D.staffName(a.ktvId)} · {a.bedId} · {D.svc(a.serviceId).name}</span><span className="right-al"><Pill tone="yellow">{D.hhmm(a.end)}</Pill></span></div>) : <Empty>Không có ca sắp xong</Empty>}</Modal>}
-  </>
+  </div>
 }
 function AlertRow({ a }: { a: Alert }) {
   const { go } = useStore()

@@ -574,3 +574,17 @@ div.f { display: flex; flex-direction: column; gap: 6px; background: var(--mint)
 .block.foldable > button.bh { width: 100%; border: 0; text-align: left; cursor: pointer; display: flex; align-items: center; gap: 10px; font: inherit; color: inherit }
 .block.foldable.open .tchev i { transform: rotate(180deg) }
 .block.foldable:not(.open) { padding-bottom: 14px }
+
+/* 12/10 đợt 3: Lễ tân · Tổng quan — chữ tiêu đề đỏ mận; khung tab Vận hành xanh Home nhạt hơn 1 chút */
+:root { --plum: #8b1e3f; --green-frame: #2b7a47 }
+:root[data-theme="dark"] { --plum: #f08aa8; --green-frame: #2f7d4a }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --plum: #f08aa8; --green-frame: #2f7d4a } }
+.ovw { gap: 16px }
+.ovw-act { gap: 8px; flex-wrap: wrap }
+.ovw .eyebrow, .ovw .card.stat .l { color: var(--plum) }
+.ops-tabs { background: var(--green-frame); border-radius: 16px; padding: 6px; overflow-x: auto }
+.ops-tabs .seg { background: transparent; padding: 0; display: flex }
+.ops-tabs .seg button { color: #fff }
+.ops-tabs .seg button.on { background: var(--green-dark); color: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25) }
+.ops-tabs .seg button:not(.on):hover { background: rgba(255,255,255,.14) !important; color: #fff !important }
+.ops-tabs .seg button.on .badge { box-shadow: 0 0 0 2px var(--green-dark) }
