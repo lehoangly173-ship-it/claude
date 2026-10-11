@@ -258,11 +258,13 @@ export function ReceptionCustomers({ embed }: { embed?: boolean } = {}) {
       { v: s.feedback.length ? (s.feedback.reduce((t, f) => t + f.rating, 0) / s.feedback.length).toFixed(1) : '—', l: 'Điểm trải nghiệm TB' },
       { v: fbBad.length ? `${Math.round(fbBad.filter(f => f.status === 'đã xử lý' && f.handlerId && recIds.has(f.handlerId)).length / fbBad.length * 100)}%` : '—', l: 'Khiếu nại lễ tân xử lý' },
     ]} />
-    <div className="row small"><span className="muted">Chọn thời gian (lần đến gần nhất):</span><input className="inp" style={{ width: 150 }} type="date" value={rg.from} onChange={e => setRg({ ...rg, from: e.target.value })} aria-label="Từ ngày" />→<input className="inp" style={{ width: 150 }} type="date" value={rg.to} onChange={e => setRg({ ...rg, to: e.target.value })} aria-label="Đến ngày" /></div>
+    <section className="card pad col fbox"><span className="eyebrow">Chọn thời gian (lần đến gần nhất)</span><div className="grid fgrid">
+      <label className="f">Từ ngày<input className="inp" type="date" value={rg.from} onChange={e => setRg({ ...rg, from: e.target.value })} /></label>
+      <label className="f">Đến ngày<input className="inp" type="date" value={rg.to} onChange={e => setRg({ ...rg, to: e.target.value })} /></label></div></section>
     <div style={{ overflowX: 'auto' }}><Seg value={grp} onChange={g => { setGrp(g); setFlt('Tất cả') }} items={[{ k: 'leVN', label: 'Khách lẻ Việt' }, { k: 'ltVN', label: 'Liệu trình Việt' }, { k: 'leNN', label: 'Khách lẻ nước ngoài' }, { k: 'ltNN', label: 'Liệu trình nước ngoài' }]} /></div>
     <div className="row">{filters.map(f => <button key={f} className={`btn sm${flt === f ? ' pri' : ''}`} onClick={() => setFlt(f)}>{f}</button>)}</div>
     <div className="row"><input className="inp" style={{ flex: 1, minWidth: 160 }} placeholder={isLT ? 'Tìm mã KH / tên' : 'Tìm tên / mã'} value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm khách" />
-      {flt === 'Lâu chưa quay lại' && <label className="row small muted">≥<NumInput className="inp num" min={7} step={7} value={days} onChange={v => setDays(v)} style={{ width: 80 }} />ngày</label>}</div>
+      {flt === 'Lâu chưa quay lại' && <label className="f" style={{ width: 150 }}>Số ngày ≥<NumInput className="inp num" min={7} step={7} value={days} onChange={v => setDays(v)} /></label>}</div>
     <div className="card list">{list.map(c => <div key={c.id} className="item" style={{ alignItems: 'flex-start' }}><Av name={c.name} /><div className="body">
       <button className="link" onClick={() => openCustomer(c.id)} style={{ color: 'var(--ink)' }}>{c.name} <span className="tiny muted">· mã {c.code}</span></button>
       <div className="d">{user.role === 'reception' || user.role === 'ceo' ? c.phone || 'chưa có SĐT' : 'SĐT ẩn'} · {c.visits} lần · {c.lastVisitDays ? `${c.lastVisitDays} ngày trước` : 'hôm nay'} · {D.vnd(c.totalPaid)}{c.packages.map(p => ` · ${p.cardCode}: ${pkgState(p)}`).join('')}</div>

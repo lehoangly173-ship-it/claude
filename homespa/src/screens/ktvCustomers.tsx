@@ -40,7 +40,7 @@ export function KtvCustomersPage({ back }: P) {
   const { s, me } = useStore()
   const [tab, setTab] = useState<KtvTab>('cared')
   const [kind, setKind] = useState<'all' | 'le' | 'lt'>('all')
-  const [minTimes, setMinTimes] = useState(1)
+  const [minTimes, setMinTimes] = useState(0)
   const [closedSub, setClosedSub] = useState<'all' | 'le' | 'renew'>('all')
   const [a, setA] = useState(''), [b, setB] = useState('')
   const kc = ktvCustomers(s, me)
@@ -59,16 +59,15 @@ export function KtvCustomersPage({ back }: P) {
       <button className={`btn sm${closedSub === 'le' ? ' pri' : ''}`} aria-pressed={closedSub === 'le'} onClick={() => setClosedSub(closedSub === 'le' ? 'all' : 'le')}>{C.closedLe} <span className="badge">{split.le.length}</span></button>
       <button className={`btn sm${closedSub === 'renew' ? ' pri' : ''}`} aria-pressed={closedSub === 'renew'} onClick={() => setClosedSub(closedSub === 'renew' ? 'all' : 'renew')}>{C.closedRenew} <span className="badge">{split.renew.length}</span></button>
     </div>}
-    <div className="row"><Seg value={kind} onChange={setKind} items={[{ k: 'all', label: 'Tất cả' }, { k: 'le', label: 'Khách lẻ' }, { k: 'lt', label: 'Liệu trình' }]} />
-      <label className="row small muted">Số lần ≥<NumInput className="inp num" min={0} value={minTimes} onChange={v => setMinTimes(v)} style={{ width: 70 }} /></label></div>
-    <div className="row small">
-      <span className="muted">{C.range}</span>
-      <input className="inp" type="date" aria-label={C.rangeFrom} value={a} onChange={e => setA(e.target.value)} />
-      <span>→</span>
-      <input className="inp" type="date" aria-label={C.rangeTo} value={b} onChange={e => setB(e.target.value)} />
-      {(a || b) && <button className="btn sm" onClick={() => { setA(''); setB('') }}>{C.rangeClear}</button>}
-      {a && b && !ranged.error && <span className="muted">{viDate(a)}–{viDate(b)}</span>}
-    </div>
+    <Seg value={kind} onChange={setKind} items={[{ k: 'all', label: 'Tất cả' }, { k: 'le', label: 'Khách lẻ' }, { k: 'lt', label: 'Liệu trình' }]} />
+    <section className="card pad col fbox"><span className="eyebrow">{C.filter}</span>
+      <div className="grid fgrid">
+        <label className="f">{C.visitsMin}<NumInput className="inp num" min={0} value={minTimes} onChange={v => setMinTimes(v)} /></label>
+        <label className="f">{C.rangeFrom}<input className="inp" type="date" value={a} onChange={e => setA(e.target.value)} /></label>
+        <label className="f">{C.rangeTo}<input className="inp" type="date" value={b} onChange={e => setB(e.target.value)} /></label>
+      </div>
+      {(a || b) && <div className="row small"><button className="btn sm" onClick={() => { setA(''); setB('') }}>{C.rangeClear}</button>{a && b && !ranged.error && <span className="muted">{viDate(a)}–{viDate(b)}</span>}</div>}
+    </section>
     {ranged.error && <div className="err small" role="alert">{ranged.error}</div>}
     <div className="card list">{list.map(c => <KtvRow key={c.id} c={c} />)}
       {!list.length && <Empty>Chưa có khách trong mục này</Empty>}</div>
@@ -97,27 +96,31 @@ export function KtvHomeSpaPage({ back }: P) {
       <button className={`btn sm${!f.file ? ' pri' : ''}`} onClick={() => set({ file: undefined })}>{C.any}</button>
       {files.map(x => <button key={x.k} className={`btn sm${f.file === x.k ? ' pri' : ''}`} aria-pressed={f.file === x.k} onClick={() => set({ file: f.file === x.k ? undefined : x.k })}>{x.k}. {x.l} <span className="badge">{x.n}</span></button>)}
     </div>}
-    <div className="card pad col small">
+    <section className="card pad col fbox"><span className="eyebrow">{C.filter}</span>
       <input className="inp" type="search" placeholder={kind === 'lt' ? C.searchCode : C.search} aria-label={kind === 'lt' ? C.searchCode : C.search} value={f.q ?? ''} onChange={e => set({ q: e.target.value })} />
-      {kind === 'le' && <>
-        <label className="row">{C.visits}
-          <select className="inp" value={f.visitsOp ?? ''} onChange={e => set({ visitsOp: (e.target.value || undefined) as SegFilter['visitsOp'] })}><option value="">{C.any}</option><option value="gte">{C.visitsGte}</option><option value="lte">{C.visitsLte}</option><option value="once">{C.visitsOnce}</option></select>
-          {(f.visitsOp === 'gte' || f.visitsOp === 'lte') && <NumInput className="inp num" min={0} aria-label={C.visits} optional value={f.visits ?? null} onChange={(v: number | null) => set({ visits: v ?? undefined })} style={{ width: 70 }} />}
-        </label>
-        <div className="row"><label className="row">{C.budgetMin}<NumInput className="inp num" min={0} step={100000} optional value={f.budgetMin ?? null} onChange={(v: number | null) => set({ budgetMin: v ?? undefined })} style={{ width: 120 }} /></label>
-          <label className="row">{C.budgetMax}<NumInput className="inp num" min={0} step={100000} optional value={f.budgetMax ?? null} onChange={(v: number | null) => set({ budgetMax: v ?? undefined })} style={{ width: 120 }} /></label></div>
-        <label className="row">{C.referral}
-          <select className="inp" value={f.referrerId ?? ''} onChange={e => set({ referrerId: e.target.value || undefined })}><option value="">{C.any}</option>{referrers.map(c => <option key={c.id} value={c.id}>{c.name} · mã {c.code}</option>)}</select></label>
-        <label className="row">{C.source}
-          <select className="inp" value={f.source ?? ''} onChange={e => set({ source: e.target.value || undefined })}><option value="">{C.any}</option>{sources.map(x => <option key={x} value={x}>{x}</option>)}</select></label>
-      </>}
-      <label className="row">{C.away}
-        <select className="inp" value={f.awayDays ?? ''} onChange={e => set({ awayDays: e.target.value ? +e.target.value : undefined })}><option value="">{C.any}</option>{[30, 60, 90].map(d => <option key={d} value={d}>{C.awayOpt(d)}</option>)}</select></label>
-      <label className="row">{C.bday}
-        <select className="inp" value={f.birthMonth ?? ''} onChange={e => set({ birthMonth: e.target.value ? +e.target.value : undefined })}><option value="">{C.any}</option>{Array.from({ length: 12 }, (_, i) => <option key={i} value={i + 1}>{C.month(i + 1)}</option>)}</select></label>
-      <label className="check"><input type="checkbox" checked={!!f.unhappy} onChange={e => set({ unhappy: e.target.checked || undefined })} />{C.unhappy}</label>
-      {group === 'NN' && <label className="check"><input type="checkbox" checked={!!f.departed} onChange={e => set({ departed: e.target.checked || undefined })} />{C.departed} <span className="tiny muted">({C.sample})</span></label>}
-    </div>
+      <div className="grid fgrid">
+        {kind === 'le' && <>
+          <label className="f">{C.visits}
+            <div className="row" style={{ flexWrap: 'nowrap' }}><select className="inp" value={f.visitsOp ?? ''} onChange={e => set({ visitsOp: (e.target.value || undefined) as SegFilter['visitsOp'] })}><option value="">{C.any}</option><option value="gte">{C.visitsGte}</option><option value="lte">{C.visitsLte}</option><option value="once">{C.visitsOnce}</option></select>
+            {(f.visitsOp === 'gte' || f.visitsOp === 'lte') && <NumInput className="inp num" min={0} aria-label={C.visits} optional value={f.visits ?? null} onChange={(v: number | null) => set({ visits: v ?? undefined })} style={{ width: 64 }} />}</div>
+          </label>
+          <label className="f">{C.budgetMin}<NumInput className="inp num" min={0} step={100000} optional value={f.budgetMin ?? null} onChange={(v: number | null) => set({ budgetMin: v ?? undefined })} /></label>
+          <label className="f">{C.budgetMax}<NumInput className="inp num" min={0} step={100000} optional value={f.budgetMax ?? null} onChange={(v: number | null) => set({ budgetMax: v ?? undefined })} /></label>
+          <label className="f">{C.referral}
+            <select className="inp" value={f.referrerId ?? ''} onChange={e => set({ referrerId: e.target.value || undefined })}><option value="">{C.any}</option>{referrers.map(c => <option key={c.id} value={c.id}>{c.name} · mã {c.code}</option>)}</select></label>
+          <label className="f">{C.source}
+            <select className="inp" value={f.source ?? ''} onChange={e => set({ source: e.target.value || undefined })}><option value="">{C.any}</option>{sources.map(x => <option key={x} value={x}>{x}</option>)}</select></label>
+        </>}
+        <label className="f">{C.away}
+          <select className="inp" value={f.awayDays ?? ''} onChange={e => set({ awayDays: e.target.value ? +e.target.value : undefined })}><option value="">{C.any}</option>{[30, 60, 90].map(d => <option key={d} value={d}>{C.awayOpt(d)}</option>)}</select></label>
+        <label className="f">{C.bday}
+          <select className="inp" value={f.birthMonth ?? ''} onChange={e => set({ birthMonth: e.target.value ? +e.target.value : undefined })}><option value="">{C.any}</option>{Array.from({ length: 12 }, (_, i) => <option key={i} value={i + 1}>{C.month(i + 1)}</option>)}</select></label>
+      </div>
+      <div className="row small">
+        <label className="check"><input type="checkbox" checked={!!f.unhappy} onChange={e => set({ unhappy: e.target.checked || undefined })} />{C.unhappy}</label>
+        {group === 'NN' && <label className="check"><input type="checkbox" checked={!!f.departed} onChange={e => set({ departed: e.target.checked || undefined })} />{C.departed} <span className="tiny muted">({C.sample})</span></label>}
+      </div>
+    </section>
     <div className="card list">{list.map(c => <KtvRow key={c.id} c={c} extra={[kind === 'lt' ? fileLabel(c) : '', isUnhappy(s, c) ? C.unhappy.toLowerCase() : '', c.departed ? C.departed.toLowerCase() : ''].filter(Boolean).join(' · ')} />)}
       {!list.length && <Empty>{C.empty}</Empty>}</div>
   </>

@@ -463,3 +463,8 @@ details.howto ul { margin: 8px 0 0; padding-left: 18px }
 .pl1 { color: var(--r-fg) } .pl2 { color: var(--y-fg) } .pl3 { color: var(--g-fg) } .pl4 { color: var(--n-fg) }
 .node.deep.on { box-shadow: 0 0 0 3px var(--gold); }
 @media (hover: hover) { .node.deep:hover .no, .node.deep:hover .arr { color: var(--ink) !important; background: rgba(0,0,0,.06) } }
+
+/* Bộ lọc dùng chung (khách hàng KTV / lễ tân): nhãn nền xanh nhạt, 2 cột trên điện thoại */
+.fbox { gap: 10px }
+.fgrid { grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 10px }
+.fgrid label.f .inp { width: 100%; min-width: 0 }

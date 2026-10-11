@@ -128,6 +128,8 @@ export const T = {
     closedLe: 'Khách lẻ tôi chốt',
     closedRenew: 'Khách liệu trình tái tục tôi chốt',
     range: 'Khoảng thời gian',
+    filter: 'Bộ lọc',
+    visitsMin: 'Số lần ≥',
     rangeFrom: 'Từ ngày (A)',
     rangeTo: 'Đến ngày (B)',
     rangeClear: 'Xóa khoảng',

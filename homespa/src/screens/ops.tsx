@@ -281,7 +281,7 @@ export function QueueScreen() {
           {!s.queue.length && <Empty>Không có khách chờ</Empty>}
         </div>
         {guest && <div className="card pad col" style={{ marginTop: 12 }}>
-          <div className="row"><b>Gợi ý cho {cust(s, guest.customerId).name}</b><button className="link small right-al" onClick={() => openCustomer(guest.customerId)}>Hồ sơ</button></div>
+          <div className="row"><span className="eyebrow">Gợi ý cho {cust(s, guest.customerId).name}</span><button className="link small right-al" onClick={() => openCustomer(guest.customerId)}>Hồ sơ</button></div>
           <div className="tiny muted">Thứ tự: KTV khách yêu cầu → giờ trống sớm nhất → vị trí xoay tour. Đã tính 10 phút dọn giường và giường đúng khu vực.</div>
           {opts.slice(0, 4).map(o => <div key={o.id} className="row"><Av name={D.staffName(o.id)} /><div style={{ flex: 1, minWidth: 0 }}><b>{D.staffName(o.id)}</b> {o.requested && <Pill tone="yellow">Khách yêu cầu</Pill>}<div className="tiny muted">{o.t === s.now ? 'Nhận ngay' : `Trống từ ${D.hhmm(o.t!)}`} · giường {o.bed}</div></div>
             {canEdit && <button className="btn sm pri" onClick={() => { setErr(null); setAssign({ ktvId: o.id, start: o.t!, bedId: o.bed! }) }}>Giao</button>}</div>)}
