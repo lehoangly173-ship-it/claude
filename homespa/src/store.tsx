@@ -370,6 +370,10 @@ function useStoreValue() {
       say(s.now > sh ? `Đã chấm công ${D.hhmm(s.now)} — trễ ${s.now - sh} phút` : `Đã chấm công vào ${D.hhmm(s.now)}`)
     },
     checkOut: () => mutate(d => { d.attendance[me.id] = { ...d.attendance[me.id], out: d.now } }),
+    /** Bổ sung / thay ảnh cho báo cáo dọn dẹp ĐANG chờ kiểm tra (không tạo báo cáo mới) */
+    replaceCleanPhoto: (zone: number, photo: string) => { const r = zoneReport(s, zone)
+      if (!r || r.status !== 'Chờ kiểm tra' || r.staffId !== me.id) return say('Chỉ thay ảnh cho báo cáo của bạn đang chờ kiểm tra')
+      mutate(d => { const x = d.cleanReports.find(y => y.id === r.id); if (x) { x.photo = photo; x.note = `${x.note ? x.note + ' · ' : ''}Đã thay ảnh ${D.hhmm(d.now)}` } }); if (!blocked()) say('Đã cập nhật ảnh cho báo cáo đang chờ kiểm tra') },
     submitClean: (zone: number, photo: string, checks: boolean[]): string | null => {
       const z = D.ZONES.find(x => x.no === zone)!
       checks = z.std.map((_, i) => !!checks[i]) // đủ số mục của khu

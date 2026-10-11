@@ -15,8 +15,8 @@ describe('Kỳ thời gian', () => {
     expect(n(prev)).toBe(Math.min(n(cur), new Date(prev.from.getFullYear(), prev.from.getMonth() + 1, 0).getDate()))
     expect(prev.from.getMonth()).toBe((cur.from.getMonth() + 11) % 12)
   })
-  it('tuần bắt đầu thứ Hai; ngày = hôm nay; nhãn ghi rõ ngày', () => {
-    expect(periodRanges({ g: 'week' }).cur.from.getDay()).toBe(1)
+  it('7 ngày cuốn chiếu đến hôm nay, so với 7 ngày liền trước; ngày = hôm nay; nhãn ghi rõ ngày', () => {
+    const w = periodRanges({ g: 'week' }); expect(+w.cur.from).toBe(+addDays(t, -6)); expect(+w.cur.to).toBe(+t); expect(+w.prev.to).toBe(+addDays(t, -7)); expect(+w.prev.from).toBe(+addDays(t, -13))
     const d = periodRanges({ g: 'day' }); expect(+d.cur.from).toBe(+t); expect(+d.prev.from).toBe(+addDays(t, -1))
     expect(periodRanges({ g: 'quarter' }).cur.label).toMatch(/^\d{2}\/\d{2}\/\d{4} – \d{2}\/\d{2}\/\d{4}$/)
   })

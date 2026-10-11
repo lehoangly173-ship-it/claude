@@ -87,8 +87,11 @@ function useMenuPortal(content: (close: () => void) => ReactNode) {
   if (!m) return null
   return createPortal(<div className="fm-group">{g && <div className="fm-h">{g}</div>}{content(m.close)}</div>, m.host)
 }
-export function Block({ title, sub, right, children, color }: { title: ReactNode; sub?: ReactNode; right?: ReactNode; children: ReactNode; color?: Color }) {
-  return <section className="block"><div className={`bh${color ? ` ${color}` : ''}`}><div style={{ minWidth: 0 }}><h2>{withDay(title)}</h2>{sub && <p>{sub}</p>}</div>{right && <div className="right">{right}</div>}</div><GroupCtx.Provider value={typeof title === 'string' ? title : null}>{children}</GroupCtx.Provider></section>
+export function Block({ title, sub, right, children, color, fold }: { title: ReactNode; sub?: ReactNode; right?: ReactNode; children: ReactNode; color?: Color; fold?: boolean }) {
+  const [open, setOpen] = useState(!fold) // fold: thu gọn, chạm tiêu đề mới hiện danh sách
+  const head = <><div style={{ minWidth: 0, flex: 1 }}><h2>{withDay(title)}</h2>{sub && <p>{sub}</p>}</div>{right && <div className="right">{right}</div>}{fold && <span className="tchev" aria-hidden="true"><i>▾</i></span>}</>
+  return <section className={`block${fold ? ' foldable' : ''}${open ? ' open' : ''}`}>{fold ? <button className={`bh${color ? ` ${color}` : ''}`} aria-expanded={open} onClick={() => setOpen(!open)}>{head}</button> : <div className={`bh${color ? ` ${color}` : ''}`}>{head}</div>}
+    {open && <GroupCtx.Provider value={typeof title === 'string' ? title : null}>{children}</GroupCtx.Provider>}</section>
 }
 export type NodeT = { no?: ReactNode; t: string; d?: string; badge?: number; alert?: boolean; cls?: string; onClick: () => void }
 export function Nodes({ items }: { items: NodeT[] }) {
@@ -132,7 +135,7 @@ export function PhotoInput({ value, onChange, label = 'Tải ảnh lên', refKey
     </div>
     <div className="row" style={{ gap: 8 }}>
       <label className="btn pri sm"><Icon n="camera" s={16} />Chụp ảnh<input hidden type="file" accept="image/*" capture="environment" onChange={e => { pick(e.target.files?.[0]); e.target.value = '' }} /></label>
-      <label className="btn sm">🖼 Chọn ảnh có sẵn<input hidden type="file" accept="image/*" onChange={e => { pick(e.target.files?.[0]); e.target.value = '' }} /></label>
+      <label className="btn sm">🖼 Chọn từ album<input hidden type="file" accept="image/*" onChange={e => { pick(e.target.files?.[0]); e.target.value = '' }} /></label>
       {value && <button className="btn sm ghost" onClick={() => onChange('')}>Bỏ ảnh</button>}
     </div>
   </div>

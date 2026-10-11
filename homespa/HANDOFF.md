@@ -43,6 +43,13 @@ Các bước (Claude tự làm khi connector đã nối đúng tài khoản):
 - Link sẽ đổi (link cũ thuộc `hayquen`). Muốn dùng lại link cũ: nối lại `hayquen` sau 01/11.
 - Không cần lưu mật khẩu/token nào vào repo; connector tự giữ đăng nhập.
 
+## Cập nhật 12/10 (đợt 2) — chọn kỳ thống nhất, màu, ảnh mẫu theo khu, thu gọn cài đặt
+- Kỳ dùng chung mọi màn (`period.ts`): Hôm nay · 7 ngày (cuốn chiếu) · 1 tháng · 1 quý · 1 năm (lịch, tính đến hôm nay) · Tùy chọn (Ngày bắt đầu/kết thúc + nút Xem). Thu ngân, trang nút cháu (cây) cũng theo kỳ này.
+- Chip/tab đang chọn, nhãn ngày: xanh đậm; vách ngăn tầng: nâu đậm.
+- Ảnh mẫu: Leader/CEO thêm ảnh và gán cho khu/hạng mục cụ thể (`RefPhotosPage`).
+- Cài đặt CEO: các khối dài thu gọn (`Block fold`).
+- Báo cáo dọn dẹp đang chờ: chụp lại / chọn album (`replaceCleanPhoto`).
+
 ## Cập nhật 12/10 — ngày làm việc, ảnh mẫu, ghi nhận CSKH, cài đặt, lương mẫu
 Nhánh dự phòng trước đợt này: `du-phong-truoc-anh-ngay`.
 - **Ô 📅 trên đầu chọn được ngày** (period.ts `setWorkDay/useWorkDay/isPastDay`, đổi `D.TODAY`; tối đa lùi 1 năm). Mỗi ngày một bộ dữ liệu riêng trong store (cất/mở theo ngày; ngày chưa có → dữ liệu mẫu). Ngày đã qua: chỉ Leader/CEO ghi/sửa (mutate/tryMutate/addCustomer/confirmInvoice/reset chặn), người khác chỉ xem + thanh "Về hôm nay".

@@ -563,3 +563,14 @@ div.f { display: flex; flex-direction: column; gap: 6px; background: var(--mint)
 .today-chip.past { background: var(--y-bg); color: var(--y-fg) }
 .pastbar { display: flex; align-items: center; gap: 10px; justify-content: space-between; margin: 0 16px 6px; padding: 8px 12px; border-radius: 12px; background: var(--y-bg); color: var(--y-fg); font-size: 13px; font-weight: 700 }
 .pastbar.w { background: var(--mint); color: var(--mint-ink) }
+/* Nút đang chọn & nhãn ngày: xanh đậm màu chủ đạo (yêu cầu 12/10) */
+.seg button.on { background: var(--green); color: #fff; box-shadow: none }
+.seg button.on .badge { box-shadow: 0 0 0 2px var(--green) }
+.rtag { background: var(--green); color: #fff }
+.prange .eyebrow { background: var(--green); color: #fff }
+/* Sơ đồ giường: vách ngăn giữa các tầng nâu đậm */
+.floor + .floor { border-top: 3px solid var(--b-fg) }
+/* Khối thu gọn (Cài đặt CEO): tiêu đề là nút, ▾ xoay khi mở */
+.block.foldable > button.bh { width: 100%; border: 0; text-align: left; cursor: pointer; display: flex; align-items: center; gap: 10px; font: inherit; color: inherit }
+.block.foldable.open .tchev i { transform: rotate(180deg) }
+.block.foldable:not(.open) { padding-bottom: 14px }

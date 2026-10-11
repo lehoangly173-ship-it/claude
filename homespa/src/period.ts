@@ -11,8 +11,8 @@ import { soldToday, type State } from './logic'
 export type Gran = 'day' | 'week' | 'month' | 'quarter' | 'year' | 'custom'
 export type Period = { g: Gran; from?: string; to?: string } // from/to dạng yyyy-mm-dd khi 'custom'
 export const GRANS: { k: Gran; label: string }[] = [
-  { k: 'day', label: 'Ngày' }, { k: 'week', label: 'Tuần' }, { k: 'month', label: 'Tháng' },
-  { k: 'quarter', label: 'Quý' }, { k: 'year', label: 'Năm' }, { k: 'custom', label: 'Tùy chọn' },
+  { k: 'day', label: 'Hôm nay' }, { k: 'week', label: '7 ngày' }, { k: 'month', label: '1 tháng' },
+  { k: 'quarter', label: '1 quý' }, { k: 'year', label: '1 năm' }, { k: 'custom', label: 'Tùy chọn' },
 ]
 const DAY = 864e5
 export const startOf = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate())
@@ -31,7 +31,7 @@ export function rangeOf(g: Exclude<Gran, 'custom'>, ref: Date): Range {
   const r = startOf(ref), t = today()
   let from: Date, end: Date, name: string
   if (g === 'day') { from = r; end = r; name = +r === +t ? 'Hôm nay' : fmtDM(r) }
-  else if (g === 'week') { from = addDays(r, -((r.getDay() + 6) % 7)); end = addDays(from, 6); name = `Tuần ${fmtDM(from)}` }
+  else if (g === 'week') { from = addDays(r, -6); end = r; name = `7 ngày đến ${fmtDM(r)}` } // 7 ngày cuốn chiếu kết thúc ở ngày ref
   else if (g === 'month') { from = new Date(r.getFullYear(), r.getMonth(), 1); end = new Date(r.getFullYear(), r.getMonth() + 1, 0); name = `Tháng ${r.getMonth() + 1}/${r.getFullYear()}` }
   else if (g === 'quarter') { const q = Math.floor(r.getMonth() / 3); from = new Date(r.getFullYear(), q * 3, 1); end = new Date(r.getFullYear(), q * 3 + 3, 0); name = `Quý ${q + 1}/${r.getFullYear()}` }
   else { from = new Date(r.getFullYear(), 0, 1); end = new Date(r.getFullYear(), 11, 31); name = `Năm ${r.getFullYear()}` }
@@ -58,7 +58,7 @@ export function periodRanges(p: Period): { cur: Range; prev: Range } {
 }
 /** Kỳ liền trước của r, cắt cùng số ngày với r (VD 01/10–11/10 so với 01/09–11/09) */
 export function prevOf(cur: Range, g: Exclude<Gran, 'custom'>): Range {
-  const back = g === 'day' ? addDays(cur.from, -1) : g === 'week' ? addDays(cur.from, -7)
+  const back = g === 'day' || g === 'week' ? addDays(cur.from, -1)
     : new Date(cur.from.getFullYear() - (g === 'year' ? 1 : 0), cur.from.getMonth() - (g === 'month' ? 1 : g === 'quarter' ? 3 : 0), 1)
   const pr = rangeOf(g, back)
   const n = days(cur.from, cur.to), pto = addDays(pr.from, n - 1) < pr.to ? addDays(pr.from, n - 1) : pr.to
@@ -71,8 +71,9 @@ export function lastRanges(g: Gran, n: number, p?: Period): Range[] {
     const { cur } = periodRanges(p ?? { g })
     const len = days(cur.from, cur.to), unit: Exclude<Gran, 'custom'> = len <= 31 ? 'day' : len <= 182 ? 'week' : 'month'
     const out: Range[] = []; let d = cur.from
-    while (d <= cur.to) { const r = rangeOf(unit, d), from = r.from < cur.from ? cur.from : r.from, to = r.to > cur.to ? cur.to : r.to
-      out.push({ ...r, from, to, label: +from === +to ? fmtD(from) : `${fmtD(from)} – ${fmtD(to)}` }); d = addDays(rangeOf(unit, d).to, 1) }
+    while (d <= cur.to) { const r = unit === 'week' ? rangeOf('week', addDays(d, 6)) : rangeOf(unit, d) // tuần trong tùy chọn: khối 7 ngày bắt đầu từ d
+      const from = r.from < cur.from ? cur.from : r.from, to = r.to > cur.to ? cur.to : r.to
+      out.push({ ...r, from, to, partial: false, label: +from === +to ? fmtD(from) : `${fmtD(from)} – ${fmtD(to)}` }); d = addDays(to, 1) }
     return out.slice(-40)
   }
   const out: Range[] = []; let ref = today()
@@ -82,7 +83,7 @@ export function lastRanges(g: Gran, n: number, p?: Period): Range[] {
 export const shortName = (r: Range, g: Gran) => g === 'day' ? (r.name === 'Hôm nay' ? 'Hôm nay' : fmtDM(r.from)) : g === 'week' ? fmtDM(r.from) : g === 'month' ? `T${r.from.getMonth() + 1}` : g === 'quarter' ? `Q${Math.floor(r.from.getMonth() / 3) + 1}/${String(r.from.getFullYear()).slice(2)}` : g === 'year' ? String(r.from.getFullYear()) : (+r.from === +r.to ? fmtDM(r.from) : `${fmtDM(r.from)}`)
 export const trendCount: Record<Gran, number> = { day: 7, week: 8, month: 6, quarter: 4, year: 3, custom: 0 }
 export const customUnit = (p: Period): Exclude<Gran, 'custom'> => { const { cur } = periodRanges(p); const n = days(cur.from, cur.to); return n <= 31 ? 'day' : n <= 182 ? 'week' : 'month' }
-export const trendUnit = (g: Gran, p: Period) => g !== 'custom' ? GRANS.find(x => x.k === g)!.label.toLowerCase() : (() => { const { cur } = periodRanges(p); const n = days(cur.from, cur.to); return n <= 31 ? 'ngày' : n <= 182 ? 'tuần' : 'tháng' })()
+export const trendUnit = (g: Gran, p: Period) => g !== 'custom' ? ({ day: 'ngày', week: '7 ngày', month: 'tháng', quarter: 'quý', year: 'năm' } as Record<string, string>)[g] : (() => { const { cur } = periodRanges(p); const n = days(cur.from, cur.to); return n <= 31 ? 'ngày' : n <= 182 ? 'tuần' : 'tháng' })()
 
 // ── Ngày làm việc đang chọn (ô 📅 trên đầu): đổi D.TODAY cho cả app; chỉ chọn ngày đã qua, tối đa 1 năm ──
 const REAL = new Date(D.TODAY)

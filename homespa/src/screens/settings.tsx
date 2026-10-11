@@ -4,7 +4,7 @@ import { ReactNode, useState } from 'react'
 import { useStore, BUDGET_LIMIT } from '../store'
 import * as D from '../data'
 import { custSegment, pointsOf } from '../logic'
-import { Block, Pill, Tiles, SubHead, Empty, RefPhoto } from '../ui'
+import { Block, Pill, Tiles, SubHead, Empty, RefPhoto, PhotoInput } from '../ui'
 import { PAY_RULE, FIXED_CATS } from '../period'
 import { CEO_NODES } from '../specs'
 
@@ -87,8 +87,17 @@ export function RefPhotosPage({ back }: { back: () => void }) {
     ['Kiểm tra cơ sở (lễ tân)', D.XP_ITEMS.map(([t], k) => [`xp:${k}`, t, 'Ảnh chuẩn Home để đối chiếu khi kiểm tra.'] as [string, string, string])],
     ['Chứng từ & minh chứng', [['bill', 'Ảnh bill', 'Chụp thẳng, đủ 4 góc bill.'], ['review', 'Ảnh đánh giá của khách', 'Có tên khách, số sao, ngày.'], ['product', 'Ảnh xác minh sản phẩm', 'Thấy rõ nhãn, dung tích.'], ['invoice', 'Ảnh hóa đơn', 'Rõ số tiền, ngày, nơi bán.'], ['stock-in', 'Ảnh hóa đơn nhập', 'Hóa đơn kèm hàng nhập.'], ['equipment', 'Ảnh thiết bị', 'Toàn bộ thiết bị và vị trí hỏng.'], ['ops-report', 'Ảnh báo cáo theo mẫu', 'Đúng góc như ảnh mẫu Home.']]],
   ]
+  const { user, setRefPhoto } = useStore(), can = user.role === 'leader' || user.role === 'ceo'
+  const all = groups.flatMap(([g, l]) => l.map(([k, t]) => ({ k, t, g })))
+  const [target, setTarget] = useState(''), [img, setImg] = useState('')
   return <>
     <SubHead title="Ảnh mẫu đối chiếu" sub="Chỉ Leader và CEO thêm / đổi / xóa · nhân viên thấy ảnh này khi chụp minh chứng" onBack={back} />
+    {can && <Block title="Thêm ảnh mẫu & chỉ định khu vực" sub="Chọn ảnh → chọn khu vực / mục áp dụng → Gán">
+      <PhotoInput value={img} onChange={setImg} label="Ảnh mẫu mới" />
+      <label className="f">Áp dụng cho khu vực / mục<select className="inp" value={target} onChange={e => setTarget(e.target.value)}><option value="">— chọn khu vực / mục —</option>
+        {groups.map(([g, l]) => <optgroup key={g} label={g}>{l.map(([k, t]) => <option key={k} value={k}>{t}</option>)}</optgroup>)}</select></label>
+      <button className="btn pri" disabled={!img || !target} onClick={() => { setRefPhoto(target, img); setImg(''); setTarget('') }}>Gán ảnh mẫu{target ? ` cho ${all.find(x => x.k === target)?.t}` : ''}</button>
+    </Block>}
     {groups.map(([g, list]) => <Block key={g} title={g}><div className="col">{list.map(([k, t, h]) => <RefPhoto key={k} k={k} title={t} hint={h} />)}</div></Block>)}
     <div className="tiny muted">Ảnh đang lưu trong phiên chạy thử (chưa nối máy chủ): tải lại trang sẽ về ảnh minh họa.</div>
   </>

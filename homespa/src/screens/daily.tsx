@@ -183,7 +183,7 @@ function ZoneModal({ zone, onClose }: { zone: number; onClose: () => void }) {
 
 /** Chắt của một khu: "Ảnh minh chứng" (Chụp ảnh · Tải ảnh · Gửi báo cáo) và "Tiêu chuẩn và checklist" (Xem ảnh Home · Tích checklist) */
 function ZoneView({ zone, tab, setTab, justSent, onSent, back }: { zone: number; tab: 'photo' | 'std'; setTab: (t: 'photo' | 'std') => void; justSent: boolean; onSent: () => void; back: () => void }) {
-  const { s, me, submitClean, say, toggleZoneCheck } = useStore()
+  const { s, me, submitClean, say, toggleZoneCheck, replaceCleanPhoto } = useStore()
   const z = D.ZONES[zone - 1]
   const [photo, setPhoto] = useState('')
   const [err, setErr] = useState('')
@@ -210,7 +210,10 @@ function ZoneView({ zone, tab, setTab, justSent, onSent, back }: { zone: number;
         <div className="row">{photo ? <Thumb src={photo} /> : null}<span className="small">{photo ? T.clean.hasPhoto : T.clean.noPhoto}</span></div>
         <input ref={snap} type="file" accept="image/*" capture="environment" hidden onChange={onFile} /><input ref={pick} type="file" accept="image/*" hidden onChange={onFile} />
         {err && <div className="err small" role="alert">{err}</div>}
-        {canSend ? <div className="row"><button className="btn" onClick={() => snap.current?.click()}>{T.clean.snap}</button><button className="btn" onClick={() => pick.current?.click()}>{T.clean.upload}</button><button className="btn pri" onClick={send}>{T.clean.send}</button></div> : <div className="small muted">{T.clean.waitingResult}</div>}
+        {canSend ? <div className="row"><button className="btn" onClick={() => snap.current?.click()}>{T.clean.snap}</button><button className="btn" onClick={() => pick.current?.click()}>{T.clean.upload}</button><button className="btn pri" onClick={send}>{T.clean.send}</button></div> : own && r?.status === 'Chờ kiểm tra' && r.staffId === me.id ? <div className="col" style={{ gap: 8 }}><div className="row">{r.photo && <Thumb src={r.photo} />}<span className="small muted">{T.clean.waitingResult} Có thể chụp lại / chọn ảnh khác để thay ảnh đã gửi.</span></div>
+          <div className="row"><label className="btn pri sm"><Icon n="camera" s={16} />Chụp lại ảnh<input hidden type="file" accept="image/*" capture="environment" onChange={e => { const f = e.target.files?.[0]; if (f) replaceCleanPhoto(zone, URL.createObjectURL(f)); e.target.value = '' }} /></label>
+            <label className="btn sm">🖼 Chọn từ album<input hidden type="file" accept="image/*" onChange={e => { const f = e.target.files?.[0]; if (f) replaceCleanPhoto(zone, URL.createObjectURL(f)); e.target.value = '' }} /></label></div></div>
+          : <div className="small muted">{T.clean.waitingResult}</div>}
       </div>}
       {tab === 'std' && <div className="card pad col" style={{ gap: 2 }}>
         <div className="row"><span className="eyebrow" style={{ marginRight: 'auto' }}>{T.clean.tick}</span><button className="btn sm" onClick={() => setShowStd(true)}>{T.clean.viewHome}</button></div>

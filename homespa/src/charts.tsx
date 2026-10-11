@@ -1,6 +1,6 @@
 // Biểu đồ dùng chung (không thư viện ngoài): cột, cột ngang, tròn + thanh chọn kỳ ghi rõ ngày.
 // Màu lấy từ biến giao diện Home → tự đúng ở chế độ sáng/tối.
-import { ReactNode, useState } from 'react'
+import { ReactNode, useEffect, useState } from 'react'
 import * as D from './data'
 import { Seg } from './ui'
 import { GRANS, Gran, Period, periodRanges, usePeriod, iso, today, Range, MIN_DAY, spanDays } from './period'
@@ -12,15 +12,21 @@ export const C_REV = 'var(--green)', C_COST = 'var(--b-fg)', C_PROFIT = 'var(--g
 export function PeriodBar({ note, compare = true }: { note?: ReactNode; compare?: boolean }) {
   const [p, set] = usePeriod()
   const { cur, prev } = periodRanges(p)
-  const t = iso(today())
+  const t = iso(today()), min = iso(MIN_DAY())
+  const [draft, setDraft] = useState({ from: p.from ?? iso(cur.from), to: p.to ?? iso(cur.to) })
+  useEffect(() => { if (p.g === 'custom' && p.from && p.to) setDraft({ from: p.from, to: p.to }) }, [p.g, p.from, p.to])
+  const err = !draft.from || !draft.to ? 'Chọn đủ ngày bắt đầu và ngày kết thúc' : draft.from > draft.to ? 'Ngày bắt đầu phải trước hoặc bằng ngày kết thúc' : ''
+  const changed = p.g === 'custom' && (draft.from !== p.from || draft.to !== p.to)
   return <section className="card pad col pbar">
-    <div style={{ overflowX: 'auto' }}><Seg value={p.g} onChange={(g: Gran) => set(g === 'custom' ? { g, from: iso(cur.from), to: iso(cur.to) } : { g })} items={GRANS} /></div>
-    {p.g === 'custom' && <div className="grid fgrid">
-      <label className="f">Từ ngày<input className="inp" type="date" min={iso(MIN_DAY())} max={t} value={p.from ?? ''} onChange={e => e.target.value && set({ ...p, from: e.target.value })} /></label>
-      <label className="f">Đến ngày<input className="inp" type="date" min={iso(MIN_DAY())} max={t} value={p.to ?? ''} onChange={e => e.target.value && set({ ...p, to: e.target.value })} /></label>
-    </div>}
+    <div style={{ overflowX: 'auto' }}><Seg value={p.g} onChange={(g: Gran) => { if (g === 'custom') { const d = { from: iso(cur.from), to: iso(cur.to) }; setDraft(d); set({ g, ...d }) } else set({ g }) }} items={GRANS} /></div>
+    {p.g === 'custom' && <><div className="grid fgrid">
+      <label className="f">Ngày bắt đầu<input className="inp" type="date" min={min} max={t} value={draft.from} onChange={e => setDraft({ ...draft, from: e.target.value })} /></label>
+      <label className="f">Ngày kết thúc<input className="inp" type="date" min={min} max={t} value={draft.to} onChange={e => setDraft({ ...draft, to: e.target.value })} /></label>
+    </div>
+      <div className="row"><button className="btn pri" disabled={!!err || !changed} onClick={() => set({ g: 'custom', from: draft.from, to: draft.to > t ? t : draft.to })}>Xem</button>
+        {err ? <span className="tiny" style={{ color: 'var(--r-fg)' }}>{err}</span> : changed ? <span className="tiny muted">Bấm Xem để cập nhật số liệu</span> : null}</div></>}
     <div className="prange"><span className="eyebrow">{cur.name}</span><b className="num">{cur.label}</b>{cur.partial && <span className="tiny muted">(tính đến hôm nay)</span>}</div>
-    {compare && <div className="small muted">So với: <b>{prev.label}</b> · {prev.name}{p.g === 'day' || p.g === 'custom' ? '' : spanDays(prev) === spanDays(cur) ? ' (cùng số ngày)' : ` (kỳ trước chỉ có ${spanDays(prev)} ngày)`}</div>}
+    {compare && <div className="small muted">So với: <b>{prev.label}</b> · {prev.name}{p.g === 'day' || p.g === 'custom' || p.g === 'week' ? '' : spanDays(prev) === spanDays(cur) ? ' (cùng số ngày)' : ` (kỳ trước chỉ có ${spanDays(prev)} ngày)`}</div>}
     {note && <div className="tiny muted">{note}</div>}
   </section>
 }

@@ -247,22 +247,22 @@ function SettingsPage() {
   const people = s.staff.filter(x => x.role === 'ktv' || x.role === 'reception')
   return <>
     <SubHead title="Cài đặt CEO & AI" sub="Cài đặt ngầm thành viên theo quy luật — các màn KTV/lễ tân tự đọc từ đây" onBack={() => go('me')} />
-    <Block title="Phân khu dọn dẹp hôm nay" sub="Khu 1–6 ca sáng · 7–12 ca chiều (giặt khăn 4 lần)">
+    <Block title="Phân khu dọn dẹp hôm nay" fold sub="Khu 1–6 ca sáng · 7–12 ca chiều (giặt khăn 4 lần)">
       <div className="card list">{D.ZONES.map(z => <div key={z.no} className="item"><span className="av" style={{ borderRadius: 10 }}>{z.no}</span><div className="body"><div className="t">{z.name}</div><div className="d">Ca {z.shift === 1 ? 'sáng' : 'chiều'}{z.after ? ` · sau ${D.hhmm(z.after)}` : ''}</div></div>
         <select className="inp" style={{ width: 150 }} value={s.zoneOwner[z.no]} onChange={e => setZoneOwner(z.no, e.target.value)} aria-label={`Người phụ trách khu ${z.no}`}>{people.filter(p => p.shift === z.shift).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></div>)}</div>
     </Block>
-    <Block title="Mức ưu tiên thông báo theo loại" sub="Đỏ = làm ngay · Vàng = quan trọng · Xanh = vừa · Trắng = bình thường. Leader/CEO vẫn đổi được từng thông báo.">
+    <Block title="Mức ưu tiên thông báo theo loại" fold sub="Đỏ = làm ngay · Vàng = quan trọng · Xanh = vừa · Trắng = bình thường. Leader/CEO vẫn đổi được từng thông báo.">
       <div className="card list">{Object.keys(s.prioCat).map(k => { const p = s.prioCat[k]; return <div key={k} className={`item prio ${D.PRIO[p].cls}`}><div className="body"><div className="t">{k}</div></div>
         <select className="inp prio-sel" aria-label={`Mức mặc định: ${k}`} value={p} onChange={e => setPrioCat(k, +e.target.value as D.Prio)}>{([1, 2, 3, 4] as D.Prio[]).map(x => <option key={x} value={x}>{D.PRIO[x].label}</option>)}</select></div> })}</div>
     </Block>
-    <Block title="Quy tắc đang áp dụng"><div className="card list">{[
+    <Block title="Quy tắc đang áp dụng" fold><div className="card list">{[
       ['Ngân sách Leader/Marketing tự quyết', `≤ ${D.vnd(BUDGET_LIMIT)} và không đổi giá — vượt mức gửi chị duyệt`],
       ['Ca làm', `${D.SHIFTS[1].label} · ${D.SHIFTS[2].label}`], ['Dọn giường giữa 2 khách', '10 phút'],
       ['Điểm dọn dẹp đạt chuẩn', `+${D.ZONE_POINTS} điểm / khu`], ['Điểm lễ tân ghi nhận', 'Leader/CEO duyệt trước khi tính'],
       ['Đơn nghỉ / đổi ca', 'Leader hoặc CEO duyệt → bảng chia ca tự cập nhật'], ['Màu ưu tiên cả app', 'Đỏ làm ngay · Vàng quan trọng · Xanh vừa · Trắng bình thường'], ['Dữ liệu khách', 'SĐT chỉ lễ tân thấy · chỉ CEO xuất file'],
     ].map(([a, b]) => <div key={a} className="item"><div className="body"><div className="t">{a}</div><div className="d">{b}</div></div><Icon n="check" /></div>)}</div></Block>
     <button className="softbtn wide" onClick={() => go('home/refphotos')}>🖼 Ảnh mẫu đối chiếu (cấp & sửa)</button>
-    <Block title="Cài đặt hệ thống" sub="Chạm từng mục để xem và sửa"><div className="nodes">{NM('NM13').rows.map(r => <button key={r.no} className="node" onClick={() => go(`me/settings/${r.no}`)}><span className="no ic"><Icon n={iconFor(r.t)} s={19} /></span><span className="body"><span className="t" style={{ display: 'block' }}>{r.t}</span><span className="d" style={{ display: 'block' }}>{r.d.split(' → ')[0]}</span></span><span className="arr"><Icon n="arrow" s={18} /></span></button>)}</div></Block>
+    <Block title="Cài đặt hệ thống" fold sub="Chạm từng mục để xem và sửa"><div className="nodes">{NM('NM13').rows.map(r => <button key={r.no} className="node" onClick={() => go(`me/settings/${r.no}`)}><span className="no ic"><Icon n={iconFor(r.t)} s={19} /></span><span className="body"><span className="t" style={{ display: 'block' }}>{r.t}</span><span className="d" style={{ display: 'block' }}>{r.d.split(' → ')[0]}</span></span><span className="arr"><Icon n="arrow" s={18} /></span></button>)}</div></Block>
   </>
 }
 

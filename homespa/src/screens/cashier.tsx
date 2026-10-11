@@ -1,6 +1,7 @@
 // Thu ngân — đã sửa: phải chọn đúng thẻ mới trừ, hóa đơn chỉ dùng thẻ = "Dùng liệu trình",
 // dịch vụ lẻ phải thu đủ (chỉ gói mới được cọc), "đóng tiếp" tính trên số còn thiếu, hoa hồng chia đúng 100%.
-import { metrics, rangeOf, addDays, fmtD, today as todayD } from '../period'
+import { metrics, fmtD, today as todayD, usePeriod, periodRanges } from '../period'
+import { PeriodBar } from '../charts'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useStore } from '../store'
 import * as D from '../data'
@@ -16,7 +17,7 @@ const VOUCHER_VALUE: Record<string, { kind: 'amount' | 'pct'; value: number }> =
 export function CashierScreen() {
   const { s, draftBill, setDraftBill, user } = useStore()
   const [tab, setTab] = useState<'waiting' | 'invoices' | 'deposits' | 'cards'>('waiting')
-  const [range, setRange] = useState<'day' | 'week' | 'month'>('day')
+  const [per] = usePeriod()
   const [editor, setEditor] = useState<{ customerId?: string; apptIds: string[]; continueCard?: string } | null>(null)
   const [opening, setOpening] = useState(false)
   const bills = waitingBills(s)
@@ -25,14 +26,14 @@ export function CashierScreen() {
   const valid = s.invoices.filter(i => i.status !== 'Nháp' && i.status !== 'Đã xóa')
   const today = { confirmed: valid.length, collected: valid.reduce((t, i) => t + i.paid, 0) }
   const owedAll = s.customers.flatMap(c => c.packages).reduce((t, p) => t + D.pkgOwed(p), 0)
-  const rg = range === 'day' ? rangeOf('day', todayD()) : range === 'week' ? { from: addDays(todayD(), -6), to: todayD(), label: `${fmtD(addDays(todayD(), -6))} – ${fmtD(todayD())}` } : rangeOf('month', todayD())
+  const rg = periodRanges(per).cur, range = per.g === 'day' || (+rg.from === +todayD() && +rg.to === +todayD()) ? 'day' : 'range' // một kỳ chung với Leader/CEO
   const pm = metrics(s, rg) // một nguồn với CEO/Leader: hóa đơn + bán sản phẩm
   const stats = range === 'day' ? { ...today, collected: pm.revenue, due: owedAll } : { confirmed: pm.guests, collected: pm.revenue, due: owedAll }
   const byCustomer = Array.from(new Set(bills.map(b => b.customerId)))
   return <>
     <PageHeader eyebrow="Điều phối hôm nay" title="Thu ngân" sub="Thanh toán, hóa đơn, thẻ liệu trình"
       right={<>{user.role === 'ceo' && <button className="btn" onClick={() => setOpening(true)}>⇪ Số dư đầu kỳ</button>}{user.role === 'reception' && <button className="btn pri" onClick={() => setEditor({ apptIds: [] })}><Icon n="plus" />Tạo hóa đơn</button>}</>} />
-    <Seg value={range} onChange={setRange} items={[{ k: 'day', label: 'Hôm nay' }, { k: 'week', label: '7 ngày' }, { k: 'month', label: 'Tháng này' }]} />
+    <PeriodBar compare={false} />
     <div className="grid g4">
       <Stat label="Chờ thanh toán" value={bills.length} tone="green" sub="lượt phục vụ xong" />
       <Stat label={range === 'day' ? 'Hóa đơn đã xác nhận' : 'Khách có hóa đơn'} value={stats.confirmed} tone="green" sub={range === 'day' ? `hôm nay ${fmtD(todayD())}` : `${rg.label} · ${D.SAMPLE_NOTE} ngày trước`} />
