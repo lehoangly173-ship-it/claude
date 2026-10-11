@@ -180,7 +180,7 @@ export function NumInput({ value, onChange, min, max, step, optional, ...rest }:
   const show = (x: number | null) => (x == null || (x === 0 && !optional) ? '' : String(x))
   const [txt, setTxt] = useState(show(value))
   useEffect(() => { const cur = txt === '' || txt === '-' ? (optional ? null : 0) : Number(txt); if (cur !== value) setTxt(show(value)) }, [value]) // eslint-disable-line react-hooks/exhaustive-deps
-  return <input {...rest} className={rest.className ?? 'inp num'} type="number" inputMode="numeric" min={min} max={max} step={step} value={txt} placeholder={rest.placeholder ?? '0'}
-    onChange={e => { const t = e.target.value; setTxt(t); if (t === '' || t === '-') { (onChange as (n: number | null) => void)(optional ? null : 0); return } const n = Number(t); if (!Number.isFinite(n)) return; onChange(max != null ? Math.min(n, max) : n) }}
+  return <input {...rest} className={rest.className ?? 'inp num'} type="number" inputMode={min != null && min < 0 ? undefined : 'numeric'} min={min} max={max} step={step} value={txt} placeholder={rest.placeholder ?? '0'}
+    onChange={e => { const t = e.target.value; setTxt(t); if (t === '' || t === '-') { (onChange as (n: number | null) => void)(optional ? null : 0); return } const n = Number(t); if (!Number.isFinite(n)) return; const c = max != null ? Math.min(n, max) : n; if (c !== n) setTxt(String(c)); onChange(c) }}
     onBlur={() => { if (min != null && value != null && value < min) onChange(min) }} />
 }

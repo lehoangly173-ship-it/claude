@@ -130,7 +130,7 @@ function StockOut() {
         {needStaff && <label className="f">Nhân viên<select className="inp" value={f.staffId} onChange={e => setF({ ...f, staffId: e.target.value })}><option value="">— chọn —</option>{s.staff.filter(x => x.role === 'ktv' || x.role === 'reception').map(x => <option key={x.id} value={x.id}>{x.name}</option>)}</select></label>}</div>
       <label className="f">Mục đích sử dụng / phòng / ca *<input className="inp" value={f.note} onChange={e => setF({ ...f, note: e.target.value })} placeholder="VD: cấp đầu ca 1 · phòng 2" /></label>
       <div className="tiny muted">Chuyển kho (giữa chi nhánh): Chưa nối — Home hiện có 1 kho.</div>
-      <button className="btn pri" disabled={f.qty <= 0 || !f.note.trim() || (needStaff && !f.staffId)} onClick={() => { addStock({ item: f.item, kind: f.kind, qty: f.qty, staffId: needStaff ? f.staffId : undefined, note: f.note.trim() }); setF({ ...f, qty: 0, note: '' }) }}>Lưu phiếu</button>
+      <button className="btn pri" disabled={f.qty <= 0 || (f.kind !== 'Hoàn trả' && stockQty(s, f.item) < f.qty) || !f.note.trim() || (needStaff && !f.staffId)} onClick={() => { addStock({ item: f.item, kind: f.kind, qty: f.qty, staffId: needStaff ? f.staffId : undefined, note: f.note.trim() }); setF({ ...f, qty: 0, note: '' }) }}>Lưu phiếu</button>
     </Block>
     <Block title="Phiếu xuất gần đây"><Hist empty="Chưa có phiếu" rows={s.stockMoves.filter(m => ['Cấp NV', 'Dùng chung', 'Hoàn trả', 'Hỏng/hao hụt'].includes(m.kind)).map(m => ({ k: m.id, t: `${m.kind} · ${IT(m.item).name} ${qtyL(m.item, m.qty)}`, d: `${m.staffId ? `nhận: ${D.staffName(m.staffId)} · ` : ''}giao: ${D.staffName(m.by)} · ${m.note} · ${D.hhmm(m.at)}` }))} /></Block>
   </>

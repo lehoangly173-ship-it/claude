@@ -166,7 +166,7 @@ function ZoneModal({ zone, onClose }: { zone: number; onClose: () => void }) {
   const [showStd, setShowStd] = useState(false)
   const key = zoneKey(zone, me.id)
   const r = zoneReport(s, zone)
-  const init = r && r.status !== 'Chưa đạt' && r.staffId === me.id ? r.checks : z.std.map(() => false)
+  const init = z.std.map((_, i) => !!(r && r.status !== 'Chưa đạt' && r.staffId === me.id && r.checks[i]))
   const checks = s.zoneChecks[key] ?? init
   const own = s.zoneOwner[zone] === me.id
   const canSend = own && (!r || r.status === 'Chưa đạt')
@@ -192,7 +192,7 @@ function ZoneView({ zone, tab, setTab, justSent, onSent, back }: { zone: number;
   const snap = useRef<HTMLInputElement>(null), pick = useRef<HTMLInputElement>(null)
   const key = zoneKey(zone, me.id)
   const r = zoneReport(s, zone)
-  const init = r && r.status !== 'Chưa đạt' && r.staffId === me.id ? r.checks : z.std.map(() => false)
+  const init = z.std.map((_, i) => !!(r && r.status !== 'Chưa đạt' && r.staffId === me.id && r.checks[i]))
   const checks = s.zoneChecks[key] ?? init
   const own = s.zoneOwner[zone] === me.id
   const canSend = own && canSendReport(r)
@@ -257,8 +257,8 @@ export function NoticesPage({ back }: P) {
   const vis = s.notifs.filter(n => canSee(n, user.role, me.id))
   const byPrio = (a: D.Notif, b: D.Notif) => prioOf(s, a) - prioOf(s, b) || b.min - a.min
   const pins = vis.filter(n => n.pinned).sort(byPrio), list = vis.filter(n => !n.pinned).sort(byPrio)
-  const Row = ({ n }: { n: D.Notif }) => { const read = n.readBy.includes(me.id), p = prioOf(s, n), P = D.PRIO[p]
-    return <div className={`item prio ${P.cls}${read ? ' read' : ''}`} onClick={() => { markRead(n.id); if (n.nav) go(n.nav) }} style={{ cursor: n.nav ? 'pointer' : 'default' }}>
+  const row = (n: D.Notif) => { const read = n.readBy.includes(me.id), p = prioOf(s, n), P = D.PRIO[p]
+    return <div key={n.id} className={`item prio ${P.cls}${read ? ' read' : ''}`} onClick={() => { markRead(n.id); if (n.nav) go(n.nav) }} style={{ cursor: n.nav ? 'pointer' : 'default' }}>
       <div className="body"><div className="row" style={{ gap: 6, marginBottom: 3 }}><Pill tone={P.tone}>{n.tag ?? n.cat}</Pill><span className={`tiny strong pl${p}`}>{P.label}</span></div>
         <div className="t">{n.text}</div><div className="d">{n.pinned ? n.by : `${D.hhmm(n.min)} · ${n.detail}`}</div></div>
       {boss && <select className="inp prio-sel" aria-label={`Mức ưu tiên: ${n.text}`} value={p} onClick={e => e.stopPropagation()} onChange={e => setPrio(n.id, +e.target.value as D.Prio)}>{([1, 2, 3, 4] as D.Prio[]).map(k => <option key={k} value={k}>{D.PRIO[k].label}</option>)}</select>}
@@ -266,14 +266,14 @@ export function NoticesPage({ back }: P) {
   return <>
     <SubHead title="Thông báo quan trọng" sub="Cập nhật mới · đào tạo · lịch yêu cầu khách · điểm số chung" onBack={back} right={<button className="btn deep" onClick={markAllRead}>Đã đọc hết</button>} />
     <div className="prio-legend">{([1, 2, 3, 4] as D.Prio[]).map(k => <Pill key={k} tone={D.PRIO[k].tone}>{k === 4 ? 'Trắng' : k === 1 ? 'Đỏ' : k === 2 ? 'Vàng' : 'Xanh'} · {D.PRIO[k].label}</Pill>)}<span className="tiny muted">{boss ? 'Bạn đổi mức ở ô chọn của từng thông báo.' : 'Mức do Leader & CEO đặt.'}</span></div>
-    <Block color="deep" title="Ghim từ Home" right={<span className="badge">{pins.filter(n => !n.readBy.includes(me.id)).length}</span>}><div className="card list">{pins.map(n => <Row key={n.id} n={n} />)}{!pins.length && <Empty>Chưa có thông báo ghim</Empty>}</div></Block>
+    <Block color="deep" title="Ghim từ Home" right={<span className="badge">{pins.filter(n => !n.readBy.includes(me.id)).length}</span>}><div className="card list">{pins.map(row)}{!pins.length && <Empty>Chưa có thông báo ghim</Empty>}</div></Block>
     {boss && <Block title="Ghim thông báo mới cho cả Home">
       <div className="grid g3"><label className="f">Loại<select className="inp" value={f.tag} onChange={e => setF({ ...f, tag: e.target.value })}>{D.PIN_TAGS.map(t => <option key={t}>{t}</option>)}</select></label>
         <label className="f">Mức ưu tiên<select className="inp" value={f.p} onChange={e => setF({ ...f, p: +e.target.value as 0 | D.Prio })}><option value={0}>Theo loại ({D.PRIO[s.prioCat[f.tag] ?? 4].label})</option>{([1, 2, 3, 4] as D.Prio[]).map(k => <option key={k} value={k}>{D.PRIO[k].label}</option>)}</select></label></div>
       <label className="f">Nội dung<input className="inp" value={f.title} onChange={e => setF({ ...f, title: e.target.value })} placeholder="VD: 17:00 họp nhanh cả ca 1 tại sảnh" /></label>
       <button className="btn pri" disabled={!f.title.trim()} onClick={() => { pinNotice(f.tag, f.title.trim(), f.p || (s.prioCat[f.tag] ?? 4)); setF({ ...f, title: '', p: 0 }) }}>Ghim cho cả Home</button>
     </Block>}
-    <Block color="deep" title="Vừa xảy ra" right={<span className="badge">{list.filter(n => !n.readBy.includes(me.id)).length}</span>}><div className="card list">{list.map(n => <Row key={n.id} n={n} />)}{!list.length && <Empty>Chưa có thông báo</Empty>}</div></Block>
+    <Block color="deep" title="Vừa xảy ra" right={<span className="badge">{list.filter(n => !n.readBy.includes(me.id)).length}</span>}><div className="card list">{list.map(row)}{!list.length && <Empty>Chưa có thông báo</Empty>}</div></Block>
   </>
 }
 

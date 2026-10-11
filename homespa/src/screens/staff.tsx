@@ -237,7 +237,7 @@ export function ReceptionCustomers({ embed }: { embed?: boolean } = {}) {
   const match = (c: D.Customer) => {
     switch (flt) {
       case 'Khách mới (1 lần)': return c.visits <= 1
-      case 'Lâu chưa quay lại': return c.lastVisitDays >= days
+      case 'Lâu chưa quay lại': return c.lastVisitDays >= Math.max(7, days)
       case 'Sinh nhật tháng này': return bday(c)
       case 'Chưa hài lòng': return unhappy.has(c.id)
       case 'Có giới thiệu khách': return referrers.has(c.id)
@@ -246,7 +246,7 @@ export function ReceptionCustomers({ embed }: { embed?: boolean } = {}) {
     }
   }
   const list = base.filter(match).filter(c => (!rg.from || lastIso(c) >= rg.from) && (!rg.to || lastIso(c) <= rg.to)).filter(c => !q.trim() || c.name.toLowerCase().includes(q.toLowerCase()) || c.code.toLowerCase().includes(q.toLowerCase())).sort((a, b) => b.totalPaid - a.totalPaid)
-  const script = (c: D.Customer) => unhappy.has(c.id) ? 'Gọi xin lỗi, hỏi rõ vấn đề, đề xuất xử lý trong quyền hạn' : bday(c) ? 'Chúc mừng sinh nhật + quà theo chương trình Sinh nhật vàng' : c.packages.some(p => ['Còn 2 buổi cuối', 'Còn buổi cuối cùng', 'Đã hết liệu trình'].includes(pkgState(p))) ? 'Hỏi tiến triển, tư vấn tái tục theo khung đã duyệt' : c.packages.some(p => D.pkgOwed(p) > 0) ? 'Nhắc nhẹ đóng tiếp khi khách đến' : c.lastVisitDays >= days ? 'Hỏi thăm, mời quay lại — hỏi lý do gián đoạn' : c.visits <= 1 ? 'Hỏi cảm nhận buổi đầu, mời đặt buổi 2' : 'Hỏi thăm sau dịch vụ'
+  const script = (c: D.Customer) => unhappy.has(c.id) ? 'Gọi xin lỗi, hỏi rõ vấn đề, đề xuất xử lý trong quyền hạn' : bday(c) ? 'Chúc mừng sinh nhật + quà theo chương trình Sinh nhật vàng' : c.packages.some(p => ['Còn 2 buổi cuối', 'Còn buổi cuối cùng', 'Đã hết liệu trình'].includes(pkgState(p))) ? 'Hỏi tiến triển, tư vấn tái tục theo khung đã duyệt' : c.packages.some(p => D.pkgOwed(p) > 0) ? 'Nhắc nhẹ đóng tiếp khi khách đến' : c.lastVisitDays >= Math.max(7, days) ? 'Hỏi thăm, mời quay lại — hỏi lý do gián đoạn' : c.visits <= 1 ? 'Hỏi cảm nhận buổi đầu, mời đặt buổi 2' : 'Hỏi thăm sau dịch vụ'
   const logs = s.customers.flatMap(c => c.care.filter(x => x.kind))
   const fbBad = s.feedback.filter(f => f.rating <= 3)
   const recIds = new Set(s.staff.filter(x => x.role === 'reception').map(x => x.id))
@@ -262,7 +262,7 @@ export function ReceptionCustomers({ embed }: { embed?: boolean } = {}) {
     <div style={{ overflowX: 'auto' }}><Seg value={grp} onChange={g => { setGrp(g); setFlt('Tất cả') }} items={[{ k: 'leVN', label: 'Khách lẻ Việt' }, { k: 'ltVN', label: 'Liệu trình Việt' }, { k: 'leNN', label: 'Khách lẻ nước ngoài' }, { k: 'ltNN', label: 'Liệu trình nước ngoài' }]} /></div>
     <div className="row">{filters.map(f => <button key={f} className={`btn sm${flt === f ? ' pri' : ''}`} onClick={() => setFlt(f)}>{f}</button>)}</div>
     <div className="row"><input className="inp" style={{ flex: 1, minWidth: 160 }} placeholder={isLT ? 'Tìm mã KH / tên' : 'Tìm tên / mã'} value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm khách" />
-      {flt === 'Lâu chưa quay lại' && <label className="row small muted">≥<NumInput className="inp num" min={7} step={7} value={days} onChange={v => setDays((v || 30))} style={{ width: 80 }} />ngày</label>}</div>
+      {flt === 'Lâu chưa quay lại' && <label className="row small muted">≥<NumInput className="inp num" min={7} step={7} value={days} onChange={v => setDays(v)} style={{ width: 80 }} />ngày</label>}</div>
     <div className="card list">{list.map(c => <div key={c.id} className="item" style={{ alignItems: 'flex-start' }}><Av name={c.name} /><div className="body">
       <button className="link" onClick={() => openCustomer(c.id)} style={{ color: 'var(--ink)' }}>{c.name} <span className="tiny muted">· mã {c.code}</span></button>
       <div className="d">{user.role === 'reception' || user.role === 'ceo' ? c.phone || 'chưa có SĐT' : 'SĐT ẩn'} · {c.visits} lần · {c.lastVisitDays ? `${c.lastVisitDays} ngày trước` : 'hôm nay'} · {D.vnd(c.totalPaid)}{c.packages.map(p => ` · ${p.cardCode}: ${pkgState(p)}`).join('')}</div>

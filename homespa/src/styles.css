@@ -419,11 +419,11 @@ th { color: var(--ink-2); background: var(--line-2) }
   button.tile:not(:disabled):hover, button.node:hover, .tnode .node:hover, .tkid:hover, .cbtn:not(:disabled):hover, .softbtn:hover,
   button.item:hover, .item.prio:hover, button.stat:hover, .radio:hover, .seg button:not(.on):hover, .btn:not(:disabled):hover, .fm-item:hover, .link:hover, .back:hover, .bed:hover, .calc:hover {
     background: var(--hov) !important; border-color: var(--hov-line) !important; color: var(--ink) !important }
-  button.tile:not(:disabled):hover *, button.node:hover .t, button.node:hover .d, .cbtn:hover *, .btn:not(:disabled):hover *, .tnode .node:hover .t, .tnode .node:hover .d { color: var(--ink) !important }
+  button.tile:not(:disabled):hover *:not(.badge), button.node:hover .t, button.node:hover .d, .cbtn:hover *:not(.badge), .btn:not(:disabled):hover *:not(.badge), .tnode .node:hover .t, .tnode .node:hover .d { color: var(--ink) !important }
 }
 button.tile:not(:disabled):active, button.node:active, .thead:active, .tkid:active, .cbtn:not(:disabled):active, .softbtn:active, button.item:active,
 .btn:not(:disabled):active, .seg button:active, .fm-item:active, .radio:active, .bed:active { background: var(--hov) !important; border-color: var(--hov-line) !important; color: var(--ink) !important }
-button.tile:not(:disabled):active *, .btn:not(:disabled):active *, .cbtn:active * { color: var(--ink) !important }
+button.tile:not(:disabled):active *:not(.badge), .btn:not(:disabled):active *:not(.badge), .cbtn:active *:not(.badge) { color: var(--ink) !important }
 .g-blk:hover { outline: 2px solid var(--hov-line); outline-offset: 1px }
 
 /* Q4 — mức ưu tiên dùng chung: Đỏ làm ngay · Vàng quan trọng · Xanh vừa · Trắng bình thường */

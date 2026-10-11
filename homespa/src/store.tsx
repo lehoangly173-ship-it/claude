@@ -286,7 +286,8 @@ function useStoreValue() {
     },
     decide: (aid: string, ok: boolean, note = '') => {
       const a0 = s.approvals.find(x => x.id === aid)
-      if (user.role !== 'ceo' && !(user.role === 'leader' && a0?.kind === 'Nghỉ phép / đổi ca')) return say('Chỉ chị (CEO) được duyệt')
+      if (user.role !== 'ceo' && !(user.role === 'leader' && a0?.kind === 'Nghỉ phép / đổi ca' && a0.fromId !== me.id)) return say(a0?.fromId === me.id ? 'Không tự duyệt đơn của mình — chị (CEO) duyệt' : 'Chỉ chị (CEO) được duyệt')
+      const who0 = user.role === 'ceo' ? 'Chị' : `Leader ${me.name}`
       mutate(d => {
         const a = d.approvals.find(x => x.id === aid)!
         if (a.status !== 'Chờ duyệt') return
@@ -325,11 +326,11 @@ function useStoreValue() {
         if (lv) lv.status = ok ? 'Đã duyệt' : 'Từ chối'
         const j = d.join.find(x => x.id === a.refId)
         if (j) { j.status = ok ? 'Đã duyệt' : 'Từ chối'; if (ok) { const nid = 'u' + j.id; d.staff.push({ id: nid, name: j.name, role: j.wantedRole, shift: j.wantedRole === 'ktv' ? 2 : undefined }); if (j.wantedRole === 'ktv') d.rotation[2].push(nid) } }
-        if (a.fromId !== 'system') { const who = d.staff.find(x => x.id === a.fromId); if (who) notify(d, { cat: 'Hệ thống', text: `Chị ${ok ? 'đã duyệt' : 'từ chối'} yêu cầu của bạn: ${a.title}`, detail: note || a.kind, roles: [who.role], to: [who.id], nav: a.kind === 'Nghỉ phép / đổi ca' ? 'home/leave' : undefined }) }
+        if (a.fromId !== 'system') { const who = d.staff.find(x => x.id === a.fromId); if (who) notify(d, { cat: 'Hệ thống', text: `${who0} ${ok ? 'đã duyệt' : 'từ chối'} yêu cầu của bạn: ${a.title}`, detail: note || a.kind, roles: [who.role], to: [who.id], nav: a.kind === 'Nghỉ phép / đổi ca' ? 'home/leave' : undefined }) }
         // Chỉ báo rộng cho Leader khi ảnh hưởng vận hành; đơn cá nhân không lộ cho bộ phận khác
         const fromLeader = d.staff.find(x => x.id === a.fromId)?.role === 'leader'
-        if (!fromLeader && (['Đổi giá / ưu đãi', 'Ngân sách'].includes(a.kind) || (a.kind === 'Nghỉ phép / đổi ca' && ok))) notify(d, { cat: 'Hệ thống', text: `Chị ${ok ? 'đã duyệt' : 'từ chối'}: ${a.title}`, detail: note || a.kind, roles: ['leader'], nav: a.kind === 'Nghỉ phép / đổi ca' ? 'team/leave' : undefined })
-        if (lv?.withId && ok) notify(d, { cat: 'Hệ thống', text: `Chị đã duyệt đổi ca với ${D.staffName(lv.staffId)} ngày ${lv.date}`, detail: 'Bảng chia ca đã cập nhật', roles: ['ktv', 'reception'], to: [lv.withId], nav: 'home/leave' })
+        if (!fromLeader && (['Đổi giá / ưu đãi', 'Ngân sách'].includes(a.kind) || (a.kind === 'Nghỉ phép / đổi ca' && ok))) notify(d, { cat: 'Hệ thống', text: `${who0} ${ok ? 'đã duyệt' : 'từ chối'}: ${a.title}`, detail: note || a.kind, roles: ['leader'], nav: a.kind === 'Nghỉ phép / đổi ca' ? 'team/leave' : undefined })
+        if (lv?.withId && ok) notify(d, { cat: 'Hệ thống', text: `${who0} đã duyệt đổi ca với ${D.staffName(lv.staffId)} ngày ${lv.date}`, detail: 'Bảng chia ca đã cập nhật', roles: ['ktv', 'reception'], to: [lv.withId], nav: 'home/leave' })
       })
       say(ok ? 'Đã duyệt' : 'Đã từ chối')
     },
@@ -350,6 +351,7 @@ function useStoreValue() {
     checkOut: () => mutate(d => { d.attendance[me.id] = { ...d.attendance[me.id], out: d.now } }),
     submitClean: (zone: number, photo: string, checks: boolean[]): string | null => {
       const z = D.ZONES.find(x => x.no === zone)!
+      checks = z.std.map((_, i) => !!checks[i]) // đủ số mục của khu
       if (z.after && s.now < z.after) return `Khu ${zone} chỉ báo cáo sau ${D.hhmm(z.after)}`
       if (s.zoneOwner[zone] !== me.id) return T.clean.notYours
       if (!canSendReport(zoneReport(s, zone))) return T.clean.alreadySent
@@ -375,6 +377,7 @@ function useStoreValue() {
     checkClean: (rid: string, ok: boolean, note: string) => mutate(d => {
       const r = d.cleanReports.find(x => x.id === rid)!; if (r.status !== 'Chờ kiểm tra' || !['leader', 'ceo', 'reception'].includes(me.role) || (!ok && !note.trim())) return
       r.status = ok ? 'Đạt' : 'Chưa đạt'; r.checker = me.id; r.note = note; r.points = ok ? D.ZONE_POINTS : 0
+      if (!ok) delete d.zoneChecks[zoneKey(r.zone, r.staffId)] // chưa đạt → tích lại từ đầu
       if (ok) d.points.unshift({ id: id(d, 'pt'), staffId: r.staffId, delta: D.ZONE_POINTS, reason: `Khu vực ${r.zone} đạt chuẩn`, by: me.id, at: d.now, status: 'Đã duyệt', source: 'Dọn dẹp' })
       notify(d, { cat: 'Dọn dẹp', text: `Khu ${r.zone}: ${ok ? `Đạt · +${D.ZONE_POINTS} điểm` : 'Chưa đạt — làm lại'}`, detail: note || (ok ? 'Đã kiểm tra ảnh' : ''), roles: ['ktv', 'reception'], to: [r.staffId], nav: 'home/cleaning' })
     }),
@@ -445,6 +448,7 @@ function useStoreValue() {
     requestAdjust: (date: string, text: string) => { mutate(d => { d.adjusts.unshift({ id: id(d, 'aj'), staffId: me.id, date, text, at: d.now, status: 'Chờ duyệt' }); notify(d, { cat: 'Leader', text: `${me.name} xin điều chỉnh chấm công ${date}`, detail: text, roles: ['leader'], nav: 'team/attendance' }) }); say('Đã gửi — chờ duyệt') },
     addOpsCheck: (item: string, ok: boolean, note: string) => { mutate(d => { d.opsChecks.unshift({ id: id(d, 'oc'), item, by: me.id, at: d.now, ok, note }) }); say('Đã ghi nhận') },
     proposePoint: (staffId: string, delta: number, reason: string, photo?: string) => {
+      delta = Math.max(-10, Math.min(10, Math.round(delta))); if (!delta) return say('⚠ Điểm phải khác 0 (−10…+10)')
       mutate(d => {
         const direct = me.role === 'leader' || me.role === 'ceo'
         d.points.unshift({ id: id(d, 'pt'), staffId, delta, reason, photo, by: me.id, at: d.now, status: direct ? 'Đã duyệt' : 'Chờ duyệt', source: me.role === 'ceo' ? 'CEO' : direct ? 'Leader' : 'Lễ tân ghi nhận' })

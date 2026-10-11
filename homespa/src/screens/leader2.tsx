@@ -41,8 +41,8 @@ export function TeamOps() {
 
 /** Leader duyệt nghỉ phép: đối chiếu lịch khách + quy định (giả lập) */
 export function LeaveApprove({ back }: { back: () => void }) {
-  const { s, decide } = useStore()
-  const pend = s.approvals.filter(a => a.kind === 'Nghỉ phép / đổi ca' && a.status === 'Chờ duyệt')
+  const { s, me, decide } = useStore()
+  const pend = s.approvals.filter(a => a.kind === 'Nghỉ phép / đổi ca' && a.status === 'Chờ duyệt' && a.fromId !== me.id) // không tự duyệt đơn của mình
   return <>
     <SubHead title="Duyệt xin nghỉ phép / đổi ca" sub="Đối chiếu lịch đặt của khách · AI quét quy định (giả lập — Chưa nối AI thật) · duyệt" onBack={back} />
     <div className="card list">{pend.map(a => { const l = s.leaves.find(x => x.id === a.refId); const sameDay = l ? s.leaves.filter(x => x.date === l.date && x.status !== 'Từ chối' && x.id !== l.id).length : 0

@@ -26,6 +26,17 @@ Quay lại bản cũ: deploy file `homespa/dist/index.html` của nhánh bản �
 ## Deploy Expo (cách đã chạy 08/10, qua Expo connector)
 sandbox_create(@hayquen/homespa) → `git clone --depth 1 https://github.com/lehoangly173-ship-it/claude.git repo` → copy `homespa/dist/index.html` vào `~/site/dist/` → app.json `{"expo":{"name":"homespa","slug":"homespa","owner":"hayquen","extra":{"eas":{"projectId":"16f65a26-63a8-4b23-8d5f-3e610e2aa3cc"}}}}` + package.json → `npx eas-cli deploy --export-dir dist --alias flow --non-interactive` → sandbox_stop.
 
+## Cập nhật 11/10 — FIX LẦN 3 (Lark "Fix app Home lần 3") + đồng nhất cả app
+Chi tiết yêu cầu: tài liệu Project `claude/lark-fix-lan-3.md`. Nhánh dự phòng trước khi sửa: `du-phong-truoc-fix-3`.
+- **Quy tắc giao diện chung** (cuối `styles.css`, mục "FIX LẦN 3"): tiêu đề khối đậm trên dải xanh nhạt; nhãn mục (eyebrow) thành chip xanh; nhãn ô nhập đậm trên nền xanh; chạm/rê chuột vào nút → vàng (`--hov`); không cắt chữ/bóp cột (`.deep.bar`, `.g-auto`); hướng dẫn dài gập vào "Cách kéo thả".
+- **Mức ưu tiên dùng chung**: 1 Đỏ làm ngay · 2 Vàng quan trọng · 3 Xanh vừa · 4 Trắng bình thường (`D.PRIO`, `prioOf`). Mặc định theo loại `s.prioCat` (CEO → Cài đặt), Leader/CEO đổi từng thông báo `s.prioSet`, Leader/CEO ghim thông báo mới. Thông báo ghim nằm trong `s.notifs` (`pinned`) nên có nút đã đọc từng cái. Thông báo Đỏ chưa đọc cộng vào "Việc cần chú ý" (KTV) và ô "Thông báo làm ngay" (Lễ tân).
+- **Ô nhập số** `NumInput` (ui.tsx) thay 28 ô: xóa được, gõ từ 0; trống = 0 (hoặc "không lọc" với `optional`); số lượng 0 không lưu được.
+- **Checklist dọn dẹp**: người phụ trách tích tự do cả khi đang chờ kiểm tra; khóa khi đã Đạt; Chưa đạt → tích lại từ đầu.
+- **KTV Bảng điều phối**: thêm Sơ đồ giường + Lịch điều phối (chỉ xem, ẩn tên khách của KTV khác) + nút "Báo lễ tân" (`flagBed`).
+- Sáng kiến: 4 nút nền đậm, form nền đậm. Hồ sơ khách: nhãn đậm (`.kv-l`). Hóa đơn: 4 mục A–D thành khối tiêu đề xanh đậm.
+- Leader duyệt nghỉ/đổi ca (không tự duyệt đơn của mình); thông báo ghi đúng người duyệt.
+- Kiểm tra: tsc, 53 unit test, 16 bài kiểm tra luồng, bò tự động 2 cỡ màn không lỗi; agent rà soát độc lập (9 lỗi đã sửa).
+
 ## Cập nhật 10/10 — FIX LẦN 1 (3 tài liệu Lark: KTV · Lễ tân · Leader) + CEO/Marketing
 Tóm tắt yêu cầu đầy đủ: tài liệu Project `claude/lark-fix-lan-1.md`.
 - **KTV:** (m1–m4 phiên trước) + nút 12 "Nhận bàn giao ca"; tab Của tôi 8 nút (`screens/mine.tsx`): hồ sơ (form), lịch tuần/tháng, chấm công + yêu cầu điều chỉnh, Hiệu suất 5 nhóm (`ktvPerf` trong logic.ts), KPI, đào tạo, thu nhập (Chưa nối), yêu cầu & lịch sử.
