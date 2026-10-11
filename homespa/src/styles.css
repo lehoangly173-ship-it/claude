@@ -468,3 +468,4 @@ details.howto ul { margin: 8px 0 0; padding-left: 18px }
 .fbox { gap: 10px }
 .fgrid { grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 10px }
 .fgrid label.f .inp { width: 100%; min-width: 0 }
+.item .body > button.link { text-align: left }
