@@ -4,7 +4,7 @@ import { useStore, BUDGET_LIMIT } from '../store'
 import * as D from '../data'
 import { alerts, billRows, overview, pointsOf, ktvState, custSegment, zoneReport, inboxSuggestions, customersCsv } from '../logic'
 import { T } from '../i18n'
-import { Hero, Tiles, Nodes, Block, ChipGrid, SubHead, Pill, Empty, Seg, Av, NodeSpec, Icon, Delta } from '../ui'
+import { Hero, Tiles, Nodes, Block, ChipGrid, SubHead, Pill, Empty, Seg, Av, NodeSpec, Icon, Delta, NumInput } from '../ui'
 import { CEO_NODES, MKT_NODES, SpecRow } from '../specs'
 import { TreeNodes, ConPage, ChauPage, chau, kidsOf } from '../tree'
 import { dailySub, OpsHub, BackBtn, MyPage, ReceptionCustomers } from './staff'
@@ -110,7 +110,7 @@ export function PointsPage({ back }: { back: () => void }) {
     <Block title="Chờ duyệt" right={<span className="badge">{pending.length}</span>}><div className="card list">{pending.map(p => <div key={p.id} className="item"><div className="body"><div className="t">{D.staffName(p.staffId)} · {p.delta > 0 ? '+' : ''}{p.delta}</div><div className="d">{p.reason} · ghi nhận: {D.staffName(p.by)} · {D.hhmm(p.at)}</div></div><button className="btn sm danger" onClick={() => decidePoint(p.id, false)}>Từ chối</button><button className="btn sm pri" onClick={() => decidePoint(p.id, true)}>Duyệt</button></div>)}{!pending.length && <Empty>Không có điểm chờ duyệt</Empty>}</div></Block>
     <Block title="Ghi điểm trực tiếp">
       <div className="grid g3"><label className="f">Nhân viên<select id="lp-st" className="inp" value={f.staffId} onChange={e => setF({ ...f, staffId: e.target.value })}><option value="">— chọn —</option>{rank.map(r => <option key={r.x.id} value={r.x.id}>{r.x.name}</option>)}</select></label>
-        <label className="f">Điểm<input id="lp-d" className="inp num" type="number" min={-10} max={10} value={f.delta} onChange={e => setF({ ...f, delta: +e.target.value })} /></label>
+        <label className="f">Điểm<NumInput id="lp-d" className="inp num" min={-10} max={10} value={f.delta} onChange={v => setF({ ...f, delta: v })} /></label>
         <label className="f">Sự việc & minh chứng<input id="lp-r" className="inp" value={f.reason} onChange={e => setF({ ...f, reason: e.target.value })} /></label></div>
       <button className="btn pri" disabled={!f.staffId || !f.delta || !f.reason.trim()} onClick={() => { proposePoint(f.staffId, f.delta, f.reason.trim()); setF({ staffId: '', delta: 1, reason: '' }) }}>Ghi điểm</button>
     </Block>
@@ -239,7 +239,7 @@ function RevenueToday() {
   return <Tiles items={[{ v: D.vndShort(inv.reduce((t, i) => t + i.paid, 0)), l: 'Tiền đã thu hôm nay', tone: 'ok' }, { v: inv.length, l: 'Hóa đơn đã xác nhận' }, { v: D.vndShort(D.HISTORY.month.now.revenue), l: 'Doanh thu tháng', s: D.SAMPLE_NOTE }, { v: D.vndShort(D.HISTORY.month.prev.revenue), l: 'Tháng trước', s: D.SAMPLE_NOTE }]} />
 }
 function SettingsPage() {
-  const { s, go, setZoneOwner } = useStore()
+  const { s, go, setZoneOwner, setPrioCat } = useStore()
   const people = s.staff.filter(x => x.role === 'ktv' || x.role === 'reception')
   return <>
     <SubHead title="Cài đặt CEO & AI" sub="Cài đặt ngầm thành viên theo quy luật — các màn KTV/lễ tân tự đọc từ đây" onBack={() => go('me')} />
@@ -247,11 +247,15 @@ function SettingsPage() {
       <div className="card list">{D.ZONES.map(z => <div key={z.no} className="item"><span className="av" style={{ borderRadius: 10 }}>{z.no}</span><div className="body"><div className="t">{z.name}</div><div className="d">Ca {z.shift === 1 ? 'sáng' : 'chiều'}{z.after ? ` · sau ${D.hhmm(z.after)}` : ''}</div></div>
         <select className="inp" style={{ width: 150 }} value={s.zoneOwner[z.no]} onChange={e => setZoneOwner(z.no, e.target.value)} aria-label={`Người phụ trách khu ${z.no}`}>{people.filter(p => p.shift === z.shift).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></div>)}</div>
     </Block>
+    <Block title="Mức ưu tiên thông báo theo loại" sub="Đỏ = làm ngay · Vàng = quan trọng · Xanh = vừa · Trắng = bình thường. Leader/CEO vẫn đổi được từng thông báo.">
+      <div className="card list">{Object.keys(s.prioCat).map(k => { const p = s.prioCat[k]; return <div key={k} className={`item prio ${D.PRIO[p].cls}`}><div className="body"><div className="t">{k}</div></div>
+        <select className="inp prio-sel" aria-label={`Mức mặc định: ${k}`} value={p} onChange={e => setPrioCat(k, +e.target.value as D.Prio)}>{([1, 2, 3, 4] as D.Prio[]).map(x => <option key={x} value={x}>{D.PRIO[x].label}</option>)}</select></div> })}</div>
+    </Block>
     <Block title="Quy tắc đang áp dụng"><div className="card list">{[
       ['Ngân sách Leader/Marketing tự quyết', `≤ ${D.vnd(BUDGET_LIMIT)} và không đổi giá — vượt mức gửi chị duyệt`],
       ['Ca làm', `${D.SHIFTS[1].label} · ${D.SHIFTS[2].label}`], ['Dọn giường giữa 2 khách', '10 phút'],
       ['Điểm dọn dẹp đạt chuẩn', `+${D.ZONE_POINTS} điểm / khu`], ['Điểm lễ tân ghi nhận', 'Leader/CEO duyệt trước khi tính'],
-      ['Đơn nghỉ / đổi ca', 'CEO duyệt → bảng chia ca tự cập nhật'], ['Dữ liệu khách', 'SĐT chỉ lễ tân thấy · chỉ CEO xuất file'],
+      ['Đơn nghỉ / đổi ca', 'Leader hoặc CEO duyệt → bảng chia ca tự cập nhật'], ['Màu ưu tiên cả app', 'Đỏ làm ngay · Vàng quan trọng · Xanh vừa · Trắng bình thường'], ['Dữ liệu khách', 'SĐT chỉ lễ tân thấy · chỉ CEO xuất file'],
     ].map(([a, b]) => <div key={a} className="item"><div className="body"><div className="t">{a}</div><div className="d">{b}</div></div><Icon n="check" /></div>)}</div></Block>
     <NodeSpec rows={NM('NM13').rows.map(r => ({ t: `${r.no}. ${r.t}`, d: r.d.split(' → ')[0] }))} />
   </>

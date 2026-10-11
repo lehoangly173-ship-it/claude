@@ -3,8 +3,8 @@ import { OpsBase2, HandoverPage } from './reception2'
 import { ReactNode, useState, useRef } from 'react'
 import { useStore } from '../store'
 import * as D from '../data'
-import { unreadCount, cust, myZones, zoneReport, tourOrder, billRows, overview, alerts, pointsOf, expectedByMethod, ktvState, lastCloseAt } from '../logic'
-import { Hero, Tiles, Nodes, Block, ChipGrid, SubHead, Pill, Empty, Modal, Seg, Av, PhotoInput, NodeSpec, Icon } from '../ui'
+import { prioOf, canSee, unreadCount, cust, myZones, zoneReport, tourOrder, billRows, overview, alerts, pointsOf, expectedByMethod, ktvState, lastCloseAt } from '../logic'
+import { Hero, Tiles, Nodes, Block, ChipGrid, SubHead, Pill, Empty, Modal, Seg, Av, PhotoInput, NodeSpec, Icon, NumInput } from '../ui'
 import { ShiftTourPage, CleaningPage, BoardPage, KtvCustomersPage, NoticesPage, BillsPage, ReviewsPage, ProductsPage, LeavePage, IncidentPage, LeaveModal, IdeaPage, IdeasInboxPage } from './daily'
 import { T } from '../i18n'
 import { OverviewScreen, ScheduleScreen, QueueScreen, BedsScreen } from './ops'
@@ -42,7 +42,8 @@ function useCounts() {
   const unread = unreadCount(s, user.role, me.id)
   const reviewsTodo = s.reviews.filter(r => r.status === 'Chờ đối soát').length
   const billIssues = billRows(s).filter(r => r.issue).length
-  return { zonesTodo, prodTodo, tasksOpen, unread, reviewsTodo, billIssues }
+  const urgent = s.notifs.filter(n => canSee(n, user.role, me.id) && !n.readBy.includes(me.id) && prioOf(s, n) === 1).length // thông báo Đỏ chưa đọc
+  return { zonesTodo, prodTodo, tasksOpen, unread, reviewsTodo, billIssues, urgent }
 }
 
 function QrButton() {
@@ -63,7 +64,7 @@ export function KtvHome({ sub }: { sub: string[] }) {
   const order = tourOrder(s), pos = order.indexOf(me.id)
   const mine = s.appts.filter(a => a.ktvId === me.id && !['cancelled', 'no_show'].includes(a.status))
   const done = mine.filter(a => a.status === 'done' || a.status === 'paid').length
-  const attention = c.zonesTodo.length + c.prodTodo + c.tasksOpen + (s.bills.some(b => b.staffId === me.id) ? 0 : 1)
+  const attention = c.zonesTodo.length + c.prodTodo + c.tasksOpen + c.urgent + (s.bills.some(b => b.staffId === me.id) ? 0 : 1)
   const st = ktvState(s, me.id)
   return <>
     <Hero tag="KTV · Hôm nay" title="Hôm nay của tôi" sub={D.dateLabel()}>
@@ -73,7 +74,7 @@ export function KtvHome({ sub }: { sub: string[] }) {
       <button className="tile mint" onClick={() => go('home/shift')}><span className="l">CA CỦA TÔI</span><span className="v" style={{ fontSize: 18 }}>{me.shift ? (me.shift === 1 ? 'Ca sáng 08–18' : 'Ca chiều 10–20') : 'Chưa có ca được duyệt'}</span><span className="s" style={{ color: 'var(--green)' }}>Lịch 4 tuần / đổi ca →</span></button>
       <div className="tile mint"><span className="l">THỨ TỰ TOUR</span><span className="v serif" style={{ color: 'var(--green)' }}>#{pos >= 0 ? pos + 1 : '–'}</span><span className="s">{done}/{mine.length} tour hoàn tất</span></div>
     </div>
-    <button className="node gold" onClick={() => go('home/work')}><span className="body"><span className="t" style={{ display: 'block' }}>Việc cần chú ý</span><span className="d" style={{ display: 'block' }}>{c.tasksOpen} nhiệm vụ · {c.zonesTodo.length} khu dọn chưa xong · {c.prodTodo} sản phẩm chờ xác nhận{s.bills.some(b => b.staffId === me.id) ? '' : ' · chưa tải ảnh bill'}</span></span><span className="badge">{attention}</span></button>
+    <button className="node gold" onClick={() => go('home/work')}><span className="body"><span className="t" style={{ display: 'block' }}>Việc cần chú ý</span><span className="d" style={{ display: 'block' }}>{c.urgent ? `${c.urgent} thông báo làm ngay · ` : ''}{c.tasksOpen} nhiệm vụ · {c.zonesTodo.length} khu dọn chưa xong · {c.prodTodo} sản phẩm chờ xác nhận{s.bills.some(b => b.staffId === me.id) ? '' : ' · chưa tải ảnh bill'}</span></span><span className="badge">{attention}</span></button>
     <Nodes items={[
       { t: 'Ca, đổi ca & thứ tự tour', d: 'Lịch 4 tuần · ca của tôi · số tour', onClick: () => go('home/shift') },
       { t: 'Nhiệm vụ dọn dẹp', d: myZones(s, me.id).length ? `Khu vực của bạn là số ${myZones(s, me.id).join(', ')} · ảnh mẫu · checklist · điểm` : `Khu vực · ảnh mẫu · checklist · điểm`, badge: c.zonesTodo.length, onClick: () => go('home/cleaning') },
@@ -121,6 +122,7 @@ export function ReceptionHome({ sub }: { sub: string[] }) {
         { v: needCare, l: 'Khách cần CSKH', onClick: () => go('cust') },
         { v: o.waiting, l: 'Khách chờ chia tour', tone: o.waitingLong ? 'warn' : undefined, onClick: () => go('ops/queue') },
         { v: o.bills.length, l: 'Chờ thanh toán', onClick: () => go('ops/cashier') },
+        { v: c.urgent, l: 'Thông báo làm ngay', tone: c.urgent ? 'warn' : undefined, onClick: () => go('home/notices') },
       ]} />
     </Block>
     <Block title="Ca & thứ tự tour KTV" sub={`${o.ktvBusy} KTV đang bận · ${o.ktvFree} KTV sẵn sàng`} right={<button className="softbtn" onClick={() => go('home/shift')}>Xem</button>}>
@@ -197,7 +199,7 @@ function CloseShiftPage({ back }: { back: () => void }) {
     <SubHead title="Chốt ca" sub="Tiền → công việc sổ sách. Lệch tiền phải ghi lý do; Leader & chị nhận thông báo." onBack={back} />
     <Block title="1. Tiền" sub="Số hệ thống tính từ hóa đơn đã xác nhận hôm nay">
       <div className="card tbl-wrap"><table><thead><tr><th>Phương thức</th><th>Hệ thống</th><th>Thực đếm / sao kê</th><th>Lệch</th></tr></thead><tbody>
-        {methods.map(m => { const d = (counted[m] || 0) - exp[m]; return <tr key={m}><td className="strong">{m}</td><td className="num">{D.vnd(exp[m])}</td><td><input className="inp num" type="number" step={1000} min={0} value={counted[m]} onChange={e => setCounted({ ...counted, [m]: Math.max(0, +e.target.value || 0) })} aria-label={`Thực đếm ${m}`} style={{ maxWidth: 160 }} /></td><td className="num strong" style={{ color: d ? 'var(--r-fg)' : 'var(--g-fg)' }}>{d ? `${d > 0 ? '+' : ''}${D.vnd(d)}` : 'Khớp'}</td></tr> })}
+        {methods.map(m => { const d = (counted[m] || 0) - exp[m]; return <tr key={m}><td className="strong">{m}</td><td className="num">{D.vnd(exp[m])}</td><td><NumInput className="inp num" step={1000} min={0} value={counted[m]} onChange={v => setCounted({ ...counted, [m]: Math.max(0, v) })} aria-label={`Thực đếm ${m}`} style={{ maxWidth: 160 }} /></td><td className="num strong" style={{ color: d ? 'var(--r-fg)' : 'var(--g-fg)' }}>{d ? `${d > 0 ? '+' : ''}${D.vnd(d)}` : 'Khớp'}</td></tr> })}
       </tbody></table></div>
       <div className={absDiff ? 'err small' : 'ok small'}>{absDiff ? `Tổng lệch ${diff > 0 ? '+' : ''}${D.vnd(diff)} — ghi rõ lý do bên dưới` : 'Tiền khớp với hệ thống'}</div>
     </Block>
@@ -260,7 +262,7 @@ export function ReceptionCustomers({ embed }: { embed?: boolean } = {}) {
     <div style={{ overflowX: 'auto' }}><Seg value={grp} onChange={g => { setGrp(g); setFlt('Tất cả') }} items={[{ k: 'leVN', label: 'Khách lẻ Việt' }, { k: 'ltVN', label: 'Liệu trình Việt' }, { k: 'leNN', label: 'Khách lẻ nước ngoài' }, { k: 'ltNN', label: 'Liệu trình nước ngoài' }]} /></div>
     <div className="row">{filters.map(f => <button key={f} className={`btn sm${flt === f ? ' pri' : ''}`} onClick={() => setFlt(f)}>{f}</button>)}</div>
     <div className="row"><input className="inp" style={{ flex: 1, minWidth: 160 }} placeholder={isLT ? 'Tìm mã KH / tên' : 'Tìm tên / mã'} value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm khách" />
-      {flt === 'Lâu chưa quay lại' && <label className="row small muted">≥<input className="inp num" type="number" min={7} step={7} value={days} onChange={e => setDays(+e.target.value || 30)} style={{ width: 80 }} />ngày</label>}</div>
+      {flt === 'Lâu chưa quay lại' && <label className="row small muted">≥<NumInput className="inp num" min={7} step={7} value={days} onChange={v => setDays((v || 30))} style={{ width: 80 }} />ngày</label>}</div>
     <div className="card list">{list.map(c => <div key={c.id} className="item" style={{ alignItems: 'flex-start' }}><Av name={c.name} /><div className="body">
       <button className="link" onClick={() => openCustomer(c.id)} style={{ color: 'var(--ink)' }}>{c.name} <span className="tiny muted">· mã {c.code}</span></button>
       <div className="d">{user.role === 'reception' || user.role === 'ceo' ? c.phone || 'chưa có SĐT' : 'SĐT ẩn'} · {c.visits} lần · {c.lastVisitDays ? `${c.lastVisitDays} ngày trước` : 'hôm nay'} · {D.vnd(c.totalPaid)}{c.packages.map(p => ` · ${p.cardCode}: ${pkgState(p)}`).join('')}</div>

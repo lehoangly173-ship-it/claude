@@ -18,6 +18,7 @@ const initial = (): State => ({
   tasks: clone(D.SEED_TASKS), feedback: clone(D.SEED_FEEDBACK), programs: clone(D.SEED_PROGRAMS),
   initiatives: clone(D.SEED_INITIATIVES), approvals: [...clone(D.SEED_APPROVALS), clone(D.SEED_APPROVAL_LEAVE)], reports: [],
   notifs: [
+    ...D.ANNOUNCEMENTS.map((a, i) => ({ id: a.id, cat: 'Leader' as const, tag: a.tag, by: a.by, pinned: true, text: a.title, detail: a.by, min: 7 * 60 + 30 + i, roles: ['ktv', 'reception', 'leader', 'marketing', 'ceo'] as D.Role[], readBy: [] as string[] })),
     { id: 'n1', cat: 'Lịch hẹn', text: 'Nguyễn Thị Lan đặt lịch 10:30 với KTV Mai', detail: 'Massage trị liệu 90 phút · khách yêu cầu đích danh', min: 560, roles: ['reception'], nav: 'schedule', readBy: [] },
     { id: 'n0', cat: 'Lịch hẹn', text: 'Bạn có khách 10:30 — Nguyễn Thị Lan (yêu cầu bạn)', detail: 'Massage trị liệu 90 phút · đau cổ vai gáy', min: 560, roles: ['ktv'], to: ['mai'], nav: 'mywork', readBy: [] },
     { id: 'n2', cat: 'Thu ngân', text: 'Trần Văn Minh xong dịch vụ, chờ thanh toán', detail: 'Massage trị liệu 90 phút · 570.000đ', min: 600, roles: ['reception'], nav: 'cashier', readBy: [] },
@@ -44,7 +45,7 @@ const initial = (): State => ({
   ],
   opsChecks: [],
   zoneRead: {}, zoneChecks: {},
-  suggestions: [],
+  suggestions: [], prioCat: { ...D.PRIO_DEFAULT }, prioSet: {},
   stockMoves: clone(D.SEED_STOCK_MOVES), opsReqs: [{ id: 'or1', kind: 'Thiết bị', title: 'Máy sấy tóc tầng 3 kêu to', cost: 350000, from: D.daysAhead(1), to: D.daysAhead(2), photo: 'maysay.jpg', by: 'lam', at: 9 * 60, status: 'Chờ duyệt' }],
   xpChecks: [], handovers: [{ id: 'ho1', from: 'lam', to: 'mai', text: 'Thu hộ 300.000đ tiền mặt của khách Hà (tour 18:00) — nộp lại lễ tân ca 2', at: 9 * 60 + 30, status: 'Chờ xác nhận' }],
   expenses: clone(D.SEED_EXPENSES), profiles: {}, adjusts: [],
@@ -424,6 +425,11 @@ function useStoreValue() {
       mutate(d => { d.suggestions.unshift({ id: id(d, 'sg'), staffId: me.id, kind, text: text.trim(), date, createdAt: d.now, status: 'Đã gửi' }) })
       say(T.idea.sentToast); return null
     },
+    flagBed: (text: string) => { mutate(d => { notify(d, { cat: 'Điều phối', text: `${me.name} báo xếp giường/lịch có thể nhầm`, detail: text, roles: ['reception', 'leader'], nav: 'beds' }) }); say('Đã báo lễ tân kiểm tra') },
+    // FIX LẦN 3 — mức ưu tiên (Leader/CEO điều khiển) + ghim thông báo
+    setPrio: (nid: string, p: D.Prio) => { if (!['leader', 'ceo'].includes(me.role)) return say('Chỉ Leader/CEO đặt mức ưu tiên'); mutate(d => { d.prioSet[nid] = p }) },
+    setPrioCat: (k: string, p: D.Prio) => { if (me.role !== 'ceo') return say('Chỉ CEO đổi mặc định'); mutate(d => { d.prioCat[k] = p }) },
+    pinNotice: (tag: string, title: string, p: D.Prio) => { if (!['leader', 'ceo'].includes(me.role)) return say('Chỉ Leader/CEO ghim thông báo'); mutate(d => { const nid = id(d, 'an'); d.notifs.unshift({ id: nid, cat: 'Leader', tag, by: me.name, pinned: true, text: title, detail: me.name, min: d.now, roles: ['ktv', 'reception', 'leader', 'marketing', 'ceo'], readBy: [me.id] }); if (d.prioCat[tag] !== p) d.prioSet[nid] = p }); say('Đã ghim cho cả Home') },
     // FIX LẦN 1 — Lễ tân / KTV / Leader
     addStock: (m: Omit<D.StockMove, 'id' | 'by' | 'at'>) => { mutate(d => { d.stockMoves.unshift({ ...m, id: id(d, 'sm'), by: me.id, at: d.now }); if (m.status === 'Chờ duyệt') notify(d, { cat: 'Leader', text: `Chờ duyệt kho: ${m.kind} ${m.qty} ${D.STOCK_ITEMS.find(x => x.id === m.item)?.name}`, detail: m.note, roles: ['leader', 'ceo'], nav: 'home/base/2' }) }); say(m.status === 'Chờ duyệt' ? 'Đã gửi duyệt' : 'Đã ghi phiếu') },
     decideStock: (mid: string, ok: boolean) => { if (!['leader', 'ceo'].includes(me.role)) return say('Chỉ Leader/CEO duyệt'); mutate(d => { const m = d.stockMoves.find(x => x.id === mid); if (m && m.status === 'Chờ duyệt') m.status = ok ? 'Đã duyệt' : 'Từ chối' }) },
@@ -459,7 +465,7 @@ function useStoreValue() {
     markRead: (nid: string) => mutate(d => markReadIn(d, nid, me.id)),
     markUnread: (nid: string) => mutate(d => markUnreadIn(d, nid, me.id)),
     setZoneRead: (zone: number, v: boolean) => mutate(d => { d.zoneRead[zoneKey(zone, me.id)] = v }),
-    toggleZoneCheck: (zone: number, i: number, len: number) => mutate(d => { const k = zoneKey(zone, me.id); const a = d.zoneChecks[k] ?? Array(len).fill(false); a[i] = !a[i]; d.zoneChecks[k] = a }),
+    toggleZoneCheck: (zone: number, i: number, init: boolean[]) => mutate(d => { const k = zoneKey(zone, me.id); const a = d.zoneChecks[k] ?? [...init]; a[i] = !a[i]; d.zoneChecks[k] = a }),
     markAllRead: () => mutate(d => { d.notifs.forEach(n => { if (canSee(n, user.role, me.id) && !n.readBy.includes(me.id)) n.readBy.push(me.id) }) }),
   }
   return { s, user, setUser, me, toast, say, page, go, profile, openCustomer, draftBill, setDraftBill, ...actions, CLEAN_MIN }

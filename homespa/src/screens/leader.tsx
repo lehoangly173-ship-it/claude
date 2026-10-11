@@ -5,7 +5,7 @@ import { useMemo, useState } from 'react'
 import { useStore, BUDGET_LIMIT } from '../store'
 import * as D from '../data'
 import { alerts, overview, cust, ktvState, custSegment, Alert, State, myZones, zoneReport, tourOrder, pointsOf, canSeePhone } from '../logic'
-import { Icon, Pill, Stat, PageHeader, Seg, Modal, Empty, Sec, Av, Delta, Hero } from '../ui'
+import { Icon, Pill, Stat, PageHeader, Seg, Modal, Empty, Sec, Av, Delta, Hero, NumInput } from '../ui'
 
 const isRec = (s: State, id: string) => s.staff.find(x => x.id === id)?.role === 'reception'
 const FLOW = ['Mở việc', 'Nhận xử lý', 'Ghi kết quả / minh chứng', 'Hoàn thành / chuyển']
@@ -168,7 +168,7 @@ export function ProgramsPanel({ ownerFilter, only }: { ownerFilter?: string; onl
     {adding && <Modal title="Chương trình chăm sóc mới" onClose={() => setAdding(false)} footer={<><button className="btn" onClick={() => setAdding(false)}>Hủy</button><button className="btn pri" disabled={!f.name.trim() || !f.target.trim()} onClick={() => { addProgram({ name: f.name.trim(), type: f.type, target: f.target.trim(), budget: f.budget, discount: f.discount.trim() || undefined, ownerId: me.id }); setAdding(false) }}>{f.budget > BUDGET_LIMIT || f.discount.trim() ? 'Gửi chị duyệt' : 'Bắt đầu chương trình'}</button></>}>
       <label className="f">Tên<input id="pg-name" className="inp" value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></label>
       <div className="grid g2"><label className="f">Loại<select id="pg-type" className="inp" value={f.type} onChange={e => setF({ ...f, type: e.target.value as any })}>{['Sinh nhật', 'Tri ân', 'Giới thiệu bạn', 'Tái tục', 'Marketing'].map(t => <option key={t}>{t}</option>)}</select></label>
-        <label className="f">Ngân sách<input id="pg-budget" className="inp num" type="number" step={100000} min={0} value={f.budget} onChange={e => setF({ ...f, budget: +e.target.value })} /></label></div>
+        <label className="f">Ngân sách<NumInput id="pg-budget" className="inp num" step={100000} min={0} value={f.budget} onChange={v => setF({ ...f, budget: v })} /></label></div>
       <label className="f">Đối tượng khách<input id="pg-target" className="inp" value={f.target} onChange={e => setF({ ...f, target: e.target.value })} placeholder="VD: khách lẻ 2–3 lượt, 30 ngày chưa quay lại" /></label>
       <label className="f">Ưu đãi / đổi giá (nếu có → chị duyệt)<input id="pg-disc" className="inp" value={f.discount} onChange={e => setF({ ...f, discount: e.target.value })} placeholder="Để trống nếu không có ưu đãi giá" /></label>
     </Modal>}
@@ -388,7 +388,7 @@ function InitiativeModal({ id, onClose }: { id: string; onClose: () => void }) {
       {F('goal', '2. Mục tiêu đo được', 'VD: chờ TB ≤ 7 phút sau 4 tuần')}
       {F('solution', '3. Giải pháp')}
       <label className="f">4. Người phối hợp<input id="in-partners" className="inp" value={f.partners.join(', ')} onChange={e => setF({ ...f, partners: e.target.value.split(',').map(x => x.trim()).filter(Boolean) })} placeholder="Lam, Vân, KTV ca 1" /></label>
-      <label className="f">5. Ngân sách (đ)<input id="in-budget" className="inp num" type="number" min={0} step={100000} value={f.budget} onChange={e => setF({ ...f, budget: +e.target.value })} /></label>
+      <label className="f">5. Ngân sách (đ)<NumInput id="in-budget" className="inp num" min={0} step={100000} value={f.budget} onChange={v => setF({ ...f, budget: v })} /></label>
       {F('dueLabel', '6. Hạn hoàn thành', 'VD: 30/11')}
       {F('before', '7a. Kết quả trước')}
       {F('after', '7b. Kết quả sau (khi đã đo)')}

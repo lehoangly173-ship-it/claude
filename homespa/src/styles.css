@@ -9,6 +9,7 @@
   --shadow: 0 1px 2px rgba(24, 38, 28, .05), 0 4px 14px rgba(24, 38, 28, .05);
   --font: 'Be Vietnam Pro', 'Segoe UI', system-ui, -apple-system, sans-serif;
   --serif: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  --hov: #fbe7a6; --hov-line: #e3b81f; --p1: #d93a2f; --p2: #e3a512; --p3: #2a8a4b; --p4: #c9d3cb;
   --r: 16px; --side: #164f2b; --side-2: #1f6b3a; --side-fg: #eaf4ec; --side-dim: #a9c7b1;
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
@@ -17,14 +18,14 @@
   --gold: #e8bb35; --gold-ink: #f3d77c; --brand: #2f8a4f;
   --g-bg: #1d3a26; --g-fg: #9fe0b2; --y-bg: #3a3216; --y-fg: #f1d27a; --b-bg: #3a2f25; --b-fg: #e2c4a6;
   --p-bg: #30264a; --p-fg: #d4bdf2; --n-bg: #242d27; --n-fg: #b7c4b9; --r-bg: #46221f; --r-fg: #ffaba3;
-  --shadow: 0 1px 2px rgba(0,0,0,.4); --side: #0c1d12; --side-2: #173822; color-scheme: dark } }
+  --shadow: 0 1px 2px rgba(0,0,0,.4); --side: #0c1d12; --side-2: #173822; --hov: #4a3d12; --hov-line: #d9ad2a; --p1: #ff7b70; --p2: #f1c24a; --p3: #5cc480; --p4: #4a564d; color-scheme: dark } }
 :root[data-theme="dark"] {
   --green: #3c9a5c; --green-2: #47ab68; --green-dark: #0f2a18; --mint: #1c3324; --mint-2: #24432f; --mint-ink: #9fe0b2;
   --bg: #111813; --card: #1a221c; --line: #2a362d; --line-2: #222c25; --ink: #e7efe8; --ink-2: #b8c6bb; --dim: #8a9a8d;
   --gold: #e8bb35; --gold-ink: #f3d77c; --brand: #2f8a4f;
   --g-bg: #1d3a26; --g-fg: #9fe0b2; --y-bg: #3a3216; --y-fg: #f1d27a; --b-bg: #3a2f25; --b-fg: #e2c4a6;
   --p-bg: #30264a; --p-fg: #d4bdf2; --n-bg: #242d27; --n-fg: #b7c4b9; --r-bg: #46221f; --r-fg: #ffaba3;
-  --shadow: 0 1px 2px rgba(0,0,0,.4); --side: #0c1d12; --side-2: #173822; color-scheme: dark }
+  --shadow: 0 1px 2px rgba(0,0,0,.4); --side: #0c1d12; --side-2: #173822; --hov: #4a3d12; --hov-line: #d9ad2a; --p1: #ff7b70; --p2: #f1c24a; --p3: #5cc480; --p4: #4a564d; color-scheme: dark }
 
 * { box-sizing: border-box }
 html, body, #root { height: 100% }
@@ -383,3 +384,82 @@ button.tile.deep:hover, .btn.deep:hover { background: var(--green-dark); border-
 .calc { border: 1px solid var(--line); border-radius: 10px; padding: 6px 4px; text-align: center; background: var(--card); display: flex; flex-direction: column; font-size: 12px }
 .calc b { font-size: 11px; color: var(--dim) }
 .calc.off { background: var(--r-bg); color: var(--r-fg) }
+
+/* ═══════════ FIX LẦN 3 — QUY TẮC CHUNG CẢ APP (một chỗ sửa, 5 vai trò đổi theo) ═══════════ */
+/* Q7 — thanh chữ xanh đậm không bị cắt (trước kế thừa .bar cao 7px → mất chữ "SÁNG/CHIỀU") */
+.deep.bar { height: auto; overflow: visible; color: #fff; letter-spacing: .04em }
+
+/* Q1 — tiêu đề mỗi khối: chữ đậm trên dải nền xanh nhạt */
+.block > .bh:not(.deep) { background: var(--mint); border-radius: 12px; padding: 10px 14px; align-items: center }
+.block > .bh h2 { font-size: 16.5px; font-weight: 800 }
+.block > .bh:not(.deep) h2 { color: var(--mint-ink) }
+.block > .bh:not(.deep) p { color: var(--ink-2) }
+.block > .bh.deep { padding: 10px 14px; border-radius: 12px; align-items: center }
+
+/* Q1/Q2 — nhãn mục (VIỆC TIẾP THEO, ĐIỀU PHỐI HÔM NAY, LIÊN HỆ…) thành chip nền xanh, chữ đậm dễ đọc */
+.eyebrow { display: inline-block; align-self: flex-start; background: var(--mint); color: var(--mint-ink); padding: 3px 10px; border-radius: 8px; font-size: 11.5px; font-weight: 800; letter-spacing: .08em }
+.sec-title .eyebrow { font-size: 13px; padding: 6px 12px; border-radius: 10px; letter-spacing: .06em }
+.ph .eyebrow { margin-bottom: 4px }
+.g-name.eyebrow, .g-row.head .eyebrow { background: none; padding: 8px 12px; border-radius: 0 }
+.shift-h { margin: 10px 12px 4px; padding: 6px 10px; border-radius: 10px; background: var(--green); color: #fff; font-weight: 800; font-size: 13px }
+
+/* Q2 — nhãn ô nhập: chữ đậm trên nền xanh nhạt ("tạo nền in chữ") */
+label.f { background: var(--mint); color: var(--mint-ink); font-size: 12px; font-weight: 800; letter-spacing: .04em; padding: 7px 9px 9px; border-radius: 12px; gap: 6px; min-width: 0 }
+label.f .inp { border-color: var(--mint-2) }
+/* Nhãn – giá trị (hồ sơ khách, thông tin): nhãn đậm, rõ */
+.kv-l { font-size: 12.5px; font-weight: 800; color: var(--ink-2) }
+th { color: var(--ink-2); background: var(--line-2) }
+.stat .l { color: var(--ink-2) }
+.tile .l { font-weight: 600 }
+.item .d { color: var(--ink-2) }
+.node .d { color: var(--ink-2) }
+
+/* Q3 — chạm tay / rê chuột vào nút nào thì nút đó chuyển VÀNG (không tối đi) */
+@media (hover: hover) {
+  button.tile:not(:disabled):hover, button.node:hover, .tnode .node:hover, .tkid:hover, .cbtn:not(:disabled):hover, .softbtn:hover,
+  button.item:hover, .item.prio:hover, button.stat:hover, .radio:hover, .seg button:not(.on):hover, .btn:not(:disabled):hover, .fm-item:hover, .link:hover, .back:hover, .bed:hover, .calc:hover {
+    background: var(--hov) !important; border-color: var(--hov-line) !important; color: var(--ink) !important }
+  button.tile:not(:disabled):hover *, button.node:hover .t, button.node:hover .d, .cbtn:hover *, .btn:not(:disabled):hover *, .tnode .node:hover .t, .tnode .node:hover .d { color: var(--ink) !important }
+}
+button.tile:not(:disabled):active, button.node:active, .thead:active, .tkid:active, .cbtn:not(:disabled):active, .softbtn:active, button.item:active,
+.btn:not(:disabled):active, .seg button:active, .fm-item:active, .radio:active, .bed:active { background: var(--hov) !important; border-color: var(--hov-line) !important; color: var(--ink) !important }
+button.tile:not(:disabled):active *, .btn:not(:disabled):active *, .cbtn:active * { color: var(--ink) !important }
+.g-blk:hover { outline: 2px solid var(--hov-line); outline-offset: 1px }
+
+/* Q4 — mức ưu tiên dùng chung: Đỏ làm ngay · Vàng quan trọng · Xanh vừa · Trắng bình thường */
+.item.prio { border-left: 5px solid var(--p4) }
+.item.prio.p1 { border-left-color: var(--p1); background: color-mix(in srgb, var(--p1) 7%, var(--card)) }
+.item.prio.p2 { border-left-color: var(--p2); background: color-mix(in srgb, var(--p2) 9%, var(--card)) }
+.item.prio.p3 { border-left-color: var(--p3) }
+.item.prio .t { font-weight: 700 }
+.item.prio.read .t { font-weight: 500; color: var(--ink-2) }
+.prio-sel { width: auto; padding: 5px 8px; font-size: 12.5px; flex: none }
+.prio-legend, .legend { display: flex; gap: 6px; flex-wrap: wrap; align-items: center }
+.node.p1 { border-color: var(--p1); background: color-mix(in srgb, var(--p1) 8%, var(--card)) }
+
+/* Q7 — không bóp cột, không cắt chữ */
+.g-auto { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)) }
+.item .body > .pill { margin-top: 4px }
+.split > * { min-width: 0 }
+details.howto { font-size: 12.5px; color: var(--ink-2) }
+details.howto summary { cursor: pointer; font-weight: 700; color: var(--green); list-style: none; padding: 2px 10px; border: 1px solid var(--line); border-radius: 99px; background: var(--card) }
+details.howto summary::-webkit-details-marker { display: none }
+details.howto[open] { flex-basis: 100% }
+details.howto ul { margin: 8px 0 0; padding-left: 18px }
+
+/* Q8 — đầu trang gọn: mô tả một dòng dễ đọc */
+.subhead p, .ph p { color: var(--ink-2); font-size: 13.5px }
+.subhead h1, .ph h1 { color: var(--ink) }
+
+/* Nút chọn lớn (Sáng kiến, loại góp ý…) nền đậm */
+.node.deep { background: var(--green); border-color: var(--green) }
+.node.deep .t, .node.deep .d, .node.deep .arr { color: #fff }
+.node.deep .no { background: rgba(255,255,255,.18); color: #fff }
+.block.deep-form { border: 2px solid var(--green) }
+/* Hóa đơn thanh toán: 4 mục chính A–D là khối rõ ràng, tiêu đề nền xanh đậm */
+.inv-sec { border: 1px solid var(--line); border-radius: 14px; padding: 12px; background: var(--card); gap: 10px }
+.inv-h { align-self: stretch; background: var(--green); color: #fff; font-weight: 800; padding: 7px 12px; border-radius: 10px; letter-spacing: .04em; font-size: 13px; text-transform: uppercase }
+@media (max-width: 900px) { .item.prio { flex-wrap: wrap } .item.prio > .body { flex-basis: 100% } .item.prio > .body + * { margin-left: auto } }
+.pl1 { color: var(--r-fg) } .pl2 { color: var(--y-fg) } .pl3 { color: var(--g-fg) } .pl4 { color: var(--n-fg) }
+.node.deep.on { box-shadow: 0 0 0 3px var(--gold); }
+@media (hover: hover) { .node.deep:hover .no, .node.deep:hover .arr { color: var(--ink) !important; background: rgba(0,0,0,.06) } }

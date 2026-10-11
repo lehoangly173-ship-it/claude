@@ -1,4 +1,4 @@
-import { ReactNode, useState, createContext, useContext } from 'react'
+import { ReactNode, useState, useEffect, createContext, useContext, CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import { useStore } from './store'
 import { Tone, cust, ktvCanOpen, dobNoYear } from './logic'
@@ -84,12 +84,12 @@ function useMenuPortal(content: (close: () => void) => ReactNode) {
 export function Block({ title, sub, right, children, color }: { title: ReactNode; sub?: ReactNode; right?: ReactNode; children: ReactNode; color?: Color }) {
   return <section className="block"><div className={`bh${color ? ` ${color}` : ''}`}><div style={{ minWidth: 0 }}><h2>{title}</h2>{sub && <p>{sub}</p>}</div>{right && <div className="right">{right}</div>}</div><GroupCtx.Provider value={typeof title === 'string' ? title : null}>{children}</GroupCtx.Provider></section>
 }
-export type NodeT = { no?: ReactNode; t: string; d?: string; badge?: number; alert?: boolean; onClick: () => void }
+export type NodeT = { no?: ReactNode; t: string; d?: string; badge?: number; alert?: boolean; cls?: string; onClick: () => void }
 export function Nodes({ items }: { items: NodeT[] }) {
   const menu = useMenuPortal(close => items.map((n, i) => <button key={i} className={`fm-item${n.alert ? ' alert' : ''}`} onClick={() => { close(); n.onClick() }}>
     <span className="no">{n.no ?? i + 1}</span><span className="t">{n.t}</span>{n.badge ? <span className="badge red">{n.badge}</span> : null}</button>))
   if (menu) return menu
-  return <div className="nodes">{items.map((n, i) => <button key={i} className={`node${n.alert ? ' alert' : ''}`} onClick={n.onClick}>
+  return <div className="nodes">{items.map((n, i) => <button key={i} className={`node${n.alert ? ' alert' : ''}${n.cls ? ' ' + n.cls : ''}`} onClick={n.onClick}>
     <span className="no">{n.no ?? i + 1}</span><span className="body"><span className="t" style={{ display: 'block' }}>{n.t}</span>{n.d && <span className="d" style={{ display: 'block' }}>{n.d}</span>}</span>
     {n.badge ? <span className="badge red">{n.badge}</span> : null}<span className="arr"><Icon n="arrow" s={18} /></span></button>)}</div>
 }
@@ -135,8 +135,8 @@ export function CustomerModal({ customerId, onClose }: { customerId: string; onC
     <Seg value={tab} onChange={setTab} items={[{ k: 'info', label: 'Thông tin' }, { k: 'pkg', label: `Gói liệu trình (${c.packages.length})` }, { k: 'care', label: 'Chăm sóc & phản hồi' }, { k: 'profile', label: T.cust.profileTab }]} />
     {tab === 'profile' && <CustomerProfile customerId={c.id} />}
     {tab === 'info' && <div className="grid g2">
-      <div className="col small"><span className="eyebrow">Liên hệ</span><span>SĐT: {user.role === 'reception' || user.role === 'ceo' ? c.phone || '—' : 'ẩn (chỉ lễ tân thấy)'}</span><span>Sinh nhật: {(user.role === 'ktv' ? dobNoYear(c.dob) : c.dob) || '—'}</span><span>Khách từ: {c.firstVisit}</span>{canSeeMoney && <span>Tổng chi: <b className="num">{D.vnd(c.totalPaid)}</b></span>}</div>
-      <div className="col small"><span className="eyebrow">Lưu ý khi phục vụ</span><span>Sức khỏe: {c.health || 'Không có lưu ý'}</span><span>Sở thích: {c.preference || '—'}</span></div>
+      <div className="col small"><span className="eyebrow">Liên hệ</span><span><span className="kv-l">SĐT:</span> {user.role === 'reception' || user.role === 'ceo' ? c.phone || '—' : 'ẩn (chỉ lễ tân thấy)'}</span><span><span className="kv-l">Sinh nhật:</span> {(user.role === 'ktv' ? dobNoYear(c.dob) : c.dob) || '—'}</span><span><span className="kv-l">Khách từ:</span> {c.firstVisit}</span>{canSeeMoney && <span><span className="kv-l">Tổng chi:</span> <b className="num">{D.vnd(c.totalPaid)}</b></span>}</div>
+      <div className="col small"><span className="eyebrow">Lưu ý khi phục vụ</span><span><span className="kv-l">Sức khỏe:</span> {c.health || 'Không có lưu ý'}</span><span><span className="kv-l">Sở thích:</span> {c.preference || '—'}</span></div>
       <div className="col small" style={{ gridColumn: '1 / -1' }}><span className="eyebrow">Hôm nay</span>{visits.length ? visits.map(a => <span key={a.id}>{D.hhmm(a.start)} · {D.svc(a.serviceId).name} · KTV {D.staffName(a.ktvId)} · {a.bedId}</span>) : <span className="muted">Không có lịch hôm nay</span>}</div>
     </div>}
     {tab === 'pkg' && (c.packages.length ? c.packages.map(p => <div key={p.cardCode} className="card pad col">
@@ -161,16 +161,26 @@ export function CustomerProfile({ customerId }: { customerId: string }) {
   const hist: string[] = [...(c.progress ?? []).map(x => `${x} (${T.cust.sample})`), ...c.care.map(x => `${x.at} · ${x.by}: ${x.text}`),
     ...c.packages.map(p => `${T.cust.closedCard(p.cardCode, p.name, p.buyDate)} · ${p.type === 'session' ? T.cust.left(D.pkgLeft(p)) : T.cust.moneyCard}`)]
   const v = (x?: string | null) => x || U
-  const row = (i: number, val: ReactNode) => <div key={i} className="item"><div className="body"><span className="tiny muted">{i + 1}. {F[i]}:</span> <b>{val}</b></div></div>
+  const row = (i: number, val: ReactNode) => <div key={i} className="item"><div className="body"><span className="kv-l">{i + 1}. {F[i]}:</span> <b>{val}</b></div></div>
   return <div className="card list" data-testid="cust-profile">
     {row(0, c.name)}
     {row(1, contact ? v(c.address) : T.cust.hidden)}
     {row(2, v(dob))}
     {row(3, contact ? v(c.phone) : T.cust.hidden)}
-    <div className="item"><div className="body"><span className="tiny muted">5. {F[4]}:</span>{hist.length ? hist.map((h, i) => <div key={i} className="small">{h}</div>) : <> <b>{U}</b></>}</div></div>
+    <div className="item"><div className="body"><span className="kv-l">5. {F[4]}:</span>{hist.length ? hist.map((h, i) => <div key={i} className="small">{h}</div>) : <> <b>{U}</b></>}</div></div>
     {row(5, c.budget != null ? D.vnd(c.budget) : U)}
-    <div className="item"><div className="body"><span className="tiny muted">7. {F[6]}:</span> <b>{v(c.health)}</b><div className="tiny muted">{T.cust.selfEval}</div></div></div>
+    <div className="item"><div className="body"><span className="kv-l">7. {F[6]}:</span> <b>{v(c.health)}</b><div className="tiny muted">{T.cust.selfEval}</div></div></div>
     {row(7, v(c.source))}
     {row(8, c.qrCare == null ? U : c.qrCare ? T.cust.qrYes : T.cust.qrNo)}
   </div>
+}
+
+/** Ô nhập số dùng chung: xóa được, gõ lại tự do (bắt đầu từ 0), không tự nhảy về 1. Giá trị trống = 0. */
+export function NumInput({ value, onChange, min, max, step, optional, ...rest }: { value: number | null; onChange: (n: number) => void; optional?: boolean; min?: number; max?: number; step?: number; id?: string; className?: string; style?: CSSProperties; placeholder?: string; 'aria-label'?: string }) {
+  const show = (x: number | null) => (x == null || (x === 0 && !optional) ? '' : String(x))
+  const [txt, setTxt] = useState(show(value))
+  useEffect(() => { const cur = txt === '' || txt === '-' ? (optional ? null : 0) : Number(txt); if (cur !== value) setTxt(show(value)) }, [value]) // eslint-disable-line react-hooks/exhaustive-deps
+  return <input {...rest} className={rest.className ?? 'inp num'} type="number" inputMode="numeric" min={min} max={max} step={step} value={txt} placeholder={rest.placeholder ?? '0'}
+    onChange={e => { const t = e.target.value; setTxt(t); if (t === '' || t === '-') { (onChange as (n: number | null) => void)(optional ? null : 0); return } const n = Number(t); if (!Number.isFinite(n)) return; onChange(max != null ? Math.min(n, max) : n) }}
+    onBlur={() => { if (min != null && value != null && value < min) onChange(min) }} />
 }

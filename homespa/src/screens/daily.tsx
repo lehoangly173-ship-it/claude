@@ -3,10 +3,10 @@
 import { useEffect, useRef, useState, ChangeEvent } from 'react'
 import { useStore } from '../store'
 import * as D from '../data'
-import { canSee, cust, myZones, zoneReport, canSendReport, tourOrder, billRows, ktvState, pointsOf, unreadCount, cleanDetail, zoneKey, ktvCustomers, buyerSuggestions, validateReceive, canSeeBuyer, isoToday, isoToVi, mySuggestions, inboxSuggestions, suggestionError } from '../logic'
+import { prioOf, canSee, cust, myZones, zoneReport, canSendReport, tourOrder, billRows, ktvState, pointsOf, unreadCount, cleanDetail, zoneKey, ktvCustomers, buyerSuggestions, validateReceive, canSeeBuyer, isoToday, isoToVi, mySuggestions, inboxSuggestions, suggestionError } from '../logic'
 import { T } from '../i18n'
-import { Pill, Empty, Modal, SubHead, Block, Tiles, PhotoInput, Thumb, Seg, Av, Icon, Nodes } from '../ui'
-import { ApptPill } from './ops'
+import { Pill, Empty, Modal, SubHead, Block, Tiles, PhotoInput, Thumb, Seg, Av, Icon, Nodes, NumInput } from '../ui'
+import { ApptPill, BedsScreen, ScheduleScreen } from './ops'
 
 type P = { back: () => void }
 const isBoss = (r: D.Role) => r === 'leader' || r === 'ceo'
@@ -165,18 +165,20 @@ function ZoneModal({ zone, onClose }: { zone: number; onClose: () => void }) {
   const [photo, setPhoto] = useState('')
   const [showStd, setShowStd] = useState(false)
   const key = zoneKey(zone, me.id)
-  const checks = s.zoneChecks[key] ?? z.std.map(() => false)
   const r = zoneReport(s, zone)
+  const init = r && r.status !== 'Chưa đạt' && r.staffId === me.id ? r.checks : z.std.map(() => false)
+  const checks = s.zoneChecks[key] ?? init
   const own = s.zoneOwner[zone] === me.id
   const canSend = own && (!r || r.status === 'Chưa đạt')
+  const canTick = own && r?.status !== 'Đạt' // tích tự do khi đang làm; chỉ khóa khi đã chấm Đạt
   return <><Modal title={`Khu vực số ${zone} — ${z.name}`} onClose={onClose} footer={canSend && <button className="btn pri" onClick={() => { const e = submitClean(zone, photo, checks); if (e) say('⚠ ' + e); else onClose() }}>Gửi kiểm tra</button>}>
     <div className="small muted">Phụ trách hôm nay: <b>{D.staffName(s.zoneOwner[zone])}</b>{z.after ? ` · báo cáo sau ${D.hhmm(z.after)}` : ''}</div>
     {r && <div className={r.status === 'Đạt' ? 'ok small' : r.status === 'Chưa đạt' ? 'err small' : 'warn small'}>Lần báo gần nhất {D.hhmm(r.at)} · {r.status}{r.points ? ` · +${r.points} điểm` : ''}{r.note ? ` · ${r.note}` : ''}</div>}
     <div className="col" style={{ gap: 2 }}><div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><span className="eyebrow" style={{ marginRight: 'auto' }}>Tiêu chuẩn & việc cần làm</span><button className="btn sm" onClick={() => setShowStd(true)}>{T.clean.stdButton}</button></div>
       {own && <label className="check"><input type="checkbox" checked={!!s.zoneRead[key]} onChange={e => setZoneRead(zone, e.target.checked)} />{T.clean.readTask}</label>}
-      {z.std.map((x, i) => <label key={i} className="check"><input type="checkbox" disabled={!canSend} checked={checks[i]} onChange={() => toggleZoneCheck(zone, i, z.std.length)} />{x}</label>)}</div>
+      {z.std.map((x, i) => <label key={i} className="check"><input type="checkbox" disabled={!canTick} checked={!!checks[i]} onChange={() => toggleZoneCheck(zone, i, checks)} />{x}</label>)}</div>
     <div className="note">Ảnh mẫu: chụp toàn cảnh khu vực, đủ sáng, thấy rõ các điểm trong tiêu chuẩn. Ảnh là căn cứ chấm điểm.</div>
-    {canSend ? <PhotoInput value={photo} onChange={setPhoto} label="Tải ảnh khu vực đã dọn" /> : !own ? <div className="small muted">Khu này không phải của bạn hôm nay.</div> : <div className="small muted">Đã gửi — chờ kết quả kiểm tra.</div>}
+    {canSend ? <PhotoInput value={photo} onChange={setPhoto} label="Tải ảnh khu vực đã dọn" /> : !own ? <div className="small muted">Khu này không phải của bạn hôm nay.</div> : <div className="small muted">Đã gửi — chờ kết quả kiểm tra. Bạn vẫn tích được các việc đang làm.</div>}
   </Modal>{showStd && <StdModal zone={zone} onClose={() => setShowStd(false)} />}</>
 }
 
@@ -189,10 +191,12 @@ function ZoneView({ zone, tab, setTab, justSent, onSent, back }: { zone: number;
   const [showStd, setShowStd] = useState(false)
   const snap = useRef<HTMLInputElement>(null), pick = useRef<HTMLInputElement>(null)
   const key = zoneKey(zone, me.id)
-  const checks = s.zoneChecks[key] ?? z.std.map(() => false)
   const r = zoneReport(s, zone)
+  const init = r && r.status !== 'Chưa đạt' && r.staffId === me.id ? r.checks : z.std.map(() => false)
+  const checks = s.zoneChecks[key] ?? init
   const own = s.zoneOwner[zone] === me.id
   const canSend = own && canSendReport(r)
+  const canTick = own && r?.status !== 'Đạt'
   const onFile = (e: ChangeEvent<HTMLInputElement>) => { const f = e.target.files?.[0]; if (f) { setPhoto(URL.createObjectURL(f)); setErr('') } }
   const sending = useRef(false)
   const send = () => { if (sending.current) return; sending.current = true; setTimeout(() => { sending.current = false }, 600); const e = submitClean(zone, photo, checks); if (e) { setErr(e); say('⚠ ' + e) } else { setErr(''); setPhoto(''); onSent() } }
@@ -211,7 +215,7 @@ function ZoneView({ zone, tab, setTab, justSent, onSent, back }: { zone: number;
       </div>}
       {tab === 'std' && <div className="card pad col" style={{ gap: 2 }}>
         <div className="row"><span className="eyebrow" style={{ marginRight: 'auto' }}>{T.clean.tick}</span><button className="btn sm" onClick={() => setShowStd(true)}>{T.clean.viewHome}</button></div>
-        {z.std.map((x, i) => <label key={i} className="check"><input type="checkbox" disabled={!canSend} checked={checks[i]} onChange={() => toggleZoneCheck(zone, i, z.std.length)} />{x}</label>)}
+        {z.std.map((x, i) => <label key={i} className="check"><input type="checkbox" disabled={!canTick} checked={!!checks[i]} onChange={() => toggleZoneCheck(zone, i, checks)} />{x}</label>)}
       </div>}
     </>}
     {showStd && <StdModal zone={zone} onClose={() => setShowStd(false)} />}
@@ -220,14 +224,25 @@ function ZoneView({ zone, tab, setTab, justSent, onSent, back }: { zone: number;
 
 // ── 3. Bảng điều phối / lịch hẹn (KTV xem) ──
 export function BoardPage({ back }: P) {
-  const { s, me, openCustomer } = useStore()
+  const { s, me, openCustomer, flagBed } = useStore()
+  const [view, setView] = useState<'mine' | 'beds' | 'sched'>('mine')
+  const [flag, setFlag] = useState('')
   const mine = s.appts.filter(a => a.ktvId === me.id && a.status !== 'cancelled').sort((a, b) => a.start - b.start)
   return <>
     <SubHead title="Bảng điều phối / lịch hẹn" sub="Khách và tour được giao cho tôi · trạng thái KTV toàn Home" onBack={back} />
-    <Block title="Tour của tôi hôm nay">
+    <Seg value={view} onChange={setView} items={[{ k: 'mine', label: 'Tour & trạng thái KTV' }, { k: 'beds', label: 'Sơ đồ giường' }, { k: 'sched', label: 'Lịch điều phối' }]} />
+    {view === 'mine' && <>
+    <Block color="deep" title="Tour của tôi hôm nay">
       <div className="card list">{mine.map(a => <button key={a.id} className="item" onClick={() => openCustomer(a.customerId)}><span className="num strong" style={{ width: 46 }}>{D.hhmm(a.start)}</span><div className="body"><div className="t">{cust(s, a.customerId).name}{a.requested && <span className="tiny muted"> · yêu cầu tôi</span>}</div><div className="d">{D.svc(a.serviceId).name} · {a.bedId}{a.note ? ` · ${a.note}` : ''}</div></div><ApptPill a={a} now={s.now} /></button>)}{!mine.length && <Empty>Chưa có tour</Empty>}</div>
     </Block>
-    <Block title="Trạng thái KTV" sub="Để biết ai rảnh/bận khi phối hợp"><div className="card list">{D.ktvs().map(k => { const st = ktvState(s, k.id); return <div key={k.id} className="item"><Av name={k.name} /><div className="body"><div className="t">{k.name}</div><div className="d">Ca {k.shift}{st.next ? ` · tiếp: ${D.hhmm(st.next.start)}` : ''}</div></div><Pill tone={st.tone} dot>{st.label}{st.until ? ` · ${D.hhmm(st.until)}` : ''}</Pill></div> })}</div></Block>
+    <Block color="deep" title="Trạng thái KTV" sub="Để biết ai rảnh/bận khi phối hợp"><div className="card list">{D.ktvs().map(k => { const st = ktvState(s, k.id); return <div key={k.id} className="item"><Av name={k.name} /><div className="body"><div className="t">{k.name}</div><div className="d">Ca {k.shift}{st.next ? ` · tiếp: ${D.hhmm(st.next.start)}` : ''}</div></div><Pill tone={st.tone} dot>{st.label}{st.until ? ` · ${D.hhmm(st.until)}` : ''}</Pill></div> })}</div></Block>
+    </>}
+    {view !== 'mine' && <>
+      {view === 'beds' ? <BedsScreen /> : <ScheduleScreen />}
+      <Block title="Thấy lễ tân xếp nhầm giường / giờ?" sub="Chỉ xem — không tự đổi. Ghi rõ giường, giờ để lễ tân kiểm tra.">
+        <div className="row"><input className="inp" style={{ flex: 1, minWidth: 180 }} value={flag} onChange={e => setFlag(e.target.value)} placeholder="VD: TL-07 10:30 đang có khách khác" aria-label="Nội dung báo lễ tân" /><button className="btn pri" disabled={!flag.trim()} onClick={() => { flagBed(flag.trim()); setFlag('') }}>Báo lễ tân</button></div>
+      </Block>
+    </>}
   </>
 }
 
@@ -236,14 +251,29 @@ export { KtvCustomersPage } from './ktvCustomers'
 
 // ── 5. Thông báo quan trọng ──
 export function NoticesPage({ back }: P) {
-  const { s, me, user, markRead, markUnread, markAllRead, go } = useStore()
-  const list = s.notifs.filter(n => canSee(n, user.role, me.id))
+  const { s, me, user, markRead, markUnread, markAllRead, go, setPrio, pinNotice } = useStore()
+  const boss = user.role === 'leader' || user.role === 'ceo'
+  const [f, setF] = useState({ tag: 'Quy định', title: '', p: 0 as 0 | D.Prio })
+  const vis = s.notifs.filter(n => canSee(n, user.role, me.id))
+  const byPrio = (a: D.Notif, b: D.Notif) => prioOf(s, a) - prioOf(s, b) || b.min - a.min
+  const pins = vis.filter(n => n.pinned).sort(byPrio), list = vis.filter(n => !n.pinned).sort(byPrio)
+  const Row = ({ n }: { n: D.Notif }) => { const read = n.readBy.includes(me.id), p = prioOf(s, n), P = D.PRIO[p]
+    return <div className={`item prio ${P.cls}${read ? ' read' : ''}`} onClick={() => { markRead(n.id); if (n.nav) go(n.nav) }} style={{ cursor: n.nav ? 'pointer' : 'default' }}>
+      <div className="body"><div className="row" style={{ gap: 6, marginBottom: 3 }}><Pill tone={P.tone}>{n.tag ?? n.cat}</Pill><span className={`tiny strong pl${p}`}>{P.label}</span></div>
+        <div className="t">{n.text}</div><div className="d">{n.pinned ? n.by : `${D.hhmm(n.min)} · ${n.detail}`}</div></div>
+      {boss && <select className="inp prio-sel" aria-label={`Mức ưu tiên: ${n.text}`} value={p} onClick={e => e.stopPropagation()} onChange={e => setPrio(n.id, +e.target.value as D.Prio)}>{([1, 2, 3, 4] as D.Prio[]).map(k => <option key={k} value={k}>{D.PRIO[k].label}</option>)}</select>}
+      <button className={`btn sm${read ? '' : ' pri'}`} aria-pressed={read} onClick={e => { e.stopPropagation(); (read ? markUnread(n.id) : markRead(n.id)) }}>{read ? `✓ ${T.notice.markRead}` : T.notice.markRead}</button></div> }
   return <>
     <SubHead title="Thông báo quan trọng" sub="Cập nhật mới · đào tạo · lịch yêu cầu khách · điểm số chung" onBack={back} right={<button className="btn deep" onClick={markAllRead}>Đã đọc hết</button>} />
-    <Block color="deep" title="Ghim từ Home"><div className="card list">{D.ANNOUNCEMENTS.map(a => <div key={a.id} className="item"><Pill tone="green">{a.tag}</Pill><div className="body"><div className="t">{a.title}</div><div className="d">{a.by}</div></div></div>)}</div></Block>
-    <Block color="deep" title="Vừa xảy ra"><div className="card list">{list.map(n => { const read = n.readBy.includes(me.id); return <div key={n.id} className="item" style={{ cursor: 'pointer' }} onClick={() => { markRead(n.id); if (n.nav) go(n.nav) }}>{!read && <span className="sev cao" />}
-      <div className="body"><div className="t" style={{ fontWeight: read ? 500 : 700 }}>{n.text}</div><div className="d">{n.cat} · {D.hhmm(n.min)} · {n.detail}</div></div>
-      <button className="btn sm" onClick={e => { e.stopPropagation(); (read ? markUnread(n.id) : markRead(n.id)) }}>{read ? T.notice.markUnread : T.notice.markRead}</button><Icon n="arrow" /></div> })}{!list.length && <Empty>Chưa có thông báo</Empty>}</div></Block>
+    <div className="prio-legend">{([1, 2, 3, 4] as D.Prio[]).map(k => <Pill key={k} tone={D.PRIO[k].tone}>{k === 4 ? 'Trắng' : k === 1 ? 'Đỏ' : k === 2 ? 'Vàng' : 'Xanh'} · {D.PRIO[k].label}</Pill>)}<span className="tiny muted">{boss ? 'Bạn đổi mức ở ô chọn của từng thông báo.' : 'Mức do Leader & CEO đặt.'}</span></div>
+    <Block color="deep" title="Ghim từ Home" right={<span className="badge">{pins.filter(n => !n.readBy.includes(me.id)).length}</span>}><div className="card list">{pins.map(n => <Row key={n.id} n={n} />)}{!pins.length && <Empty>Chưa có thông báo ghim</Empty>}</div></Block>
+    {boss && <Block title="Ghim thông báo mới cho cả Home">
+      <div className="grid g3"><label className="f">Loại<select className="inp" value={f.tag} onChange={e => setF({ ...f, tag: e.target.value })}>{D.PIN_TAGS.map(t => <option key={t}>{t}</option>)}</select></label>
+        <label className="f">Mức ưu tiên<select className="inp" value={f.p} onChange={e => setF({ ...f, p: +e.target.value as 0 | D.Prio })}><option value={0}>Theo loại ({D.PRIO[s.prioCat[f.tag] ?? 4].label})</option>{([1, 2, 3, 4] as D.Prio[]).map(k => <option key={k} value={k}>{D.PRIO[k].label}</option>)}</select></label></div>
+      <label className="f">Nội dung<input className="inp" value={f.title} onChange={e => setF({ ...f, title: e.target.value })} placeholder="VD: 17:00 họp nhanh cả ca 1 tại sảnh" /></label>
+      <button className="btn pri" disabled={!f.title.trim()} onClick={() => { pinNotice(f.tag, f.title.trim(), f.p || (s.prioCat[f.tag] ?? 4)); setF({ ...f, title: '', p: 0 }) }}>Ghim cho cả Home</button>
+    </Block>}
+    <Block color="deep" title="Vừa xảy ra" right={<span className="badge">{list.filter(n => !n.readBy.includes(me.id)).length}</span>}><div className="card list">{list.map(n => <Row key={n.id} n={n} />)}{!list.length && <Empty>Chưa có thông báo</Empty>}</div></Block>
   </>
 }
 
@@ -302,7 +332,7 @@ export function ReviewsPage({ back }: P) {
 // ── 8. Đối chiếu sản phẩm (xác nhận 2 bên) ──
 export function ProductsPage({ back }: P) {
   const { s, me, user, addProduct, confirmProduct } = useStore()
-  const [f, setF] = useState({ product: D.PRODUCTS[0] as string, qty: 1, ktvId: D.ktvs()[0]?.id ?? '' })
+  const [f, setF] = useState({ product: D.PRODUCTS[0] as string, qty: 0, ktvId: D.ktvs()[0]?.id ?? '' })
   const [photo, setPhoto] = useState('')
   const [purpose, setPurpose] = useState<D.ProductLog['purpose']>()
   const [buyer, setBuyer] = useState('')
@@ -314,11 +344,12 @@ export function ProductsPage({ back }: P) {
   const openList = list.filter(p => !(p.ktvOk && p.recOk))
   const sugg = isKtv && purpose === 'ban_khach' ? buyerSuggestions(s, me, buyer) : []
   const save = () => {
-    if (!isKtv) { addProduct(f.product, f.qty, f.ktvId, photo); setPhoto(''); return }
+    if (f.qty <= 0) { setErr('Nhập số lượng (lớn hơn 0)'); return }
+    if (!isKtv) { addProduct(f.product, f.qty, f.ktvId, photo); setPhoto(''); setF({ ...f, qty: 0 }); setErr(''); return }
     const e = validateReceive({ purpose, buyer, invoice, photo })
     if (e) { setErr(e); return }
     addProduct(f.product, f.qty, f.ktvId, photo, purpose === 'ban_khach' ? { purpose, buyerNote: buyer.trim(), invoicePhoto: invoice } : { purpose })
-    setPhoto(''); setPurpose(undefined); setBuyer(''); setInvoice(''); setErr('')
+    setPhoto(''); setPurpose(undefined); setBuyer(''); setInvoice(''); setErr(''); setF({ ...f, qty: 0 })
   }
   const who = (p: D.ProductLog) => `${T.product.confirmedBy}: ${p.ktvOk ? `${T.product.byKtv} ${D.staffName(p.ktvId)}` : `${T.product.byKtv} ${T.product.nobody}`} · ${p.recOk ? `${T.product.byRec} ${D.staffName(p.recId)}` : `${T.product.byRec} ${T.product.nobody}`}`
   return <>
@@ -326,7 +357,7 @@ export function ProductsPage({ back }: P) {
     <Tiles items={[{ v: list.length, l: T.product.total, color: 'deep', onClick: () => setDetail('all') }, { v: openList.length, l: T.product.open, color: 'deep', onClick: () => setDetail('open') }]} />
     {(isKtv || isRec) && <Block title={isRec ? 'Xuất sản phẩm cho KTV' : 'Ghi nhận sản phẩm tôi nhận'}>
       <div className="grid g3"><label className="f">Sản phẩm<select id="pr-p" className="inp" value={f.product} onChange={e => setF({ ...f, product: e.target.value })}>{D.PRODUCTS.map(p => <option key={p}>{p}</option>)}</select></label>
-        <label className="f">Số lượng<input id="pr-q" className="inp num" type="number" min={1} value={f.qty} onChange={e => setF({ ...f, qty: Math.max(1, +e.target.value || 1) })} /></label>
+        <label className="f">Số lượng<NumInput id="pr-q" className="inp num" min={0} value={f.qty} onChange={v => setF({ ...f, qty: v })} /></label>
         {isRec && <label className="f">KTV nhận<select id="pr-k" className="inp" value={f.ktvId} onChange={e => setF({ ...f, ktvId: e.target.value })}>{D.ktvs().map(k => <option key={k.id} value={k.id}>{k.name}</option>)}</select></label>}</div>
       <PhotoInput value={photo} onChange={v => { setPhoto(v); setErr('') }} label="Ảnh xác minh sản phẩm" />
       {isKtv && <div className="col" style={{ gap: 8 }}>
@@ -378,10 +409,10 @@ export function IdeaPage({ back }: P) {
   }
   return <>
     <SubHead title={T.menu.idea} sub={T.menu.ideaDesc} onBack={back} />
-    <Block title={T.idea.pickKind}>
-      <Nodes items={D.SUGGESTION_KINDS.map(k => ({ no: k, t: kindLabel(k), onClick: () => pick(k) }))} />
+    <Block color="deep" title={T.idea.pickKind}>
+      <Nodes items={D.SUGGESTION_KINDS.map(k => ({ no: k, t: kindLabel(k), d: kind === k ? 'Đang chọn — điền nội dung bên dưới' : 'Bấm để viết ý kiến', cls: kind === k ? 'deep on' : 'deep', onClick: () => pick(k) }))} />
     </Block>
-    {kind != null && <Block title={`${kind}. ${kindLabel(kind)}`}>
+    {kind != null && <Block color="deep" title={`${kind}. ${kindLabel(kind)}`} sub="Nội dung ý kiến · ngày tháng năm">
       {kind === D.PRIVATE_SUGGESTION_KIND && <div className="note">{T.idea.privateNote}</div>}
       <label className="f">{T.idea.text}<textarea id="idea-text" data-testid="idea-text" className="inp" value={text} onChange={e => setText(e.target.value)} placeholder={T.idea.textPh} /></label>
       <label className="f">{T.idea.date}<input id="idea-date" data-testid="idea-date" className="inp" type="date" max={today} value={date} onChange={e => setDate(e.target.value)} /></label>

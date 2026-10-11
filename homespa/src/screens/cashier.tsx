@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useStore } from '../store'
 import * as D from '../data'
 import { cust, waitingBills } from '../logic'
-import { Icon, Pill, Stat, PageHeader, Seg, Modal, Empty } from '../ui'
+import { Icon, Pill, Stat, PageHeader, Seg, Modal, Empty, NumInput } from '../ui'
 
 const MAX_MANUAL_DISCOUNT = 0.2 // giảm tay tối đa 20%/dòng; hơn nữa phải qua chương trình/voucher đã được chị duyệt
 // Giá trị giảm của từng mã; mã chỉ dùng được khi chương trình gắn mã đó đang chạy (đã được duyệt)
@@ -159,13 +159,13 @@ function InvoiceEditor({ init, onClose }: { init: { customerId?: string; apptIds
     <button className="btn" onClick={() => submit(true)} disabled={!c}>Lưu nháp</button>
     <button className="btn pri" onClick={() => submit(false)} disabled={!!problem}>{status === 'Dùng liệu trình' ? 'Xác nhận trừ liệu trình' : paid > 0 ? `Xác nhận thu ${D.vnd(paid)}` : 'Xác nhận — chưa thu'}</button></>}>
     {/* A. Khách */}
-    <div className="col"><span className="eyebrow">A · Khách hàng</span>
+    <div className="col inv-sec"><span className="inv-h">A · Khách hàng</span>
       {c ? <div className="row"><b>{c.name}</b><span className="muted small">mã {c.code} · {c.visits} lượt</span>{c.packages.map(p => <Pill key={p.cardCode} tone="brown">{p.cardCode}: còn {D.pkgLeftLabel(p)}</Pill>)}{!init.customerId && <button className="link small" onClick={() => setCustomerId('')}>Đổi</button>}</div>
         : <><div className="row"><input id="ie-q" className="inp" style={{ flex: 1 }} value={q} onChange={e => setQ(e.target.value)} placeholder="Tìm mã khách, tên hoặc SĐT" />{q.trim() && !matches.length && <button className="btn" onClick={() => { const nc = addCustomer({ name: q.trim(), phone: '', group: 'VN', source: 'Chưa xác định' }); if (typeof nc !== 'string') setCustomerId(nc.id) }}>Tạo khách mới "{q.trim()}"</button>}</div>
           {matches.map(x => <button key={x.id} className="btn sm" onClick={() => setCustomerId(x.id)}>{x.name} · {x.code}</button>)}</>}
     </div>
     {/* B. Dịch vụ */}
-    <div className="col"><span className="eyebrow">B · Dịch vụ</span>
+    <div className="col inv-sec"><span className="inv-h">B · Dịch vụ</span>
       {!lines.length && <div className="muted small">Chưa có dịch vụ. Nếu khách chỉ mua / đóng tiền gói thì bỏ qua phần này.</div>}
       {lines.map(l => { const cards = usable(l.serviceId, l.price, l.key); const chosen = c?.packages.find(p => p.cardCode === l.cardCode)
         return <div key={l.key} className="card pad grid g4" style={{ alignItems: 'end' }}>
@@ -173,35 +173,35 @@ function InvoiceEditor({ init, onClose }: { init: { customerId?: string; apptIds
           <label className="f">KTV thực hiện<select className="inp" value={l.ktvId} disabled={!!l.apptId} onChange={e => setLine(l.key, { ktvId: e.target.value })}>{D.ktvs().map(k => <option key={k.id} value={k.id}>{k.name}</option>)}</select></label>
           <label className="f">Thanh toán bằng<select className="inp" value={l.cardCode ?? ''} onChange={e => setLine(l.key, { cardCode: e.target.value || undefined, discount: 0 })}><option value="">Trả tiền ({D.vnd(l.price)})</option>{cards.map(p => <option key={p.cardCode} value={p.cardCode}>Thẻ {p.cardCode} · còn {D.pkgLeftLabel(p)}</option>)}</select></label>
           {l.cardCode ? <div className="small">Trừ {chosen?.type === 'session' ? '1 buổi' : D.vnd(l.price)} · còn lại sau: <b>{chosen && (chosen.type === 'session' ? `${D.pkgLeft(chosen) - lines.filter(x => x.cardCode === chosen.cardCode).length} buổi` : D.vnd(D.pkgLeft(chosen) - lines.filter(x => x.cardCode === chosen.cardCode).reduce((t, x) => t + x.price, 0)))}</b></div>
-            : <label className="f">Giảm tay (≤ 20%)<input className="inp num" type="number" min={0} step={10000} value={l.discount} onChange={e => setLine(l.key, { discount: Math.max(0, +e.target.value) })} /></label>}
+            : <label className="f">Giảm tay (≤ 20%)<NumInput className="inp num" min={0} step={10000} value={l.discount} onChange={v => setLine(l.key, { discount: Math.max(0, v) })} /></label>}
           {!l.apptId && <button className="link small" onClick={() => setLines(ls => ls.filter(x => x.key !== l.key))}>✕ Bỏ dòng</button>}
         </div> })}
       <div><button className="btn sm" onClick={() => setLines(ls => [...ls, { key: Date.now(), serviceId: 'm60', ktvId: D.ktvs()[0].id, price: D.svc('m60').price, discount: 0 }])}><Icon n="plus" />Thêm dịch vụ</button></div>
     </div>
     {/* C. Gói */}
-    <div className="col"><span className="eyebrow">C · Gói liệu trình</span>
+    <div className="col inv-sec"><span className="inv-h">C · Gói liệu trình</span>
       <Seg value={mode} onChange={setMode} items={[{ k: 'none', label: 'Không' }, { k: 'new', label: 'Bán gói mới' }, { k: 'renew', label: 'Tái tục' }, { k: 'continue', label: 'Đóng tiếp' }]} />
       {(mode === 'new' || mode === 'renew') && <div className="grid g3">
         {mode === 'renew' && <label className="f">Gói cũ<select id="ie-renew" className="inp" value={renewOf} onChange={e => setRenewOf(e.target.value)}><option value="">— chọn —</option>{c?.packages.map(p => <option key={p.cardCode} value={p.cardCode}>{p.cardCode} · còn {D.pkgLeftLabel(p)}</option>)}</select></label>}
         <label className="f">Gói<select id="ie-cat" className="inp" value={cat} onChange={e => setCat(e.target.value)}>{D.PACKAGE_CATALOG.map(p => <option key={p.id} value={p.id}>{p.name} · {D.vndShort(p.listPrice)}</option>)}</select></label>
         <label className="f">Mã thẻ (khác mã khách)<input id="ie-card" className="inp" value={cardCode} onChange={e => setCardCode(e.target.value)} placeholder="VD: LT-0250" /></label>
-        <label className="f">Giảm giá gói (≤ 20%)<input id="ie-pdisc" className="inp num" type="number" min={0} step={100000} value={pkgDiscount} onChange={e => setPkgDiscount(Math.max(0, +e.target.value))} /></label>
+        <label className="f">Giảm giá gói (≤ 20%)<NumInput id="ie-pdisc" className="inp num" min={0} step={100000} value={pkgDiscount} onChange={v => setPkgDiscount(Math.max(0, v))} /></label>
         <label className="f">Người chốt chính<select id="ie-closer" className="inp" value={closer} onChange={e => setCloser(e.target.value)}>{s.staff.filter(x => x.role !== 'ceo').map(x => <option key={x.id} value={x.id}>{x.name}</option>)}</select></label>
         <label className="f">Người hỗ trợ<select id="ie-helper" className="inp" value={helper} onChange={e => { setHelper(e.target.value); setSplit(e.target.value ? 70 : 100) }}><option value="">Không</option>{s.staff.filter(x => x.id !== closer && x.role !== 'ceo').map(x => <option key={x.id} value={x.id}>{x.name}</option>)}</select></label>
-        {helper && <label className="f">Tỷ lệ người chốt (%)<input id="ie-split" className="inp num" type="number" min={1} max={99} value={split} onChange={e => setSplit(+e.target.value)} /></label>}
+        {helper && <label className="f">Tỷ lệ người chốt (%)<NumInput id="ie-split" className="inp num" min={0} max={99} value={split} onChange={v => setSplit(v)} /></label>}
         <div className="small" style={{ gridColumn: '1 / -1' }}>{catObj.type === 'session' ? `${catObj.sessions} buổi + tặng ${catObj.bonus}` : `Giá trị ${D.vnd(catObj.value!)} + tặng ${D.vnd(catObj.bonusValue!)}`} · hạn {catObj.months} tháng · giá bán <b>{D.vnd(pkgPrice)}</b>{helper && ` · hoa hồng chia ${split}% / ${100 - split}%`}</div>
       </div>}
       {mode === 'continue' && <label className="f">Gói còn thiếu<select id="ie-cont" className="inp" value={contCard} onChange={e => setContCard(e.target.value)}><option value="">— chọn —</option>{c?.packages.filter(p => D.pkgOwed(p) > 0).map(p => <option key={p.cardCode} value={p.cardCode}>{p.cardCode} · thiếu {D.vnd(D.pkgOwed(p))}</option>)}</select></label>}
     </div>
     {/* D. Thanh toán */}
-    <div className="col"><span className="eyebrow">D · Thanh toán</span>
+    <div className="col inv-sec"><span className="inv-h">D · Thanh toán</span>
       <div className="grid g3"><label className="f">Voucher (nếu có)<input id="ie-voucher" className="inp" value={voucher} onChange={e => setVoucher(e.target.value)} placeholder="VD: SINHNHAT" /></label>
         {v && <div className="ok small" style={{ alignSelf: 'end' }}>{v.label} · giảm {D.vnd(vDisc)}</div>}</div>
       {pays.map((p, i) => <div key={i} className="row"><select className="inp" style={{ width: 170 }} value={p.method} onChange={e => setPays(ps => ps.map((x, j) => (j === i ? { ...x, method: e.target.value as D.PayMethod } : x)))}>{(['Tiền mặt', 'Chuyển khoản', 'Thẻ ngân hàng'] as D.PayMethod[]).map(m => <option key={m}>{m}</option>)}</select>
-        <input className="inp num" style={{ flex: 1, minWidth: 120 }} type="number" min={0} step={10000} value={p.amount} onChange={e => setPays(ps => ps.map((x, j) => (j === i ? { ...x, amount: +e.target.value } : x)))} />
+        <NumInput className="inp num" style={{ flex: 1, minWidth: 120 }} min={0} step={10000} value={p.amount} onChange={v => setPays(ps => ps.map((x, j) => (j === i ? { ...x, amount: v } : x)))} />
         {pays.length > 1 && <button className="link" onClick={() => setPays(ps => ps.filter((_, j) => j !== i))}>✕</button>}</div>)}
       <div className="row"><button className="btn sm" onClick={() => setPays(ps => [...ps, { method: 'Chuyển khoản', amount: 0 }])}>+ Chia phương thức</button><button className="btn sm" onClick={fillExact}>Điền đủ {D.vnd(total)}</button></div>
-      {hasPkg && <label className="f">Trong đó thu cho gói<input id="ie-pkgc" className="inp num" type="number" min={0} step={100000} value={pkgCollect} onChange={e => setPkgCollect(Math.max(0, +e.target.value))} /></label>}
+      {hasPkg && <label className="f">Trong đó thu cho gói<NumInput id="ie-pkgc" className="inp num" min={0} step={100000} value={pkgCollect} onChange={v => setPkgCollect(Math.max(0, v))} /></label>}
       <div className="card pad col small">
         <div className="row"><span>Dịch vụ lẻ</span><span className="right-al num">{D.vnd(retail)}</span></div>
         {vDisc > 0 && <div className="row"><span>Voucher</span><span className="right-al num">−{D.vnd(vDisc)}</span></div>}
@@ -228,8 +228,8 @@ function OpeningModal({ onClose }: { onClose: () => void }) {
       <label className="f">Khách<select id="ob-c" className="inp" value={cid} onChange={e => setCid(e.target.value)}><option value="">— chọn —</option>{s.customers.map(x => <option key={x.id} value={x.id}>{x.name} · {x.code}</option>)}</select></label>
       <label className="f">Gói<select id="ob-p" className="inp" value={cat} onChange={e => setCat(e.target.value)}>{D.PACKAGE_CATALOG.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
       <label className="f">Mã thẻ cũ<input id="ob-card" className="inp" value={card} onChange={e => setCard(e.target.value)} /></label>
-      <label className="f">{c.type === 'session' ? 'Số buổi đã dùng' : 'Số tiền đã dùng'}<input id="ob-used" className="inp num" type="number" min={0} value={used} onChange={e => setUsed(+e.target.value)} /></label>
-      <label className="f">Tiền đã đóng trước chuyển đổi<input id="ob-paid" className="inp num" type="number" min={0} value={paidAmt} onChange={e => setPaid(+e.target.value)} /></label>
+      <label className="f">{c.type === 'session' ? 'Số buổi đã dùng' : 'Số tiền đã dùng'}<NumInput id="ob-used" className="inp num" min={0} value={used} onChange={v => setUsed(v)} /></label>
+      <label className="f">Tiền đã đóng trước chuyển đổi<NumInput id="ob-paid" className="inp num" min={0} value={paidAmt} onChange={v => setPaid(v)} /></label>
     </div>
     {dup && <div className="err">Mã thẻ đã tồn tại</div>}
   </Modal>

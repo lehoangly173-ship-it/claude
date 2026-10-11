@@ -5,7 +5,7 @@ import { useStore } from '../store'
 import * as D from '../data'
 import { T } from '../i18n'
 import { ktvCustomers, pointsOf, sortByBudget, closedSplit, filterByRange, customerSegments, pkgFileOf, isUnhappy, KtvTab, SegFilter, PkgFile } from '../logic'
-import { Hero, Nodes, SubHead, Tiles, Seg, Empty, Av, Pill } from '../ui'
+import { Hero, Nodes, SubHead, Tiles, Seg, Empty, Av, Pill, NumInput } from '../ui'
 
 type P = { back: () => void }
 const C = T.cust
@@ -60,7 +60,7 @@ export function KtvCustomersPage({ back }: P) {
       <button className={`btn sm${closedSub === 'renew' ? ' pri' : ''}`} aria-pressed={closedSub === 'renew'} onClick={() => setClosedSub(closedSub === 'renew' ? 'all' : 'renew')}>{C.closedRenew} <span className="badge">{split.renew.length}</span></button>
     </div>}
     <div className="row"><Seg value={kind} onChange={setKind} items={[{ k: 'all', label: 'Tất cả' }, { k: 'le', label: 'Khách lẻ' }, { k: 'lt', label: 'Liệu trình' }]} />
-      <label className="row small muted">Số lần ≥<input className="inp num" type="number" min={1} value={minTimes} onChange={e => setMinTimes(Math.max(1, +e.target.value || 1))} style={{ width: 70 }} /></label></div>
+      <label className="row small muted">Số lần ≥<NumInput className="inp num" min={0} value={minTimes} onChange={v => setMinTimes(v)} style={{ width: 70 }} /></label></div>
     <div className="row small">
       <span className="muted">{C.range}</span>
       <input className="inp" type="date" aria-label={C.rangeFrom} value={a} onChange={e => setA(e.target.value)} />
@@ -102,10 +102,10 @@ export function KtvHomeSpaPage({ back }: P) {
       {kind === 'le' && <>
         <label className="row">{C.visits}
           <select className="inp" value={f.visitsOp ?? ''} onChange={e => set({ visitsOp: (e.target.value || undefined) as SegFilter['visitsOp'] })}><option value="">{C.any}</option><option value="gte">{C.visitsGte}</option><option value="lte">{C.visitsLte}</option><option value="once">{C.visitsOnce}</option></select>
-          {(f.visitsOp === 'gte' || f.visitsOp === 'lte') && <input className="inp num" type="number" min={1} aria-label={C.visits} value={f.visits ?? ''} onChange={e => set({ visits: num(e.target.value) })} style={{ width: 70 }} />}
+          {(f.visitsOp === 'gte' || f.visitsOp === 'lte') && <NumInput className="inp num" min={0} aria-label={C.visits} optional value={f.visits ?? null} onChange={(v: number | null) => set({ visits: v ?? undefined })} style={{ width: 70 }} />}
         </label>
-        <div className="row"><label className="row">{C.budgetMin}<input className="inp num" type="number" min={0} step={100000} value={f.budgetMin ?? ''} onChange={e => set({ budgetMin: num(e.target.value) })} style={{ width: 120 }} /></label>
-          <label className="row">{C.budgetMax}<input className="inp num" type="number" min={0} step={100000} value={f.budgetMax ?? ''} onChange={e => set({ budgetMax: num(e.target.value) })} style={{ width: 120 }} /></label></div>
+        <div className="row"><label className="row">{C.budgetMin}<NumInput className="inp num" min={0} step={100000} optional value={f.budgetMin ?? null} onChange={(v: number | null) => set({ budgetMin: v ?? undefined })} style={{ width: 120 }} /></label>
+          <label className="row">{C.budgetMax}<NumInput className="inp num" min={0} step={100000} optional value={f.budgetMax ?? null} onChange={(v: number | null) => set({ budgetMax: v ?? undefined })} style={{ width: 120 }} /></label></div>
         <label className="row">{C.referral}
           <select className="inp" value={f.referrerId ?? ''} onChange={e => set({ referrerId: e.target.value || undefined })}><option value="">{C.any}</option>{referrers.map(c => <option key={c.id} value={c.id}>{c.name} · mã {c.code}</option>)}</select></label>
         <label className="row">{C.source}

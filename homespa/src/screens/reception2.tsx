@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useStore } from '../store'
 import * as D from '../data'
 import { stockQty, heldBy, usage, buySuggest } from '../logic'
-import { SubHead, Seg, Block, PhotoInput, Pill, Empty, Tiles, Thumb } from '../ui'
+import { SubHead, Seg, Block, PhotoInput, Pill, Empty, Tiles, Thumb, NumInput } from '../ui'
 
 const AI_NOTE = 'Giả lập — Chưa nối AI thật'
 const tone = (st?: string) => st === 'Đạt' || st === 'Đã duyệt' || st === 'Đồng ý' || st === 'Đã xử lý' ? 'green' : st?.startsWith('Không') || st === 'Từ chối' || st === 'Cần xử lý' ? 'red' : 'yellow'
@@ -106,14 +106,14 @@ function StockIn() {
   return <>
     <Block title="Tạo phiếu nhập" sub={`Nhập theo ${it.packName}, theo dõi theo ${it.unit}`}>
       <div className="grid g3"><ItemSel v={f.item} on={v => setF({ ...f, item: v, price: 0 })} />
-        <label className="f">Số lượng ({it.packName})<input className="inp num" type="number" min={1} value={f.packs} onChange={e => setF({ ...f, packs: Math.max(1, +e.target.value || 1) })} /></label>
-        <label className="f">Giá nhập / {it.packName}<input className="inp num" type="number" min={0} value={f.price || ''} placeholder={String(it.cost * it.pack)} onChange={e => setF({ ...f, price: +e.target.value })} /></label>
+        <label className="f">Số lượng ({it.packName})<NumInput className="inp num" min={0} value={f.packs} onChange={v => setF({ ...f, packs: v })} /></label>
+        <label className="f">Giá nhập / {it.packName}<NumInput className="inp num" min={0} value={f.price} placeholder={String(it.cost * it.pack)} onChange={v => setF({ ...f, price: v })} /></label>
         <label className="f">Nhà cung cấp<input className="inp" value={f.supplier} onChange={e => setF({ ...f, supplier: e.target.value })} /></label>
         <label className="f">Người đi mua<input className="inp" value={f.buyer} onChange={e => setF({ ...f, buyer: e.target.value })} /></label>
         <label className="f">Lô / hạn sử dụng (nếu có)<input className="inp" value={f.lot} onChange={e => setF({ ...f, lot: e.target.value })} /></label></div>
       <div className="small">Thành tiền: <b>{D.vnd(f.packs * (f.price || it.cost * it.pack))}</b> · Người nhận kho: <b>{me.name}</b> · quy đổi = {qtyL(f.item, f.packs * it.pack)}</div>
       <PhotoInput value={f.photo} onChange={v => setF({ ...f, photo: v })} label="Ảnh hóa đơn nhập" />
-      <button className="btn pri" disabled={!f.supplier.trim() || !f.photo} onClick={() => { addStock({ item: f.item, kind: 'Nhập', qty: f.packs * it.pack, price: f.price || it.cost * it.pack, supplier: f.supplier.trim(), note: `Mua: ${f.buyer || me.name}${f.lot ? ` · lô/HSD ${f.lot}` : ''} · có ảnh hóa đơn` }); setF({ ...f, packs: 1, supplier: '', buyer: '', lot: '', photo: '' }) }}>Lưu phiếu nhập</button>
+      <button className="btn pri" disabled={f.packs <= 0 || !f.supplier.trim() || !f.photo} onClick={() => { addStock({ item: f.item, kind: 'Nhập', qty: f.packs * it.pack, price: f.price || it.cost * it.pack, supplier: f.supplier.trim(), note: `Mua: ${f.buyer || me.name}${f.lot ? ` · lô/HSD ${f.lot}` : ''} · có ảnh hóa đơn` }); setF({ ...f, packs: 1, supplier: '', buyer: '', lot: '', photo: '' }) }}>Lưu phiếu nhập</button>
     </Block>
     <Block title="Phiếu nhập gần đây"><Hist empty="Chưa có phiếu nhập" rows={s.stockMoves.filter(m => m.kind === 'Nhập').map(m => ({ k: m.id, t: `${IT(m.item).name} +${qtyL(m.item, m.qty)}`, d: `${m.supplier ?? ''} · ${D.vnd((m.qty / IT(m.item).pack) * (m.price ?? 0))} · ${m.note} · ${D.staffName(m.by)} ${D.hhmm(m.at)}` }))} /></Block>
   </>
@@ -126,7 +126,7 @@ function StockOut() {
     <Block title="Phiếu xuất / cấp vật tư" sub="Mỗi phiếu có người giao, người nhận và mục đích sử dụng">
       <Seg value={f.kind} onChange={v => setF({ ...f, kind: v })} items={(['Cấp NV', 'Dùng chung', 'Hoàn trả', 'Hỏng/hao hụt'] as const).map(k => ({ k, label: k === 'Cấp NV' ? 'Cấp cho nhân viên' : k === 'Dùng chung' ? 'Dùng chung phòng/ca' : k === 'Hoàn trả' ? 'Nhân viên hoàn trả' : 'Hỏng, hao hụt' }))} />
       <div className="grid g3"><ItemSel v={f.item} on={v => setF({ ...f, item: v })} />
-        <label className="f">Số lượng ({IT(f.item).unit})<input className="inp num" type="number" min={1} value={f.qty || ''} onChange={e => setF({ ...f, qty: +e.target.value })} /></label>
+        <label className="f">Số lượng ({IT(f.item).unit})<NumInput className="inp num" min={0} value={f.qty} onChange={v => setF({ ...f, qty: v })} /></label>
         {needStaff && <label className="f">Nhân viên<select className="inp" value={f.staffId} onChange={e => setF({ ...f, staffId: e.target.value })}><option value="">— chọn —</option>{s.staff.filter(x => x.role === 'ktv' || x.role === 'reception').map(x => <option key={x.id} value={x.id}>{x.name}</option>)}</select></label>}</div>
       <label className="f">Mục đích sử dụng / phòng / ca *<input className="inp" value={f.note} onChange={e => setF({ ...f, note: e.target.value })} placeholder="VD: cấp đầu ca 1 · phòng 2" /></label>
       <div className="tiny muted">Chuyển kho (giữa chi nhánh): Chưa nối — Home hiện có 1 kho.</div>
@@ -144,13 +144,13 @@ function StockSell() {
       <div className="grid g3"><ItemSel v={f.item} on={v => setF({ ...f, item: v, price: 0 })} only={x => !!x.price} />
         <label className="f">Khách mua<select className="inp" value={f.cust} onChange={e => setF({ ...f, cust: e.target.value })}><option value="">— chọn —</option>{s.customers.slice(0, 40).map(c => <option key={c.id} value={c.id}>{c.name} · {c.code}</option>)}</select></label>
         <label className="f">Nhân viên bán<select className="inp" value={f.seller} onChange={e => setF({ ...f, seller: e.target.value })}>{s.staff.filter(x => x.role === 'ktv' || x.role === 'reception').map(x => <option key={x.id} value={x.id}>{x.name}</option>)}</select></label>
-        <label className="f">Số lượng<input className="inp num" type="number" min={1} value={f.qty} onChange={e => setF({ ...f, qty: Math.max(1, +e.target.value || 1) })} /></label>
-        <label className="f">Giá bán<input className="inp num" type="number" min={0} value={f.price || ''} placeholder={String(it.price ?? '')} onChange={e => setF({ ...f, price: +e.target.value })} /></label>
-        <label className="f">Giảm giá<input className="inp num" type="number" min={0} value={f.disc || ''} onChange={e => setF({ ...f, disc: +e.target.value })} /></label>
-        <label className="f">Tiền đã thu<input className="inp num" type="number" min={0} value={f.paid || ''} placeholder={String(total)} onChange={e => setF({ ...f, paid: +e.target.value })} /></label></div>
+        <label className="f">Số lượng<NumInput className="inp num" min={0} value={f.qty} onChange={v => setF({ ...f, qty: v })} /></label>
+        <label className="f">Giá bán<NumInput className="inp num" min={0} value={f.price} placeholder={String(it.price ?? '')} onChange={v => setF({ ...f, price: v })} /></label>
+        <label className="f">Giảm giá<NumInput className="inp num" min={0} value={f.disc} onChange={v => setF({ ...f, disc: v })} /></label>
+        <label className="f">Tiền đã thu<NumInput className="inp num" min={0} value={f.paid} placeholder={String(total)} onChange={v => setF({ ...f, paid: v })} /></label></div>
       <div className="small">Thành tiền: <b>{D.vnd(total)}</b></div>
       <PhotoInput value={f.photo} onChange={v => setF({ ...f, photo: v })} label="Ảnh hóa đơn" />
-      <button className="btn pri" disabled={!f.cust || stockQty(s, f.item) < f.qty} onClick={() => { addStock({ item: f.item, kind: 'Bán', qty: f.qty, staffId: f.seller, price: total / f.qty, note: `Bán cho ${s.customers.find(c => c.id === f.cust)?.name} · thu ${D.vnd(f.paid || total)}${f.photo ? ' · có hóa đơn' : ''}` }); setF({ ...f, cust: '', qty: 1, disc: 0, paid: 0, photo: '' }) }}>Lưu giao dịch bán</button>
+      <button className="btn pri" disabled={f.qty <= 0 || !f.cust || stockQty(s, f.item) < f.qty} onClick={() => { addStock({ item: f.item, kind: 'Bán', qty: f.qty, staffId: f.seller, price: total / f.qty, note: `Bán cho ${s.customers.find(c => c.id === f.cust)?.name} · thu ${D.vnd(f.paid || total)}${f.photo ? ' · có hóa đơn' : ''}` }); setF({ ...f, cust: '', qty: 1, disc: 0, paid: 0, photo: '' }) }}>Lưu giao dịch bán</button>
       {stockQty(s, f.item) < f.qty && <div className="tiny" style={{ color: 'var(--r-fg)' }}>Kho không đủ hàng.</div>}
       <div className="tiny muted">Trả hàng / hoàn tiền: ghi phiếu "Nhân viên hoàn trả" ở mục 2 kèm lý do.</div>
     </Block>
@@ -165,7 +165,7 @@ function StockCount() {
   return <Block title="Tồn kho & kiểm kê" sub="Kiểm đếm thực tế → chênh lệch so với app → giải trình → đề nghị điều chỉnh (Leader duyệt)">
     <div className="card list">{D.STOCK_ITEMS.map(it => { const q = stockQty(s, it.id), held = holders.reduce((t, h) => { const x = heldBy(s, h.id, it.id); return t + Math.max(0, x.got - x.back - x.lost) }, 0); const r = real[it.id]; const diff = r === undefined || r === '' ? null : +r - q
       return <div key={it.id} className="item" style={{ flexWrap: 'wrap' }}><div className="body" style={{ minWidth: 160 }}><div className="t">{it.name}</div><div className="d">Trong kho: <b>{qtyL(it.id, q)}</b> · đang giữ tại NV/phòng: {qtyL(it.id, held)}</div></div>
-        <input className="inp num" style={{ width: 110 }} type="number" placeholder="Đếm thực tế" value={r ?? ''} onChange={e => setReal({ ...real, [it.id]: e.target.value })} aria-label={`Đếm thực tế ${it.name}`} />
+        <NumInput className="inp num" style={{ width: 110 }} placeholder="Đếm thực tế" optional value={r === undefined || r === '' ? null : +r} onChange={(v: number | null) => setReal({ ...real, [it.id]: v == null ? '' : String(v) })} aria-label={`Đếm thực tế ${it.name}`} />
         {diff !== null && diff !== 0 && <><Pill tone="red">lệch {diff > 0 ? '+' : ''}{diff}</Pill><input className="inp" style={{ flex: 1, minWidth: 140 }} placeholder="Giải trình *" value={why[it.id] ?? ''} onChange={e => setWhy({ ...why, [it.id]: e.target.value })} /><button className="btn sm pri" disabled={!why[it.id]?.trim()} onClick={() => { addStock({ item: it.id, kind: 'Kiểm kê', qty: diff, note: `Đề nghị điều chỉnh tồn: ${why[it.id]}`, status: 'Chờ duyệt' }); setReal({ ...real, [it.id]: '' }); setWhy({ ...why, [it.id]: '' }) }}>Đề nghị điều chỉnh</button></>}
         {diff === 0 && <Pill tone="green">Khớp</Pill>}</div> })}</div>
   </Block>
@@ -229,7 +229,7 @@ function ReqPage({ kind }: { kind: D.OpsReq['kind'] }) {
   return <>
     <Block title={eq ? 'Thiết bị cần sửa chữa' : 'Tên hoạt động'} sub={eq ? 'Thiết bị → chi phí → thời gian sửa → gửi duyệt' : 'Sinh nhật nhân sự · quà tháng · hoạt động chung → chi phí → gửi duyệt'}>
       <label className="f">{eq ? 'Thiết bị cần sửa' : 'Tên hoạt động'} *<input className="inp" value={f.title} onChange={e => setF({ ...f, title: e.target.value })} placeholder={eq ? 'VD: máy sấy tóc tầng 3' : 'VD: sinh nhật KTV Lan tháng 10'} /></label>
-      <label className="f">Chi phí (đồng)<input className="inp num" type="number" min={0} value={f.cost || ''} onChange={e => setF({ ...f, cost: +e.target.value })} /></label>
+      <label className="f">Chi phí (đồng)<NumInput className="inp num" min={0} value={f.cost} onChange={v => setF({ ...f, cost: v })} /></label>
       {eq && <div className="grid g3"><label className="f">Sửa từ ngày *<input className="inp" type="date" value={f.from} onChange={e => setF({ ...f, from: e.target.value })} /></label><label className="f">Tới ngày *<input className="inp" type="date" value={f.to} onChange={e => setF({ ...f, to: e.target.value })} /></label></div>}
       {eq && <PhotoInput value={f.photo} onChange={v => setF({ ...f, photo: v })} label="Tải ảnh thiết bị" />}
       <button className="btn pri" disabled={!okForm} onClick={() => { addOpsReq({ kind, title: f.title.trim(), cost: f.cost, from: f.from || undefined, to: f.to || undefined, photo: f.photo || undefined }); setF({ title: '', cost: 0, from: '', to: '', photo: '' }) }}>Gửi duyệt</button>
@@ -247,7 +247,7 @@ function PointsRec() {
     <div className="note"><b>Lưu ý của chị Quyên:</b> lễ tân ghi nhận & tổng hợp; Leader/CEO duyệt điểm cộng/trừ có tranh chấp hoặc cần đánh giá — lễ tân không tự quyết điểm của đồng nghiệp.</div>
     <Block title="Ghi nhận điểm">
       <div className="grid g3"><label className="f">Nhân viên<select id="pt-st" className="inp" value={pt.staffId} onChange={e => setPt({ ...pt, staffId: e.target.value })}><option value="">— chọn —</option>{s.staff.filter(x => x.id !== me.id && (x.role === 'ktv' || x.role === 'reception')).map(x => <option key={x.id} value={x.id}>{x.name}</option>)}</select></label>
-        <label className="f">Điểm (+/−)<input id="pt-d" className="inp num" type="number" min={-10} max={10} value={pt.delta} onChange={e => setPt({ ...pt, delta: +e.target.value })} /></label>
+        <label className="f">Điểm (+/−)<NumInput id="pt-d" className="inp num" min={-10} max={10} value={pt.delta} onChange={v => setPt({ ...pt, delta: v })} /></label>
         <label className="f">Sự việc & minh chứng<input id="pt-r" className="inp" value={pt.reason} onChange={e => setPt({ ...pt, reason: e.target.value })} placeholder="VD: khách khen trên Google" /></label></div>
       <PhotoInput value={pt.photo} onChange={v => setPt({ ...pt, photo: v })} label="Tải ảnh minh chứng" />
       <button className="btn pri" disabled={!pt.staffId || !pt.delta || !pt.reason.trim()} onClick={() => { proposePoint(pt.staffId, pt.delta, pt.reason.trim(), pt.photo || undefined); setPt({ staffId: '', delta: 1, reason: '', photo: '' }) }}>Gửi Leader/CEO duyệt</button>
@@ -290,7 +290,7 @@ export function ExpensePage({ readOnly }: { readOnly?: boolean }) {
   return <>
     {!readOnly && <Block title="Nhập hóa đơn chi phí" sub="Nút nhập các chi phí chi trả vận hành cho spa">
       <div className="grid g3"><label className="f">Hạng mục<select className="inp" value={f.cat} onChange={e => setF({ ...f, cat: e.target.value as D.Expense['cat'] })}>{D.EXP_CATS.map(c => <option key={c}>{c}</option>)}</select></label>
-        <label className="f">Số tiền *<input className="inp num" type="number" min={0} value={f.amount || ''} onChange={e => setF({ ...f, amount: +e.target.value })} /></label>
+        <label className="f">Số tiền *<NumInput className="inp num" min={0} value={f.amount} onChange={v => setF({ ...f, amount: v })} /></label>
         <label className="f">Ngày<input className="inp" type="date" value={f.date} onChange={e => setF({ ...f, date: e.target.value })} /></label></div>
       <label className="f">Ghi chú<input className="inp" value={f.note} onChange={e => setF({ ...f, note: e.target.value })} /></label>
       <PhotoInput value={f.photo} onChange={v => setF({ ...f, photo: v })} label="Ảnh hóa đơn" />

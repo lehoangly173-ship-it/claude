@@ -77,6 +77,9 @@ export function ScheduleScreen({ openNew }: { openNew?: boolean }) {
   const [potPos, setPotPos] = useState<Record<string, number>>({})
   const canEdit = user.role === 'reception'
   const appts = s.appts.filter(a => a.status !== 'cancelled')
+  const mineOnly = user.role === 'ktv' // KTV chỉ thấy tên khách của mình
+  const nm = (a: D.Appt) => mineOnly && a.ktvId !== user.staffId ? 'Khách đã đặt' : cust(s, a.customerId).name
+  const open = (a: D.Appt) => { if (!mineOnly || a.ktvId === user.staffId) setSel(a.id) }
   const ganttRef = useRef<HTMLDivElement>(null)
   // mở lịch là cuộn tới giờ hiện tại
   useEffect(() => { if (ganttRef.current) ganttRef.current.scrollLeft = Math.max(0, x(s.now) - 60) }, [view])
@@ -140,12 +143,13 @@ export function ScheduleScreen({ openNew }: { openNew?: boolean }) {
   return <>
     <PageHeader eyebrow="Điều phối hôm nay" title="Lịch điều phối" sub={`${D.dateLabel()} · Ca 1: 08:00–18:00 · Ca 2: 10:00–20:00`}
       right={<><Seg value={view} onChange={setView} items={[{ k: 'ktv', label: 'Theo KTV' }, { k: 'bed', label: 'Theo giường' }, { k: 'list', label: 'Danh sách' }]} />{canEdit && <button className="btn pri" onClick={() => setDraft({})}><Icon n="plus" />Tạo lịch</button>}</>} />
-    <div className="row small muted"><Pill tone="green" dot>Đang làm</Pill><Pill tone="yellow" dot>Sắp xong / chờ thu</Pill><Pill tone="brown" dot>Đã thanh toán</Pill><Pill tone="purple" dot>Lịch hẹn</Pill></div>
-    {view !== 'list' && canEdit && <div className="tiny muted">Độ dài ô = đúng thời lượng dịch vụ. <b>Kéo ngang</b> ô lịch hẹn để đổi giờ (bước 15 phút) · ô viền vàng = khung 60 phút trong khoảng trống, kéo để chọn giờ rồi chạm để đặt lịch. Ô đang làm / đã xong không kéo được.</div>}
+    <div className="legend"><Pill tone="green" dot>Đang làm</Pill><Pill tone="yellow" dot>Sắp xong / chờ thu</Pill><Pill tone="brown" dot>Đã thanh toán</Pill><Pill tone="purple" dot>Lịch hẹn</Pill>
+      {view !== 'list' && canEdit && <details className="howto"><summary>Cách kéo thả</summary><ul><li>Độ dài ô = đúng thời lượng dịch vụ.</li><li><b>Kéo ngang</b> ô lịch hẹn để đổi giờ (bước 15 phút).</li><li>Ô viền vàng = khung 60 phút còn trống: kéo chọn giờ rồi chạm để đặt lịch.</li><li>Ô đang làm / đã xong không kéo được.</li></ul></details>}
+      {mineOnly && <span className="tiny muted">Chỉ xem · tên khách của KTV khác được ẩn</span>}</div>
     {view === 'list' ? <div className="card list">
-      {[...appts].sort((a, b) => a.start - b.start).map(a => <button key={a.id} className="item" onClick={() => setSel(a.id)}>
+      {[...appts].sort((a, b) => a.start - b.start).map(a => <button key={a.id} className="item" onClick={() => open(a)}>
         <div className="num strong tcol" style={{ width: 92 }}>{D.hhmm(a.start)}–{D.hhmm(a.end)}</div>
-        <div className="body"><div className="t">{cust(s, a.customerId).name}{a.requested && <span className="muted tiny"> · khách yêu cầu KTV</span>}</div><div className="d">{D.svc(a.serviceId).name} · KTV {D.staffName(a.ktvId)} · {a.bedId}</div></div><ApptPill a={a} now={s.now} /></button>)}
+        <div className="body"><div className="t">{nm(a)}{a.requested && <span className="muted tiny"> · khách yêu cầu KTV</span>}</div><div className="d">{D.svc(a.serviceId).name} · KTV {D.staffName(a.ktvId)} · {a.bedId}</div></div><ApptPill a={a} now={s.now} /></button>)}
     </div> : <div className="card gantt" ref={ganttRef}><div className="g-inner" style={{ ['--hw' as any]: HW + 'px' }}>
       <div className="g-row head"><div className="g-name eyebrow">{view === 'ktv' ? 'KTV' : 'Giường'}</div><div className="g-track">{Array.from({ length: H1 - H0 + 1 }, (_, i) => <span key={i} className="g-hl" style={{ left: i * HW }}>{String(H0 + i).padStart(2, '0')}:00</span>)}</div></div>
       {rows.map(r => <div key={r.id} className="g-row">
@@ -168,11 +172,11 @@ export function ScheduleScreen({ openNew }: { openNew?: boolean }) {
             const st = isD ? drag!.cur : a.start, en = st + (a.end - a.start)
             const sh = D.SHIFTS[(s.staff.find(k => k.id === a.ktvId)?.shift ?? 1) as 1 | 2]
             return <button key={a.id} className={`g-blk t-${tone}${movable ? ' movable' : ''}${isD ? ' dragging' : ''}${isD && check?.err ? ' bad' : ''}`} style={{ left: x(st), width: Math.max(w(st, en) - 2, 30) }}
-              title={`${cust(s, a.customerId).name} ${D.hhmm(st)}–${D.hhmm(en)}`}
+              title={`${nm(a)} ${D.hhmm(st)}–${D.hhmm(en)}`}
               onPointerDown={movable ? e => startDrag(e, { kind: 'appt', id: a.id, ktvId: a.ktvId, bedId: a.bedId, serviceId: a.serviceId, customerId: a.customerId, orig: a.start, dur: a.end - a.start, min: Math.max(sh.start, nowSnap), max: sh.end - (a.end - a.start) }) : undefined}
               onPointerMove={movable ? onMove : undefined} onPointerUp={movable ? endDrag : undefined} onPointerCancel={movable ? () => setDrag(null) : undefined}
-              onClick={movable ? undefined : () => setSel(a.id)}>
-              <b>{cust(s, a.customerId).name}</b>{D.hhmm(st)}–{D.hhmm(en)} · {view === 'ktv' ? (isD && check?.bed ? check.bed : a.bedId) : D.staffName(a.ktvId)}
+              onClick={movable ? undefined : () => open(a)}>
+              <b>{nm(a)}</b>{D.hhmm(st)}–{D.hhmm(en)} · {view === 'ktv' ? (isD && check?.bed ? check.bed : a.bedId) : D.staffName(a.ktvId)}
               {isD && check?.err && <span className="g-err">{check.err}</span>}</button> })}
         </div></div>)}
     </div></div>}
@@ -286,9 +290,9 @@ export function QueueScreen() {
         </div>}
       </Sec>
       <Sec eyebrow="Thứ tự xoay tour">
-        <div className="grid g2">{([1, 2] as const).map(sh => <div key={sh} className="card list"><div className="pad eyebrow">{sh === 1 ? '☀️ Ca 1 · 08:00–18:00' : '🌙 Ca 2 · 10:00–20:00'}</div>
+        <div className="grid g-auto">{([1, 2] as const).map(sh => <div key={sh} className="card list"><div className="shift-h">{sh === 1 ? 'Ca 1 · 08:00–18:00' : 'Ca 2 · 10:00–20:00'}</div>
           {s.rotation[sh].map((kid, i) => { const st = ktvState(s, kid); const tours = s.appts.filter(a => a.ktvId === kid && a.status !== 'cancelled' && a.status !== 'no_show').length
-            return <div key={kid} className="item"><span className="num strong muted" style={{ width: 18 }}>{i + 1}</span><Av name={D.staffName(kid)} /><div className="body"><div className="t">{D.staffName(kid)}</div><div className="d">{tours} tour hôm nay</div></div><Pill tone={st.tone} dot>{st.label}</Pill></div> })}</div>)}</div>
+            return <div key={kid} className="item"><span className="num strong muted" style={{ width: 18 }}>{i + 1}</span><Av name={D.staffName(kid)} /><div className="body"><div className="t">{D.staffName(kid)}</div><div className="d">{tours} tour hôm nay</div><Pill tone={st.tone} dot>{st.label}</Pill></div></div> })}</div>)}</div>
         <div className="tiny muted" style={{ marginTop: 8 }}>KTV vừa nhận khách xuống cuối hàng. Khách yêu cầu đích danh thì KTV không mất lượt.</div>
       </Sec>
     </div>
@@ -329,7 +333,7 @@ export function BedsScreen() {
       return <button key={b.id} className={`bed t-${st.tone}`} onClick={() => st.appt && (user.role !== 'ktv' || st.appt.ktvId === user.staffId) ? setSel(st.appt.id) : undefined} style={{ cursor: st.appt && (user.role !== 'ktv' || st.appt.ktvId === user.staffId) ? 'pointer' : 'default' }}>
         <div className="row"><b>{b.id}</b><span className="tiny right-al">{b.zone === 'wash' ? 'Gội' : 'Trị liệu'}</span></div>
         <span className="small strong">{st.label}</span>
-        {st.appt && <span className="tiny">{cust(s, st.appt.customerId).name} · {D.staffName(st.appt.ktvId)} · {D.hhmm(st.appt.start)}–{D.hhmm(st.appt.end)}</span>}
+        {st.appt && <span className="tiny">{user.role === 'ktv' && st.appt.ktvId !== user.staffId ? 'Khách đã đặt' : cust(s, st.appt.customerId).name} · {D.staffName(st.appt.ktvId)} · {D.hhmm(st.appt.start)}–{D.hhmm(st.appt.end)}</span>}
         {st.label === 'Đang dọn' && <><span className="tiny">KTV {D.staffName(st.ktv)} đang dọn</span>{(user.role === 'reception' || user.staffId === st.ktv) && <span className="link tiny" role="button" onClick={e => { e.stopPropagation(); bedReady(b.id) }}>Báo sẵn sàng</span>}</>}
       </button> })}</div></Sec>)}
     {sel && <ApptModal id={sel} onClose={() => setSel(null)} />}

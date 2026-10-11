@@ -45,6 +45,8 @@ export type State = {
   expenses: import('./data').Expense[]
   profiles: Record<string, import('./data').StaffProfile>
   adjusts: import('./data').AdjustReq[]
+  prioCat: Record<string, import('./data').Prio>
+  prioSet: Record<string, import('./data').Prio>
 }
 
 const LIVE: Appt['status'][] = ['booked', 'checked_in', 'in_service']
@@ -496,3 +498,7 @@ export function ktvPerf(s: State, id: string, extra = false): { g: string; rows:
     { g: 'Sáng tạo – đổi mới', rows: [{ t: 'Có các ý kiến sáng tạo đóng góp cho spa', v: String(s.suggestions.filter(x => x.staffId === id).length) }, { t: 'Giúp đỡ Home', v: null }] },
   ]
 }
+
+/** Mức ưu tiên của một thông báo: Leader/CEO đặt riêng > mặc định theo loại (CEO cài) > Bình thường */
+export const prioKey = (n: { tag?: string; cat: string }) => n.tag ?? n.cat
+export const prioOf = (s: Pick<State, 'prioCat' | 'prioSet'>, n: { id: string; tag?: string; cat: string }): import('./data').Prio => s.prioSet[n.id] ?? s.prioCat[prioKey(n)] ?? 4

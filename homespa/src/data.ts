@@ -138,7 +138,7 @@ export type Approval = {
 
 export type WeeklyReport = { id: string; week: string; fromId: string; answers: string[]; sentAt: string; status: 'Đã gửi' | 'Đã xem' }
 
-export type Notif = { id: string; cat: 'Lịch hẹn' | 'Điều phối' | 'KTV' | 'Thu ngân' | 'Leader' | 'Hệ thống' | 'Dọn dẹp' | 'Điểm uy tín'; text: string; detail: string; min: number; roles: Role[]; nav?: string; readBy: string[]; to?: string[] }
+export type Notif = { id: string; cat: 'Lịch hẹn' | 'Điều phối' | 'KTV' | 'Thu ngân' | 'Leader' | 'Hệ thống' | 'Dọn dẹp' | 'Điểm uy tín'; text: string; detail: string; min: number; roles: Role[]; nav?: string; readBy: string[]; to?: string[]; pinned?: boolean; tag?: string; by?: string }
 
 export type JoinRequest = { id: string; email: string; name: string; wantedRole: Role; status: 'Chờ duyệt' | 'Đã duyệt' | 'Từ chối' }
 
@@ -442,3 +442,17 @@ export const SEED_EXPENSES: Expense[] = [
 ]
 export type StaffProfile = { fullName: string; avatar: string; dept: string; joinDate: string; phone: string }
 export type AdjustReq = { id: string; staffId: string; date: string; text: string; at: number; status: 'Chờ duyệt' | 'Đã duyệt' | 'Từ chối' }
+
+// ═══ FIX LẦN 3 — Mức ưu tiên dùng chung cả app: 1 Đỏ (làm ngay) · 2 Vàng (quan trọng) · 3 Xanh (vừa) · 4 Trắng (bình thường) ═══
+export type Prio = 1 | 2 | 3 | 4
+export const PRIO: Record<Prio, { label: string; tone: 'red' | 'yellow' | 'green' | 'grey'; cls: string }> = {
+  1: { label: 'Làm ngay', tone: 'red', cls: 'p1' }, 2: { label: 'Quan trọng', tone: 'yellow', cls: 'p2' }, 3: { label: 'Vừa', tone: 'green', cls: 'p3' }, 4: { label: 'Bình thường', tone: 'grey', cls: 'p4' },
+}
+/** Mặc định theo loại thông báo — CEO đổi ở Cài đặt; Leader/CEO đổi từng thông báo */
+export const PRIO_DEFAULT: Record<string, Prio> = {
+  'Sự cố': 1, 'Khiếu nại': 1, 'Leader': 1,
+  'Quy định': 2, 'Thu ngân': 2, 'Dọn dẹp': 2, 'Điều phối': 2,
+  'Đào tạo': 3, 'Khách': 3, 'Lịch hẹn': 3, 'KTV': 3,
+  'Hệ thống': 4, 'Điểm uy tín': 4, 'Tin chung': 4,
+}
+export const PIN_TAGS = ['Sự cố', 'Quy định', 'Đào tạo', 'Khách', 'Tin chung'] as const
