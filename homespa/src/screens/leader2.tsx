@@ -33,11 +33,15 @@ export function TeamOps() {
     { t: 'Chốt ca', n: s.shiftCloses.filter(x => (Object.keys(x.counted) as D.PayMethod[]).some(k => x.counted[k] !== x.expected[k])).length, ai: 'Xử lý nếu bất thường, hoặc giao lại cho người khác khi lễ tân thứ 2 nghỉ', go: 'home/close' },
   ]
   const recOps = [s.xpChecks.filter(x => x.area.startsWith('Lao công') && x.status === 'Không đạt – lễ tân xử lý').length, s.xpChecks.filter(x => x.area.startsWith('Trải nghiệm') && (x.status === 'Không đạt – lễ tân xử lý' || x.help)).length, s.stockMoves.filter(m => m.status === 'Chờ duyệt').length, s.opsReqs.filter(r => r.kind === 'Thiết bị' && r.status === 'Chờ duyệt').length, s.opsReqs.filter(r => r.kind === 'Hoạt động' && r.status === 'Chờ duyệt').length, s.points.filter(p => p.status === 'Chờ duyệt').length, s.handovers.filter(h => h.status === 'Không đồng ý').length, 0]
+  const [all, setAll] = useState(false)
+  const cb = (r: { t: string; n: number; ai: string; go: string }) => <button key={r.t} title={r.ai} onClick={() => go(r.go)}><span>{r.t}</span>{r.n ? <span className="badge red">{r.n}</span> : null}</button>
   return <Block title="Vận hành nhóm" sub="Chọn vai trò → nhiệm vụ của mỗi ban ngành · số đỏ = bất cập cần Leader kiểm tra" color="mint">
-    <Seg value={role} onChange={setRole} items={[{ k: 'ktv', label: 'Kĩ thuật viên', badge: rows.reduce((t, r) => t + r.n, 0) }, { k: 'reception', label: 'Lễ tân', badge: recOps.reduce((t, n) => t + n, 0) }]} />
-    <div className="card list">{rows.map(r => <button key={r.t} className="item" style={{ width: '100%', textAlign: 'left', background: 'none', border: 0 }} onClick={() => go(r.go)}><div className="body"><div className="t">{r.t}</div><div className="d">{r.ai}</div></div><Red n={r.n} /></button>)}</div>
-    {role === 'reception' && <><div className="small muted">Luồng Lễ tân — Vận hành cơ sở:</div>
-      <div className="chipgrid">{D.OPS_ITEMS.map((x, i) => <button key={x} className="cbtn" onClick={() => go(`home/base/${i}`)}>{i + 1}. {x}{recOps[i] ? <span className="badge red">{recOps[i]}</span> : null}</button>)}</div></>}
+    <Seg value={role} onChange={v => { setRole(v); setAll(false) }} items={[{ k: 'ktv', label: 'Kĩ thuật viên', badge: rows.reduce((t, r) => t + r.n, 0) }, { k: 'reception', label: 'Lễ tân', badge: recOps.reduce((t, n) => t + n, 0) }]} />
+    {(() => { const list = role === 'ktv' ? rows : D.OPS_ITEMS.map((x, i) => ({ t: `${i + 1}. ${x}`, n: recOps[i], ai: 'Vận hành cơ sở · Lễ tân', go: `home/base/${i}` }))
+      const hot = list.filter(r => r.n > 0), calm = list.filter(r => !r.n)
+      return <>{hot.length ? <div className="ops-mini">{hot.map(cb)}</div> : <div className="small muted">Không có bất cập nào cần kiểm tra.</div>}
+        {calm.length > 0 && <button className="link small" style={{ alignSelf: 'flex-start' }} aria-expanded={all} onClick={() => setAll(!all)}>{all ? 'Ẩn mục không có bất cập' : `Xem thêm ${calm.length} mục không có bất cập`}</button>}
+        {all && <div className="ops-mini calm">{calm.map(cb)}</div>}</> })()}
   </Block>
 }
 

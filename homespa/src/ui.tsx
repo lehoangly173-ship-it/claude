@@ -89,7 +89,7 @@ function useMenuPortal(content: (close: () => void) => ReactNode) {
 }
 export function Block({ title, sub, right, children, color, fold }: { title: ReactNode; sub?: ReactNode; right?: ReactNode; children: ReactNode; color?: Color; fold?: boolean }) {
   const [open, setOpen] = useState(!fold) // fold: thu gọn, chạm tiêu đề mới hiện danh sách
-  const head = <><div style={{ minWidth: 0, flex: 1 }}><h2>{withDay(title)}</h2>{sub && <p>{sub}</p>}</div>{right && <div className="right">{right}</div>}{fold && <span className="tchev" aria-hidden="true"><i>▾</i></span>}</>
+  const head = <><div className="bh-t"><h2>{withDay(title)}</h2>{sub && <p>{sub}</p>}</div>{right && <div className="right">{right}</div>}{fold && <span className="tchev" aria-hidden="true"><i>▾</i></span>}</>
   return <section className={`block${fold ? ' foldable' : ''}${open ? ' open' : ''}`}>{fold ? <button className={`bh${color ? ` ${color}` : ''}`} aria-expanded={open} onClick={() => setOpen(!open)}>{head}</button> : <div className={`bh${color ? ` ${color}` : ''}`}>{head}</div>}
     {open && <GroupCtx.Provider value={typeof title === 'string' ? title : null}>{children}</GroupCtx.Provider>}</section>
 }

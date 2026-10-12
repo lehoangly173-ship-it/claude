@@ -588,3 +588,14 @@ div.f { display: flex; flex-direction: column; gap: 6px; background: var(--mint)
 .ops-tabs .seg button.on { background: var(--green-dark); color: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25) }
 .ops-tabs .seg button:not(.on):hover { background: rgba(255,255,255,.14) !important; color: #fff !important }
 .ops-tabs .seg button.on .badge { box-shadow: 0 0 0 2px var(--green-dark) }
+
+/* Tiêu đề khối: chữ không bị bóp hẹp; nút bên phải xuống dòng khi chật (VD Bảng chia ca 4 tuần) */
+.block > .bh { flex-wrap: wrap }
+.block > .bh .bh-t { min-width: 0; flex: 1 1 200px }
+.block > .bh .right { max-width: 100%; overflow-x: auto }
+
+/* Leader · Vận hành nhóm: danh sách gọn 2 cột, 1 dòng/mục, số đỏ bên phải */
+.ops-mini { display: grid; grid-template-columns: 1fr 1fr; gap: 6px }
+.ops-mini button { display: flex; align-items: center; justify-content: space-between; gap: 6px; text-align: left; padding: 8px 10px; min-height: 40px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--ink); font: inherit; font-size: 13px; font-weight: 600; line-height: 1.25; cursor: pointer }
+.ops-mini button span:first-child { min-width: 0 }
+.ops-mini.calm button { color: var(--ink-2); font-weight: 500 }
