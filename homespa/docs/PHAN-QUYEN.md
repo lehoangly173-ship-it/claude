@@ -59,3 +59,13 @@ Thêm: không ai sửa được cột ngoài phần được phép (VD duyệt �
 5. Nhập nhân sự thật, chạy thử 1–2 ngày với vài người. Ly duyệt rồi mới phát hành.
 
 **Không làm:** không để service_role key hay khóa trả phí ở app. App chỉ giữ anon key (công khai được vì RLS chặn).
+
+## 5. Bảo vệ & khôi phục dữ liệu (phương án)
+Nhiều lớp, không dựa vào một máy trong spa (dễ hỏng/mất cắp/virus):
+1. **Chống xâm nhập** — đã làm: RLS, SĐT tách bảng, nhật ký không xóa được, không để service_role trong app. Thêm: xác thực 2 lớp cho Ly và chị Quyên; không xóa hẳn dữ liệu (chỉ ẩn, CEO khôi phục).
+2. **Đồng bộ tức thì** — Supabase lưu nhiều bản trên máy chủ. Bản sao chạy song song (Read Replica) là gói trả phí.
+3. **Quay về đúng lúc trước lỗi** — Point-in-Time Recovery (PITR), lùi tới từng giây trong ~7 ngày. Gói miễn phí không có; Pro có sao lưu hằng ngày, PITR mua thêm. (Giá/tính năng cần kiểm tra lại trước khi mua.)
+4. **Bản sao ngoài hệ thống** — `supabase/backup/backup.sh`: xuất hằng đêm, mã hóa, giữ 30 ngày ở nơi khác (Drive/ổ riêng). Phòng trường hợp tài khoản Supabase bị tấn công/khóa. Chưa chạy (cần Supabase thật).
+5. **Thử khôi phục mỗi tháng** trên dự án trống; bản sao chưa thử thì chưa chắc dùng được.
+
+Lộ trình: thử nội bộ = gói miễn phí + backup.sh; có khách thật = Pro + PITR + backup.sh.
