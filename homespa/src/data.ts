@@ -158,7 +158,7 @@ export type JoinRequest = { id: string; email: string; name: string; wantedRole:
 
 // ── Tiện ích ──
 export const vnd = (n: number) => (Math.round(n) || 0).toLocaleString('vi-VN') + 'đ'
-export const vndShort = (n: number) => (n >= 1e6 ? (n / 1e6).toLocaleString('vi-VN', { maximumFractionDigits: 1 }) + 'tr' : Math.round(n / 1000) + 'k')
+export const vndShort = (n: number): string => (n < 0 ? '-' + vndShort(-n) : n >= 1e6 ? (n / 1e6).toLocaleString('vi-VN', { maximumFractionDigits: 1 }) + 'tr' : Math.round(n / 1000) + 'k')
 export const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
 export const parseHHMM = (s: string): number | null => { const r = /^(\d{1,2}):(\d{2})$/.exec(s.trim()); return r ? +r[1] * 60 + +r[2] : null }
 export const TODAY = new Date()
@@ -168,6 +168,8 @@ export const daysAgo = (n: number) => { const d = new Date(TODAY); d.setDate(d.g
 export const daysAhead = (n: number) => { const d = new Date(TODAY); d.setDate(d.getDate() + n); return dateShort(d) }
 export const stamp = (min: number) => `${dateShort()} · ${hhmm(min)}`
 export const weekNo = (d = TODAY) => { const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())); const n = t.getUTCDay() || 7; t.setUTCDate(t.getUTCDate() + 4 - n); const y = new Date(Date.UTC(t.getUTCFullYear(), 0, 1)); return Math.ceil(((+t - +y) / 864e5 + 1) / 7) }
+/** Năm của tuần ISO (đầu tháng 1 có thể thuộc tuần 52/53 năm trước) */
+export const weekYear = (d = TODAY) => { const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())); t.setUTCDate(t.getUTCDate() + 4 - (t.getUTCDay() || 7)); return t.getUTCFullYear() }
 export const DEMO = true // chế độ chạy thử: hiện nút đổi vai trò, tua giờ, khôi phục dữ liệu mẫu
 export const pctChange = (now: number, prev: number) => (prev === 0 ? 0 : Math.round(((now - prev) / prev) * 100))
 

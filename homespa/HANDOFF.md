@@ -43,6 +43,15 @@ Các bước (Claude tự làm khi connector đã nối đúng tài khoản):
 - Link sẽ đổi (link cũ thuộc `hayquen`). Muốn dùng lại link cũ: nối lại `hayquen` sau 01/11.
 - Không cần lưu mật khẩu/token nào vào repo; connector tự giữ đăng nhập.
 
+## Rà soát số liệu 13/10 (trước phát hành)
+- Leader ③④⑤ (Vận hành, Chi tổng, Doanh thu–LN) giờ lấy cùng nguồn `period.ts` theo kỳ chung (trước lấy chi phí cả tháng trừ tiền thu hôm nay → lợi nhuận âm sai).
+- `vndShort` hiện số âm đúng (-24,2tr). Mục tiêu tháng = đúng mục tiêu CEO (chia theo số ngày thật của tháng).
+- Hôm nay: tổng tiền theo KTV = tiền thu hóa đơn (chia theo giá trị dòng, `ktvShareOfInvoice`); lễ tân cộng cả bán sản phẩm.
+- Khách mới + quay lại = khách đã đến; lượt đặt không tính lịch hủy & khách vãng lai; lợi nhuận trừ giá vốn hàng bán.
+- Tồn kho ở bảng cây dùng `stockQty`; tiền theo nguồn khách theo kỳ; bảng cây không còn tự bịa mục tiêu/kỳ trước/tỉ lệ → "Chưa nối".
+- Công nợ: thẻ tiền định giá theo giá bán; "Lợi nhuận từ công nợ" = tổng công nợ − chi phí. Ảnh bill khớp 1-1 với tour. KTV rảnh phải đã chấm công.
+- Chưa sửa (ghi nhận): chi "Hàng hóa sử dụng" có thể trùng vật tư; điểm đánh giá NV tính cả đời; chi phí cố định ghi 1 lần/tháng nên kỳ ngắn dao động.
+
 ## Cập nhật 12/10 (đợt 2) — chọn kỳ thống nhất, màu, ảnh mẫu theo khu, thu gọn cài đặt
 - Kỳ dùng chung mọi màn (`period.ts`): Hôm nay · 7 ngày (cuốn chiếu) · 1 tháng · 1 quý · 1 năm (lịch, tính đến hôm nay) · Tùy chọn (Ngày bắt đầu/kết thúc + nút Xem). Thu ngân, trang nút cháu (cây) cũng theo kỳ này.
 - Chip/tab đang chọn, nhãn ngày: xanh đậm; vách ngăn tầng: nâu đậm.

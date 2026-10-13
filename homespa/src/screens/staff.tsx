@@ -224,7 +224,7 @@ const bday = (c: D.Customer) => !!c.dob && +c.dob.split('/')[1] === thisMonth()
 export function ReceptionCustomers({ embed }: { embed?: boolean } = {}) {
   const { s, user, openCustomer } = useStore()
   const [rg, setRg] = useState({ from: '', to: '' })
-  const lastIso = (c: D.Customer) => { const d = new Date(D.TODAY); d.setDate(d.getDate() - c.lastVisitDays); return d.toISOString().slice(0, 10) }
+  const lastIso = (c: D.Customer) => { const d = new Date(D.TODAY); d.setDate(d.getDate() - c.lastVisitDays); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` } // giờ VN, không lệch UTC
   const [grp, setGrp] = useState<Grp>('leVN')
   const [flt, setFlt] = useState('Tất cả')
   const [days, setDays] = useState(30)

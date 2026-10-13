@@ -122,6 +122,8 @@ const FIXED_MONTH: Record<string, number> = { 'Tiền mặt bằng': 25000000, '
 const FIXED_DAY: Record<string, number> = { 'Tiền mặt bằng': 2, 'Điện': 6, 'Nước': 6, 'Rác + Wifi': 6 }
 const OTHER_MONTH: Record<string, number> = { 'Quảng cáo Facebook': 3500000, 'Hàng hóa sử dụng': 1800000 }
 const PER_TOUR_COST = 3600 // chi phí vật tư / tour (định mức mẫu)
+/** tỉ lệ giá vốn / giá bán trung bình của sản phẩm bán lẻ (từ danh mục kho) — số liệu mẫu */
+const COGS_RATE = (() => { const it = D.STOCK_ITEMS.filter(x => x.price); return it.length ? it.reduce((t, x) => t + x.cost / x.price!, 0) / it.length : 0.5 })()
 const okInv = (s: State) => s.invoices.filter(i => i.status !== 'Nháp' && i.status !== 'Đã xóa')
 const sourceOf = (s: State, id: string) => s.customers.find(c => c.id === id)?.source ?? 'Khác'
 const isPkg = (i: D.Invoice) => !!i.pkgSale || i.lines.some(l => l.cardCode)
@@ -135,11 +137,18 @@ function todayReal(s: State): Metrics {
   const ok = s.stockMoves.filter(x => x.status !== 'Chờ duyệt' && x.status !== 'Từ chối')
   m.costProd = D.STOCK_ITEMS.reduce((t, it) => t + Math.max(0, ok.filter(x => x.item === it.id && (x.kind === 'Cấp NV' || x.kind === 'Dùng chung')).reduce((a, x) => a + x.qty, 0) - ok.filter(x => x.item === it.id && x.kind === 'Hoàn trả').reduce((a, x) => a + x.qty, 0)) * it.cost, 0)
   m.byCat['Vật tư dùng cho khách'] = m.costProd
-  m.guests = new Set(inv.map(i => i.customerId)).size
-  m.newCust = s.customers.filter(c => c.firstVisit === D.dateShort()).length
-  m.bookings = s.appts.length
-  m.returning = s.appts.filter(a => ['in_service', 'done', 'paid'].includes(a.status) && (s.customers.find(c => c.id === a.customerId)?.visits ?? 0) > 1).length
-  const past = s.appts.filter(a => a.start <= s.now)
+  // giá vốn sản phẩm đã bán (cùng công thức "Lãi gộp" ở Kho)
+  const cogs = s.stockMoves.filter(x => x.kind === 'Bán' && !x.status).reduce((t, x) => t + x.qty * (D.STOCK_ITEMS.find(it => it.id === x.item)?.cost ?? 0), 0)
+  if (cogs) { m.costOther += cogs; m.byCat['Giá vốn hàng bán'] = cogs }
+  m.guests = new Set(inv.map(i => i.customerId)).size // khách có hóa đơn
+  // khách ĐÃ ĐẾN hôm nay (đang làm / xong / đã thu) → mới (lần đầu hôm nay) + quay lại = số khách đã đến
+  const arrived = new Set([...s.appts.filter(a => ['in_service', 'done', 'paid'].includes(a.status)).map(a => a.customerId), ...inv.map(i => i.customerId)])
+  m.newCust = [...arrived].filter(id => s.customers.find(c => c.id === id)?.firstVisit === D.dateShort()).length
+  m.returning = arrived.size - m.newCust
+  // lượt đặt lịch: không tính lịch đã hủy và khách vãng lai (đến trực tiếp, không đặt trước)
+  const booked = s.appts.filter(a => a.status !== 'cancelled' && a.channel !== 'Đến trực tiếp')
+  m.bookings = booked.length
+  const past = booked.filter(a => a.start <= s.now)
   m.due = past.length; m.shown = past.filter(a => a.status !== 'no_show' && !(a.status === 'booked' && s.now - a.start > 10)).length
   const w = s.appts.filter(a => a.waitMin != null); m.waitSum = w.reduce((t, a) => t + a.waitMin!, 0); m.waitN = w.length
   return m
@@ -167,6 +176,7 @@ function pastDay0(s: State, d: Date): Metrics {
   m.newCust = Math.round(2.4 * f + rnd(k + 'n')); m.returning = Math.max(0, m.guests - m.newCust)
   m.waitN = m.guests; m.waitSum = Math.round(m.guests * (7 + rnd(k + 'w') * 6))
   m.costProd = m.guests * PER_TOUR_COST; m.byCat['Vật tư dùng cho khách'] = m.costProd
+  { const v = Math.round(m.prodPart * COGS_RATE / 1e3) * 1e3; m.costOther += v; m.byCat['Giá vốn hàng bán'] = v } // giá vốn SP bán ra (tỉ lệ giá vốn/giá bán của danh mục)
   const dim = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()
   // chi phí cố định trả một lần mỗi tháng vào ngày cố định (giống chứng từ thật) → so kỳ công bằng
   for (const c of FIXED_CATS) if (d.getDate() === Math.min(dim, FIXED_DAY[c])) { m.costFixed += FIXED_MONTH[c]; m.byCat[c] = FIXED_MONTH[c] }
@@ -206,8 +216,10 @@ export const showRate = (m: Metrics): number | null => m.due ? Math.round(m.show
 export const waitAvg = (m: Metrics): number | null => m.waitN ? Math.round(m.waitSum / m.waitN) : null
 /** mục tiêu theo số ngày của kỳ (mục tiêu tháng của CEO / 30 × số ngày) — số liệu mẫu */
 export function targetFor(r: { from: Date; to: Date }) {
-  const n = days(r.from, r.to), T = D.HISTORY.month.target
-  return { revenue: Math.round(T.revenue / 30 * n / 1e5) * 1e5, newCust: Math.round(T.newCust / 30 * n), returning: Math.round(T.returning / 30 * n), bookings: Math.round(T.bookings / 30 * n), showRate: T.showRate, waitAvg: T.waitAvg }
+  // phần mục tiêu tháng cho từng ngày = mục tiêu tháng / số ngày của THÁNG đó → trọn 1 tháng = đúng mục tiêu CEO đặt
+  const T = D.HISTORY.month.target; let n = 0
+  for (let d = startOf(r.from); d <= r.to; d = addDays(d, 1)) n += 1 / new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()
+  return { revenue: Math.round(T.revenue * n / 1e5) * 1e5, newCust: Math.round(T.newCust * n), returning: Math.round(T.returning * n), bookings: Math.round(T.bookings * n), showRate: T.showRate, waitAvg: T.waitAvg }
 }
 /** Phần trăm đóng góp của hôm nay (dữ liệu thật) trong kỳ — để ghi chú trung thực */
 export const hasPast = (r: { from: Date }) => r.from < today()
@@ -230,7 +242,7 @@ export function staffMetrics(s: State, r: { from: Date; to: Date }, role: 'ktv' 
         const ap = s.appts.filter(a => a.ktvId === x.id && !['cancelled', 'no_show'].includes(a.status))
         o.tours += role === 'ktv' ? ap.length : inv.filter(i => i.creator === x.name).length
         o.requested += ap.filter(a => a.requested).length
-        o.revenue += role === 'ktv' ? inv.reduce((a, i) => a + i.lines.filter(l => l.ktvId === x.id).reduce((b, l) => b + l.price - l.discount, 0), 0) : inv.filter(i => i.creator === x.name).reduce((a, i) => a + i.paid, 0)
+        o.revenue += role === 'ktv' ? inv.reduce((a, i) => a + ktvShareOfInvoice(s, i, x.id), 0) : inv.filter(i => i.creator === x.name).reduce((a, i) => a + i.paid, 0) + s.stockMoves.filter(m => m.kind === 'Bán' && !m.status && m.by === x.id).reduce((a, m) => a + (m.price ?? 0) * m.qty, 0)
         o.points += s.points.filter(p => p.staffId === x.id && p.status === 'Đã duyệt').reduce((a, p) => a + p.delta, 0)
         const at = s.attendance[x.id], st = x.shift ? D.SHIFTS[x.shift].start : null
         if (at?.in != null) o.days++
@@ -250,6 +262,17 @@ export function staffMetrics(s: State, r: { from: Date; to: Date }, role: 'ktv' 
   })
 }
 
+/** Tiền THỰC THU của 1 hóa đơn chia cho KTV theo giá trị dòng dịch vụ (dòng trừ thẻ vẫn có giá trị nhưng hóa đơn thu 0 → 0).
+ *  Hóa đơn chỉ bán gói (không có dòng KTV) → tính cho KTV đã phục vụ khách đó hôm nay. Tổng theo KTV = tổng tiền thu hóa đơn. */
+export function ktvShareOfInvoice(s: State, i: D.Invoice, ktvId: string) {
+  const ls = i.lines.filter(l => l.ktvId), W = ls.reduce((t, l) => t + Math.max(0, l.price - l.discount), 0)
+  if (ls.length && W > 0) { const ids = [...new Set(ls.map(l => l.ktvId))]; let left = i.paid
+    for (const [n, id] of ids.entries()) { const v = n === ids.length - 1 ? left : Math.round(i.paid * ls.filter(l => l.ktvId === id).reduce((t, l) => t + Math.max(0, l.price - l.discount), 0) / W); left -= v; if (id === ktvId) return v }
+    return 0 }
+  if (ls.length) return ls[0].ktvId === ktvId ? i.paid : 0
+  const a = s.appts.find(x => x.customerId === i.customerId && ['in_service', 'done', 'paid'].includes(x.status))
+  return a?.ktvId === ktvId ? i.paid : 0
+}
 /** Chia lượt khách & tiền dịch vụ của MỘT ngày đã qua cho nhân sự đi làm hôm đó → tổng theo người = tổng của Home */
 function shareOf(s: State, d: Date, role: 'ktv' | 'reception') {
   const pd = pastDay(s, d), k0 = iso(d)

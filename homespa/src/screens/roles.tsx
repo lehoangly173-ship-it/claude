@@ -2,6 +2,7 @@
 import { ReactNode, useState } from 'react'
 import { useStore, BUDGET_LIMIT } from '../store'
 import * as D from '../data'
+import { metrics, today } from '../period'
 import { alerts, billRows, overview, pointsOf, ktvState, custSegment, zoneReport, inboxSuggestions, customersCsv } from '../logic'
 import { T } from '../i18n'
 import { Hero, Tiles, Nodes, Block, ChipGrid, SubHead, Pill, Empty, Seg, Av, NodeSpec, Icon, Delta, NumInput } from '../ui'
@@ -131,7 +132,7 @@ export function MarketingHome({ sub }: { sub: string[] }) {
   if (page) return <>{page}</>
   const running = s.programs.filter(p => p.status === 'Đang chạy')
   return <SpecHub rows={MKT_NODES.M1.rows} sub={sub[0]} leaf={sub[1]} base="home" tag="Marketing" title="Marketing hôm nay"
-    intro={<Tiles items={[{ v: running.length, l: 'Chiến dịch đang chạy' }, { v: s.customers.filter(c => c.firstVisit === D.dateShort()).length, l: 'Khách mới hôm nay' }, { v: s.approvals.filter(a => a.status === 'Chờ duyệt' && a.fromId === me.id).length, l: 'Chờ chị duyệt' }, { v: D.vndShort(running.reduce((t, p) => t + p.revenue, 0)), l: 'Tiền thu từ chiến dịch', s: D.SAMPLE_NOTE }]} />}
+    intro={<Tiles items={[{ v: running.length, l: 'Chiến dịch đang chạy' }, { v: metrics(s, { from: today(), to: today() }).newCust, l: 'Khách mới hôm nay', s: 'đã đến · cùng số Tổng quan' }, { v: s.approvals.filter(a => a.status === 'Chờ duyệt' && a.fromId === me.id).length, l: 'Chờ chị duyệt' }, { v: D.vndShort(running.reduce((t, p) => t + p.revenue, 0)), l: 'Tiền thu từ chiến dịch', s: D.SAMPLE_NOTE }]} />}
     custom={{ '1.1': () => <MarketingScreen />, '1.7': () => <ProgramsPanel />, '1.10': () => <MocScreen /> }} />
 }
 export function MarketingCust({ sub }: { sub: string[] }) {

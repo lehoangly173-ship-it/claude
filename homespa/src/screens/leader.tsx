@@ -120,7 +120,7 @@ export function LeaderCustomers() {
   const [seg, setSeg] = useState('Tất cả')
   const segs = ['Khách mới', 'Khách quay lại', 'Đang dùng liệu trình', 'Lâu chưa đến']
   const shown = s.customers.filter(c => seg === 'Tất cả' || custSegment(c) === seg)
-  const fbGroups = Object.entries(s.feedback.filter(f => f.group !== 'Khen').reduce((m, f) => { (m[f.group] ??= []).push(f); return m }, {} as Record<string, D.Feedback[]>)).sort((a, b) => b[1].length - a[1].length)
+  const fbGroups = Object.entries(s.feedback.filter(f => f.group !== 'Khen' && (f.daysAgo ?? 0) <= 30).reduce((m, f) => { (m[f.group] ??= []).push(f); return m }, {} as Record<string, D.Feedback[]>)).sort((a, b) => b[1].length - a[1].length)
   const intervene = alerts(s).filter(a => a.who === 'leader')
   const taken = new Set(s.tasks.map(t => t.sourceKey))
   const isLeader = user.role === 'leader'
@@ -223,8 +223,14 @@ function answer(s: State, q: string, me?: D.Staff): Answer {
     if (/chốt ca/.test(t)) return { q, title: 'Chốt ca cần kiểm tra', facts: ['Tiền: so tiền mặt / chuyển khoản / thẻ thực đếm với số hệ thống tính từ hóa đơn.', ...D.BOOK_CHECKS.map(x => `Sổ sách: ${x}`)], hyps: [], next: ['Hôm nay → "Chốt ca". Lệch tiền phải ghi lý do — Leader & chị nhận thông báo.'] }
   }
   if (/quay lại|giảm khách|khách giảm/.test(t)) {
-    const worst = [...D.RETURN_BY_GROUP].sort((a, b) => (a.now - a.prev) / a.prev - (b.now - b.prev) / b.prev)[0]
-    return { q, title: 'Khách quay lại tuần này', facts: [`(${D.SAMPLE_NOTE} · ${w.label}) Khách quay lại: ${w.now.returning} (tuần trước ${w.prev.returning}) → giảm ${w.prev.returning - w.now.returning} khách, tương đương ${Math.abs(D.pctChange(w.now.returning, w.prev.returning))}%.`, ...D.RETURN_BY_GROUP.map(g => `${g.group}: ${g.now} (trước ${g.prev}, ${D.pctChange(g.now, g.prev)}%)`), `Giảm mạnh nhất: ${worst.group}.`],
+    // chia số khách quay lại của kỳ theo tỉ lệ nhóm mẫu → tổng các nhóm = đúng số của tuần
+    const split = (tot: number, key: 'now' | 'prev') => { const W = D.RETURN_BY_GROUP.reduce((t, g) => t + g[key], 0) || 1; let left = tot
+      return D.RETURN_BY_GROUP.map((g, i, a) => { const v = i === a.length - 1 ? left : Math.round(tot * g[key] / W); left -= v; return v }) }
+    const gN = split(w.now.returning, 'now'), gP = split(w.prev.returning, 'prev')
+    const groups = D.RETURN_BY_GROUP.map((g, i) => ({ group: g.group, now: gN[i], prev: gP[i] }))
+    const worst = [...groups].sort((a, b) => (a.now - a.prev) / (a.prev || 1) - (b.now - b.prev) / (b.prev || 1))[0]
+    const diff = w.now.returning - w.prev.returning
+    return { q, title: 'Khách quay lại tuần này', facts: [`(${D.SAMPLE_NOTE} · ${w.label}) Khách quay lại: ${w.now.returning} (tuần trước ${w.prev.returning}) → ${diff < 0 ? 'giảm' : diff > 0 ? 'tăng' : 'không đổi'}${diff ? ` ${Math.abs(diff)} khách, tương đương ${Math.abs(D.pctChange(w.now.returning, w.prev.returning))}%` : ''}.`, ...groups.map(g => `${g.group}: ${g.now} (trước ${g.prev}, ${D.pctChange(g.now, g.prev)}%)`), `${worst.now < worst.prev ? 'Giảm mạnh nhất' : 'Tăng ít nhất'}: ${worst.group}.`],
       hyps: ['Thời gian chờ cuối tuần tăng (phản hồi "Thời gian chờ" lặp lại 3 lần) — cần đối chiếu giờ đến/giờ bắt đầu.', 'Khách lẻ chưa được mời gói/tái hẹn sau buổi đầu — kiểm tra ghi chú chăm sóc.', 'Chưa đủ dữ liệu để kết luận do KTV: cần xem nguồn khách, lịch trống, hủy lịch.'],
       next: [`Lọc danh sách "${worst.group}" chưa quay lại > 30 ngày, gọi hỏi lý do.`, 'So sánh lịch trống giờ cao điểm 2 tuần gần nhất.'], task: { title: `Gọi lại nhóm "${worst.group}" chưa quay lại > 30 ngày`, detail: 'Hỏi lý do, ghi vào hồ sơ, mời tái hẹn trong khung ưu đãi đã duyệt', category: 'Khách hàng', priority: 'cao' } }
   }
@@ -352,7 +358,7 @@ function WeeklyReportModal({ onClose }: { onClose: () => void }) {
     doneT.map(t => `${t.title} → ${t.result}`).join('; '),
     '', '',
   ])
-  return <Modal wide title={`Báo cáo tuần gửi chị · ${wc.label}`} onClose={onClose} footer={<><button className="btn" onClick={onClose}>Hủy</button><button className="btn pri" disabled={a.slice(0, 5).some(x => !x.trim())} onClick={() => { sendReport(`${D.weekNo()}/${D.TODAY.getFullYear()}`, a); onClose() }}>Gửi chị</button></>}>
+  return <Modal wide title={`Báo cáo tuần gửi chị · ${wc.label}`} onClose={onClose} footer={<><button className="btn" onClick={onClose}>Hủy</button><button className="btn pri" disabled={a.slice(0, 5).some(x => !x.trim())} onClick={() => { sendReport(`${D.weekNo()}/${D.weekYear()}`, a); onClose() }}>Gửi chị</button></>}>
     <div className="small muted">Chỉ trả lời rõ 6 câu. Câu 4 đã điền sẵn từ việc đã xong; câu 1 tự nhập số thật (chưa nối dữ liệu tuần); các câu còn lại Leader tự viết.</div>
     {QUESTIONS.map((q, i) => <label key={i} className="f">{i + 1}. {q}<textarea id={`wr-${i}`} className="inp" value={a[i]} onChange={e => setA(x => x.map((y, j) => (j === i ? e.target.value : y)))} placeholder={i === 5 ? 'VD: Duyệt ngân sách 1,5tr cho chương trình giới thiệu bạn, trước thứ 6' : ''} /></label>)}
   </Modal>

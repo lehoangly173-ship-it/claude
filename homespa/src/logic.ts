@@ -150,7 +150,8 @@ export function overview(s: State) {
   const paidToday = s.invoices.filter(i => i.status !== 'Nháp' && i.status !== 'Đã xóa').reduce((t, i) => t + i.paid, 0) + soldToday(s)
   return {
     ktvIn: working.length, ktvBusy: states.filter(x => x.label === 'Đang làm' || x.label === 'Sắp xong').length,
-    ktvFree: states.filter(x => x.label === 'Rảnh' || x.label === 'Chuẩn bị đón khách').length,
+    // rảnh = đã chấm công vào, chưa ra ca, không đang làm/dọn (cùng điều kiện gợi ý KTV)
+    ktvFree: ktvs().filter((k, i) => s.attendance[k.id]?.in != null && s.attendance[k.id]?.out == null && (states[i].label === 'Rảnh' || states[i].label === 'Chuẩn bị đón khách')).length,
     finishing: s.appts.filter(a => a.status === 'in_service' && a.end - s.now <= 30),
     bedsUsed: beds.filter(b => b.label === 'Đang làm' || b.label === 'Sắp xong').length,
     bedsCleaning: beds.filter(b => b.label === 'Đang dọn').length, bedsTotal: BEDS.length,
@@ -201,9 +202,13 @@ export const soldToday = (s: State) => s.stockMoves.filter(x => x.kind === 'Bán
 export const pointsOf = (s: State, staffId: string) => s.points.filter(p => p.staffId === staffId && p.status === 'Đã duyệt').reduce((t, p) => t + p.delta, 0)
 /** Tour hôm nay cần đối soát bill: lượt đã/đang phục vụ */
 export function billRows(s: State) {
+  // mỗi ảnh bill chỉ khớp MỘT tour: tour sớm nhất của KTV đó lấy ảnh sớm nhất chụp sau giờ bắt đầu tour
+  const used = new Set<string>()
   return s.appts.filter(a => ['in_service', 'done', 'paid'].includes(a.status)).sort((a, b) => a.start - b.start).map(a => {
     const inv = s.invoices.find(i => i.status !== 'Đã xóa' && i.status !== 'Nháp' && i.lines.some(l => l.apptId === a.id))
-    const photo = s.bills.some(b => b.staffId === a.ktvId && b.at >= a.start) // ảnh bill chụp sau khi tour bắt đầu
+    const b0 = a.status === 'in_service' ? undefined : s.bills.filter(b => b.staffId === a.ktvId && b.at >= a.start && !used.has(b.id)).sort((x, y) => x.at - y.at)[0]
+    if (b0) used.add(b0.id)
+    const photo = !!b0
     const issue = a.status === 'in_service' ? null : !inv ? `Chưa thu tiền — trách nhiệm KTV ${s.staff.find(x => x.id === a.ktvId)?.name} hoặc lễ tân` : !photo ? `KTV ${s.staff.find(x => x.id === a.ktvId)?.name} chưa tải ảnh bill` : null
     return { a, inv, photo, issue }
   })
@@ -462,7 +467,8 @@ export function debtSummary(s: State) {
   const left = pk.filter(x => D.pkgLeft(x.p) > 0)
   const deposit = pk.filter(x => D.pkgOwed(x.p) > 0), full = left.filter(x => D.pkgOwed(x.p) === 0)
   const perSession = (p: D.Package) => p.type === 'session' ? p.finalPrice / Math.max(1, (p.sessions ?? 0) + (p.bonus ?? 0)) : 1
-  const owedValue = (p: D.Package) => p.type === 'session' ? D.pkgLeft(p) * perSession(p) : D.pkgLeft(p)
+  // giá trị Home còn nợ = phần chưa dùng × giá bán thực (thẻ buổi: theo giá/buổi; thẻ tiền: theo tỉ lệ giá bán / (mệnh giá + quà))
+  const owedValue = (p: D.Package) => p.type === 'session' ? D.pkgLeft(p) * perSession(p) : Math.round(D.pkgLeft(p) * p.finalPrice / Math.max(1, (p.value ?? 0) + (p.bonusValue ?? 0)))
   return { left, deposit, full, sessionsOwed: left.filter(x => x.p.type === 'session').reduce((t, x) => t + D.pkgLeft(x.p), 0), owedValue, depositPaid: deposit.reduce((t, x) => t + D.pkgPaid(x.p), 0), depositMissing: deposit.reduce((t, x) => t + D.pkgOwed(x.p), 0), fullValue: full.reduce((t, x) => t + owedValue(x.p), 0),
     /** Home còn nợ khách cọc = giá trị buổi chưa làm − phần khách còn thiếu (không âm), chỉ gói còn buổi */
     depositDebt: deposit.filter(x => D.pkgLeft(x.p) > 0).reduce((t, x) => t + Math.max(0, owedValue(x.p) - D.pkgOwed(x.p)), 0) }
@@ -482,7 +488,7 @@ export function ktvPerf(s: State, id: string, extra = false): { g: string; rows:
       { t: 'Điểm TB khách đánh giá', v: fb.length ? (fb.reduce((t, f) => t + f.rating, 0) / fb.length).toFixed(1) + '/5' : null },
       { t: 'Số khách yêu cầu', v: String(s.appts.filter(a => a.ktvId === id && a.requested && !['cancelled', 'no_show'].includes(a.status)).length) },
       { t: 'Đánh giá chấm điểm chuyên môn theo kì', v: null },
-      { t: 'Best saler, tỉ suất % sale', v: served.size ? `${pk.length} thẻ · ${Math.round(pk.length / served.size * 100)}%` : `${pk.length} thẻ` },
+      { t: 'Best saler, tỉ suất % sale', v: served.size ? `${pk.length} thẻ · ${Math.round([...served].filter(cid => c(cid)?.packages.some(p => (p.closerIds ?? []).includes(id) || p.closer === name)).length / served.size * 100)}% khách phục vụ đã mua thẻ` : `${pk.length} thẻ` },
       { t: 'Số lượt KH phục vụ', v: String(ap.length) },
       { t: 'Tổng số giờ phục vụ khách', v: (ap.reduce((t, a) => t + a.end - a.start, 0) / 60).toFixed(1) + ' giờ' },
       ...(extra ? [{ t: 'Số hồ sơ khách hàng được cập nhật', v: String(s.customers.filter(x => x.care.some(e => e.by === name)).length) }] : []),

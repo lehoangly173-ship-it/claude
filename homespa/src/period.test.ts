@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import * as D from './data'
 import type { State } from './logic'
-import { periodRanges, lastRanges, metrics, cost, profit, staffMetrics, today, addDays, rangeOf, type Gran } from './period'
+import { periodRanges, lastRanges, metrics, cost, profit, staffMetrics, today, addDays, rangeOf, targetFor, type Gran } from './period'
 
 const S = () => ({ now: D.START_MIN, appts: D.SEED_APPTS, customers: D.SEED_CUSTOMERS, invoices: D.SEED_INVOICES, feedback: D.SEED_FEEDBACK, staff: D.STAFF,
   stockMoves: D.SEED_STOCK_MOVES, expenses: D.SEED_EXPENSES, points: [], attendance: {}, leaves: [] }) as unknown as State
@@ -93,5 +93,29 @@ describe('Chấm công thống nhất', () => {
     const s = { ...S(), attendance: att } as unknown as State
     const l = staffMetrics(s, { from: t, to: t }, 'ktv')
     expect(l.find(x => x.id === 'hien')!.late).toBe(1); expect(l.find(x => x.id === 'lan')!.late).toBe(0)
+  })
+})
+
+describe('Rà soát số liệu 13/10', () => {
+  const day = { from: t, to: t }
+  it('hôm nay: tổng tiền theo KTV = tiền thu hóa đơn; theo lễ tân = tổng tiền thu (gồm bán sản phẩm)', () => {
+    const s = S(), m = metrics(s, day)
+    expect(staffMetrics(s, day, 'ktv').reduce((a, x) => a + x.revenue, 0)).toBe(m.revenue - m.prodPart)
+    const rec = staffMetrics(s, day, 'reception').reduce((a, x) => a + x.revenue, 0)
+    expect(rec).toBeLessThanOrEqual(m.revenue)
+  })
+  it('khách mới + quay lại = khách đã đến; lượt đến ≤ lượt đặt', () => {
+    const s = S(), m = metrics(s, day)
+    const arrived = new Set([...s.appts.filter(a => ['in_service', 'done', 'paid'].includes(a.status)).map(a => a.customerId), ...s.invoices.filter(i => i.status !== 'Nháp' && i.status !== 'Đã xóa').map(i => i.customerId)])
+    expect(m.newCust + m.returning).toBe(arrived.size)
+    expect(m.shown).toBeLessThanOrEqual(m.due)
+  })
+  it('mục tiêu trọn 1 tháng = đúng mục tiêu tháng CEO đặt', () => {
+    const r = rangeOf('month', addDays(t, -40)), dim = new Date(r.from.getFullYear(), r.from.getMonth() + 1, 0).getDate()
+    expect(Math.round((+r.to - +r.from) / 864e5) + 1).toBe(dim)
+    expect(targetFor(r).revenue).toBe(Math.round(D.HISTORY.month.target.revenue / 1e5) * 1e5)
+  })
+  it('lợi nhuận âm hiển thị gọn', () => {
+    expect(D.vndShort(-24200000)).toBe('-24,2tr'); expect(D.vndShort(-500000)).toBe('-500k'); expect(D.vndShort(1500000)).toBe('1,5tr')
   })
 })

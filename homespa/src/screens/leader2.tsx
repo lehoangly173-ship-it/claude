@@ -1,7 +1,8 @@
 // FIX LẦN 1 — Leader (Lark "FIX LẦN 1 APP LEADER"): Hôm nay (Vận hành nhóm), Chăm sóc KH Home,
 // Vận hành, Chi tổng, Doanh thu – lợi nhuận, Công nợ, Nhân sự (lương · điểm · hiệu suất · đào tạo)
-import { FinanceDash, StaffCompare } from './timeDash'
-import { Donut } from '../charts'
+import { FinanceDash, StaffCompare, usePeriodMetrics } from './timeDash'
+import { Donut, PeriodBar } from '../charts'
+import { cost, FIXED_CATS, iso } from '../period'
 import { useState } from 'react'
 import { useStore } from '../store'
 import * as D from '../data'
@@ -84,57 +85,46 @@ export function LeaderMothers() {
   ]} />
 }
 
-// ── Tài chính Leader: bộ lọc thời gian chung · số liệu tính từ hóa đơn, kho, chi tiêu ──
-const monthLabel = () => `${D.TODAY.getMonth() + 1}/${D.TODAY.getFullYear()}`
-const IT = (id: string) => D.STOCK_ITEMS.find(x => x.id === id)!
+// ── Tài chính Leader: MỘT nguồn số = period.ts (metrics/cost/profit) theo kỳ chung · chi tiết vật tư hôm nay lấy từ phiếu kho ──
+const toISO = (vn: string) => { const [d, m, y] = vn.split('/'); return `${y}-${m}-${d}` }
 function useFin() {
   const { s } = useStore()
   const ok = s.stockMoves.filter(m => m.status !== 'Chờ duyệt' && m.status !== 'Từ chối')
   const prod = D.STOCK_ITEMS.map(it => ({ it, v: ok.filter(m => m.item === it.id && (m.kind === 'Cấp NV' || m.kind === 'Dùng chung')).reduce((t, m) => t + m.qty, 0) - ok.filter(m => m.item === it.id && m.kind === 'Hoàn trả').reduce((t, m) => t + m.qty, 0) })).map(x => ({ ...x, cost: Math.max(0, x.v) * x.it.cost }))
-  const prodCost = prod.reduce((t, x) => t + x.cost, 0)
-  const keep = s.expenses.filter(e => ['Điện', 'Nước', 'Rác + Wifi', 'Tiền mặt bằng'].includes(e.cat))
-  const keepCost = keep.reduce((t, e) => t + e.amount, 0)
-  const other = s.expenses.filter(e => !keep.includes(e)).reduce((t, e) => t + e.amount, 0)
-  const inv = s.invoices.filter(i => i.status !== 'Đã xóa' && i.status !== 'Nháp')
-  const guests = new Set(inv.map(i => i.customerId)).size
-  const cashIn = inv.reduce((t, i) => t + i.paid, 0)
-  return { s, prod, prodCost, keep, keepCost, other, total: prodCost + keepCost + other, inv, guests, cashIn }
+  return { s, prod, ...usePeriodMetrics() }
 }
 export function LeaderFin({ sub, back }: { sub: string[]; back: () => void }) {
-  const f = useFin(), { s } = f
-  const per = (v: number) => f.guests ? D.vnd(v / f.guests) : '—'
+  const f = useFin(), { s, m, cur } = f
+  const per = (v: number) => m.guests ? D.vnd(Math.round(v / m.guests)) : '—'
+  const fixed = FIXED_CATS.map(c => ({ l: c, v: m.byCat[c] ?? 0 })).filter(x => x.v)
+  const inCur = (e: D.Expense) => { const d = toISO(e.date); return d >= iso(cur.from) && d <= iso(cur.to) }
   const [page, idx] = sub
   if (page === 'ops') return <>
     <SubHead title="③ Vận hành" sub="Chi phí sản phẩm (dầu massage, cao hổ, sữa chua, khăn lạnh, dầu gội, dầu xả) · chi phí duy trì" onBack={back} />
-    <Tiles items={[{ v: D.vndShort(f.prodCost), l: 'Chi phí sản phẩm', s: `hôm nay ${D.dateShort()} · cấp − hoàn trả × giá vốn` }, { v: per(f.prodCost), l: 'Tổng chi phí SP / 1 khách', s: `hôm nay · ${f.guests} khách có hóa đơn` }, { v: D.vndShort(f.keepCost), l: 'Chi phí duy trì', s: `chứng từ tháng ${monthLabel()} · điện · nước · rác+wifi · mặt bằng` }]} />
-    <div className="grid g2">{f.prod.some(x => x.cost > 0) && <Block title="Chi phí sản phẩm theo loại" sub={`Hôm nay ${D.dateShort()}`}><Donut label="Chi phí sản phẩm" parts={f.prod.map(x => ({ l: x.it.name, v: x.cost }))} /></Block>}
-      <Block title="Chi phí duy trì theo hạng mục" sub={`Chứng từ tháng ${monthLabel()}`}><Donut label="Chi phí duy trì" parts={f.keep.map(e => ({ l: e.cat, v: e.amount }))} /></Block></div>
-    {idx !== '1' && <Block title="Chi phí sản phẩm"><div className="card list">{f.prod.filter(x => x.v > 0).map(x => <div key={x.it.id} className="item"><div className="body"><div className="t">{x.it.name}</div><div className="d">{x.v.toLocaleString('vi-VN')} {x.it.unit} · giá vốn {D.SAMPLE_NOTE}</div></div><span className="num strong">{D.vnd(x.cost)}</span></div>)}{!f.prod.some(x => x.v > 0) && <Empty>Chưa xuất vật tư</Empty>}</div></Block>}
-    {idx !== '0' && <Block title="Chi phí duy trì (điện, nước, mặt bằng…)"><div className="card list">{f.keep.map(e => <div key={e.id} className="item"><div className="body"><div className="t">{e.cat}</div><div className="d">{e.date} · {e.note}</div></div><span className="num strong">{D.vnd(e.amount)}</span></div>)}</div></Block>}
+    <PeriodBar compare={false} />
+    <Tiles items={[{ v: D.vndShort(m.costProd), l: 'Chi phí sản phẩm', s: `${cur.label} · vật tư dùng cho khách` }, { v: per(m.costProd), l: 'Chi phí SP / 1 khách', s: `${m.guests} khách có hóa đơn` }, { v: D.vndShort(m.costFixed), l: 'Chi phí duy trì', s: `${cur.label} · điện · nước · rác+wifi · mặt bằng` }]} />
+    <div className="grid g2">{f.prod.some(x => x.cost > 0) && <Block title="Vật tư đã xuất hôm nay theo loại" sub={`Phiếu kho ${D.dateShort()}`}><Donut label="Vật tư hôm nay" parts={f.prod.map(x => ({ l: x.it.name, v: x.cost }))} /></Block>}
+      {fixed.length > 0 && <Block title="Chi phí duy trì theo hạng mục" sub={cur.label}><Donut label="Chi phí duy trì" parts={fixed} /></Block>}</div>
+    {idx !== '1' && <Block title="Vật tư đã xuất hôm nay" sub={`Cấp − hoàn trả × giá vốn · ${D.dateShort()}`}><div className="card list">{f.prod.filter(x => x.v > 0).map(x => <div key={x.it.id} className="item"><div className="body"><div className="t">{x.it.name}</div><div className="d">{x.v.toLocaleString('vi-VN')} {x.it.unit} · giá vốn {D.SAMPLE_NOTE}</div></div><span className="num strong">{D.vnd(x.cost)}</span></div>)}{!f.prod.some(x => x.v > 0) && <Empty>Chưa xuất vật tư</Empty>}</div></Block>}
+    {idx !== '0' && <Block title="Chứng từ chi phí duy trì đã nhập" sub={cur.label}><div className="card list">{s.expenses.filter(e => (FIXED_CATS as readonly string[]).includes(e.cat) && inCur(e)).map(e => <div key={e.id} className="item"><div className="body"><div className="t">{e.cat}</div><div className="d">{e.date} · {e.note}</div></div><span className="num strong">{D.vnd(e.amount)}</span></div>)}{!s.expenses.some(e => (FIXED_CATS as readonly string[]).includes(e.cat) && inCur(e)) && <Empty>Chưa có chứng từ trong kỳ — đang dùng số liệu mẫu</Empty>}</div></Block>}
   </>
   if (page === 'spend') return <>
-    <SubHead title="④ Chi tổng" sub="Chi phí tổng = sản phẩm + duy trì + chi khác (lương, quảng cáo, hàng hóa) · lễ tân nhập ở Chi tiêu vận hành" onBack={back} />
+    <SubHead title="④ Chi tổng" sub="Chi phí tổng = vật tư + duy trì + chi khác (quảng cáo, hàng hóa, giá vốn hàng bán) · lễ tân nhập ở Chi tiêu vận hành" onBack={back} />
     <FinanceDash show={['kpi', 'trend', 'cost']} />
-    <Block title="Chứng từ chi đã nhập" sub={`Tháng ${monthLabel()} (chi tiêu lễ tân nhập) + vật tư hôm nay ${D.dateShort()}`}><Tiles items={[{ v: D.vndShort(f.total), l: 'Chi phí tổng' }, { v: per(f.total), l: 'Tổng chi phí / 1 khách' }, { v: D.vndShort(f.prodCost), l: 'Chi phí sản phẩm' }, { v: D.vndShort(f.keepCost), l: 'Chi phí duy trì' }]} /></Block>
+    <Block title="Chi phí theo nhóm" sub={cur.label}><Tiles items={[{ v: D.vndShort(cost(m)), l: 'Chi phí tổng' }, { v: per(cost(m)), l: 'Chi phí / 1 khách', s: `${m.guests} khách có hóa đơn` }, { v: D.vndShort(m.costProd), l: 'Chi phí sản phẩm' }, { v: D.vndShort(m.costFixed), l: 'Chi phí duy trì' }, { v: D.vndShort(m.costOther), l: 'Chi khác' }]} /></Block>
     <ExpensePage readOnly />
   </>
   if (page === 'rev') {
-    const pkgInv = (i: D.Invoice) => !!i.pkgSale || i.lines.some(l => l.cardCode)
-    const byGroup = [['Lẻ', f.inv.filter(i => !pkgInv(i))], ['Liệu trình', f.inv.filter(pkgInv)]] as const
-    const src = (i: D.Invoice) => s.customers.find(c => c.id === i.customerId)?.source ?? 'Khác'
-    const bySrc = (list: D.Invoice[]) => Object.entries(list.reduce((m, i) => { m[src(i)] = (m[src(i)] ?? 0) + i.paid; return m }, {} as Record<string, number>)).sort((a, b) => b[1] - a[1])
-    const share = f.cashIn ? f.total / f.cashIn : 0 // phân bổ chi phí theo tỉ lệ tiền thu
-    const byKtv = D.ktvs().map(k => ({ k, v: f.inv.reduce((t, i) => t + i.lines.filter(l => l.ktvId === k.id).reduce((x, l) => x + l.price - l.discount, 0), 0) })).filter(x => x.v).sort((a, b) => b.v - a.v)
+    const share = m.revenue ? cost(m) / m.revenue : 0 // phân bổ chi phí theo tỉ lệ tiền thu
+    const ln = (v: number) => D.vnd(Math.round(v * (1 - share)))
+    const groups: [string, number][] = [['Khách lẻ', m.lePart], ['Liệu trình', m.pkgPart], ['Bán sản phẩm', m.prodPart]]
+    const bySrc = Object.entries(m.bySource).filter(x => x[1]).sort((a, b) => b[1] - a[1])
     return <>
-      <SubHead title="⑤ Số tiền thu vào – Doanh thu – Lợi nhuận" sub="Tiền thu từ hóa đơn · lợi nhuận = thu − chi phí phân bổ theo tỉ lệ tiền thu" onBack={back} />
+      <SubHead title="⑤ Số tiền thu vào – Doanh thu – Lợi nhuận" sub="Tiền thu từ hóa đơn + bán sản phẩm · lợi nhuận = thu − chi phí, phân bổ theo tỉ lệ tiền thu" onBack={back} />
       <FinanceDash />
       <StaffCompare bar={false} pick="revenue" lockRole />
-      <div className="sec-title"><span className="eyebrow">Chi tiết hóa đơn hôm nay · {D.dateShort()}</span></div>
-      <Tiles items={[{ v: D.vndShort(f.cashIn), l: 'Số tiền thu vào', tone: 'ok' }, { v: D.vndShort(f.inv.reduce((t, i) => t + i.total, 0)), l: 'Doanh thu' }, { v: D.vndShort(f.cashIn - f.total), l: 'Lợi nhuận tổng', s: 'chi phí gồm hóa đơn tháng — số liệu mẫu', tone: f.cashIn - f.total < 0 ? 'warn' : 'ok' }]} />
-      <Block title="Lợi nhuận trên từng nhóm khách">{byGroup.map(([g, list]) => { const v = list.reduce((t, i) => t + i.paid, 0); return <div key={g} className="col" style={{ gap: 4 }}><div className="row small"><b>{g}</b><span className="right-al">thu {D.vnd(v)} · LN ≈ {D.vnd(v * (1 - share))}</span></div>
-        <div className="tiny muted">Nguồn khách: {bySrc(list).map(([k, n]) => `${k} ${D.vndShort(n)}`).join(' · ') || '—'}</div></div> })}</Block>
-      <Block title="Lợi nhuận trên từng nguồn khách" sub="Facebook · TikTok · Google…"><div className="card list">{bySrc(f.inv).map(([k, n]) => <div key={k} className="item"><div className="body"><div className="t">{k}</div><div className="d">LN ≈ {D.vnd(n * (1 - share))}</div></div><span className="num strong">{D.vnd(n)}</span></div>)}{!f.inv.length && <Empty>Chưa có hóa đơn</Empty>}</div></Block>
-      <Block title="Theo kĩ thuật viên"><div className="card list">{byKtv.map(x => <div key={x.k.id} className="item"><Av name={x.k.name} /><div className="body"><div className="t">{x.k.name}</div></div><span className="num strong">{D.vnd(x.v)}</span></div>)}{!byKtv.length && <Empty>Chưa có dịch vụ đã lập hóa đơn</Empty>}</div></Block>
+      <Block title="Lợi nhuận trên từng nhóm khách" sub={`${cur.label} · chi phí chiếm ${m.revenue ? Math.round(share * 100) : 0}% tiền thu`}>{groups.map(([g, v]) => <div key={g} className="row small"><b>{g}</b><span className="right-al">thu {D.vnd(v)} · LN ≈ {ln(v)}</span></div>)}</Block>
+      <Block title="Lợi nhuận trên từng nguồn khách" sub={`${cur.label} · Facebook · TikTok · Google…`}><div className="card list">{bySrc.map(([k, n]) => <div key={k} className="item"><div className="body"><div className="t">{k}</div><div className="d">LN ≈ {ln(n)}</div></div><span className="num strong">{D.vnd(n)}</span></div>)}{!bySrc.length && <Empty>Chưa có tiền thu trong kỳ</Empty>}</div></Block>
     </>
   }
   if (page === 'debt') {
@@ -155,7 +145,7 @@ export function LeaderFin({ sub, back }: { sub: string[]; back: () => void }) {
             { v: D.vndShort(d.fullValue), l: 'Công nợ khách đã hoàn thành gói' },
             { v: D.vndShort(cost), l: 'Chi phí từ công nợ', s: 'vật tư cho các buổi còn nợ' }]} /></div>
           <div className="col"><span className="eyebrow">Lợi nhuận</span><Tiles items={[
-            { v: D.vndShort(d.left.reduce((t, x) => t + d.owedValue(x.p), 0) - cost), l: 'Lợi nhuận từ công nợ' },
+            { v: D.vndShort(d.depositDebt + d.fullValue - cost), l: 'Lợi nhuận từ công nợ', s: 'tổng công nợ − chi phí vật tư' },
             { v: D.vndShort(d.depositPaid - depCost), l: 'Tổng lợi nhuận từ cọc' },
             { v: D.vndShort(d.deposit.reduce((t, x) => t + x.p.finalPrice, 0) - depCost), l: 'LN ước tính nếu khách hoàn thành gói' }]} /></div>
         </div> })()}

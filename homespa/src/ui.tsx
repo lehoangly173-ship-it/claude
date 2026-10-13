@@ -155,7 +155,7 @@ export function CustomerModal({ customerId, onClose }: { customerId: string; onC
   const [note, setNote] = useState('')
   const [tab, setTab] = useState<'info' | 'pkg' | 'care' | 'profile'>('info')
   const fb = s.feedback.filter(f => f.customerId === c.id)
-  const visits = s.appts.filter(a => a.customerId === c.id && a.status !== 'cancelled')
+  const visits = s.appts.filter(a => a.customerId === c.id && a.status !== 'cancelled' && (user.role !== 'ktv' || a.ktvId === user.staffId)) // KTV chỉ thấy tour của mình
   const canSeeMoney = user.role !== 'ktv'
   // m4: KTV chỉ mở khách thuộc tập G4 hoặc có tour hôm nay với mình
   if (user.role === 'ktv' && !ktvCanOpen(s, me, customerId)) return <Modal title={T.cust.profile} onClose={onClose}><Empty>{T.cust.noAccess}</Empty></Modal>

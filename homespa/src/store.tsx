@@ -221,7 +221,7 @@ function useStoreValue() {
         c.totalPaid += inv.paid
         // ghi nhận hiệu quả chương trình khi khách dùng voucher
         const pr = d.programs.find(p => p.id === inv.voucherProgramId)
-        if (pr) { pr.arrived += 1; pr.revenue += inv.paid; pr.cost += inv.voucherDiscount ?? 0 }
+        if (pr) { pr.arrived += 1; pr.booked = Math.max(pr.booked, pr.arrived) /* khách dùng voucher không qua đặt lịch vẫn tính 1 lượt đặt → tỉ lệ đến ≤ 100% */; pr.revenue += inv.paid; pr.cost += inv.voucherDiscount ?? 0 }
         notify(d, { cat: 'Thu ngân', text: `${code} · ${c.name} · ${inv.status}`, detail: `Tổng ${D.vnd(inv.total)} · thu ${D.vnd(inv.paid)}`, roles: ['leader', 'ceo'], nav: 'cashier' })
       })
       say(inv.status === 'Nháp' ? 'Đã lưu nháp' : 'Đã xác nhận hóa đơn')
