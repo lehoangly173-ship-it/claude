@@ -43,6 +43,13 @@ Các bước (Claude tự làm khi connector đã nối đúng tài khoản):
 - Link sẽ đổi (link cũ thuộc `hayquen`). Muốn dùng lại link cũ: nối lại `hayquen` sau 01/11.
 - Không cần lưu mật khẩu/token nào vào repo; connector tự giữ đăng nhập.
 
+## Phân quyền thật (13/10, nhánh `team/phan-quyen`, CHƯA phát hành)
+- Phương án đầy đủ + ma trận quyền: `docs/PHAN-QUYEN.md`. Rà soát bảo mật: `../docs/team/security-phan-quyen.md`.
+- SQL: `supabase/migrations/0001_phan_quyen.sql` (bảng, RLS, hàm duyệt tài khoản, nhật ký, Storage). Kiểm thử: `supabase/test/rls.test.ts` (PGlite, 20 ca).
+- App: `src/auth.tsx` (đăng nhập Google/email, xin tham gia, CEO duyệt — `RealMembers`). Có `VITE_SUPABASE_URL/ANON_KEY` → bản thật (tắt dải demo, vai trò cố định); không có → demo như cũ.
+- Lớp 2 ở app: `allow()` trong store; tìm SĐT chỉ Lễ tân/CEO, khớp đủ số (`phoneMatch`).
+- Còn lại: Ly tạo dự án Supabase → chạy migration → nối dữ liệu nghiệp vụ → thử nội bộ → phát hành.
+
 ## Rà soát số liệu 13/10 (trước phát hành)
 - Leader ③④⑤ (Vận hành, Chi tổng, Doanh thu–LN) giờ lấy cùng nguồn `period.ts` theo kỳ chung (trước lấy chi phí cả tháng trừ tiền thu hôm nay → lợi nhuận âm sai).
 - `vndShort` hiện số âm đúng (-24,2tr). Mục tiêu tháng = đúng mục tiêu CEO (chia theo số ngày thật của tháng).

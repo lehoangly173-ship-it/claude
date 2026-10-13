@@ -5,7 +5,7 @@ import { PeriodBar } from '../charts'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useStore } from '../store'
 import * as D from '../data'
-import { cust, waitingBills } from '../logic'
+import { cust, waitingBills, phoneMatch } from '../logic'
 import { Icon, Pill, Stat, PageHeader, Seg, Modal, Empty, NumInput } from '../ui'
 
 const MAX_MANUAL_DISCOUNT = 0.2 // giảm tay tối đa 20%/dòng; hơn nữa phải qua chương trình/voucher đã được chị duyệt
@@ -83,7 +83,7 @@ function InvoiceList() {
 
 type Line = D.InvoiceLine & { key: number }
 function InvoiceEditor({ init, onClose }: { init: { customerId?: string; apptIds: string[]; continueCard?: string }; onClose: () => void }) {
-  const { s, confirmInvoice, addCustomer, me } = useStore()
+  const { s, confirmInvoice, addCustomer, me, user } = useStore()
   const [customerId, setCustomerId] = useState(init.customerId ?? '')
   const [q, setQ] = useState('')
   const c = customerId ? cust(s, customerId) : null
@@ -156,7 +156,7 @@ function InvoiceEditor({ init, onClose }: { init: { customerId?: string; apptIds
       pkgSale: mode === 'none' ? undefined : mode === 'continue' ? { cardCode: contCard, name: contPkg?.name ?? '', price: pkgDueNow, mode } : { cardCode: cardCode.trim(), name: catObj.name, price: pkgPrice, mode } }, draft ? undefined : pkgNew, draft ? 0 : pkgCollect)
     onClose()
   }
-  const matches = !c && q.trim() ? s.customers.filter(x => x.name.toLowerCase().includes(q.toLowerCase()) || x.code.toLowerCase() === q.toLowerCase() || x.phone.replace(/\s/g, '').includes(q.replace(/\s/g, ''))).slice(0, 5) : []
+  const matches = !c && q.trim() ? s.customers.filter(x => x.name.toLowerCase().includes(q.toLowerCase()) || x.code.toLowerCase() === q.toLowerCase() || phoneMatch(user.role, x.phone, q)).slice(0, 5) : []
 
   return <Modal wide title="Hóa đơn thanh toán" onClose={onClose} footer={<>
     <span className="small muted" style={{ marginRight: 'auto' }}>Người tạo: {me.name} · {D.hhmm(s.now)}</span>

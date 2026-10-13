@@ -174,4 +174,18 @@ export const T = {
     exportBtn: 'Xuất file khách hàng (CSV)',
     exportNote: 'Chỉ CEO được xuất file dữ liệu khách.',
   },
+  auth: {
+    loading: 'Đang kiểm tra đăng nhập…', error: 'Không kết nối được máy chủ', retry: 'Thử lại',
+    title: 'Đăng nhập HOME SPA', sub: 'Dùng tài khoản Google hoặc email công việc. Lần đầu đăng nhập cần chị Quyên (CEO) duyệt và gán vai trò.',
+    google: 'Đăng nhập bằng Google', or: '— hoặc —', email: 'Email', sendLink: 'Gửi link đăng nhập qua email',
+    sent: (e: string) => `Đã gửi link đăng nhập tới ${e}. Mở email trên máy này và bấm vào link.`,
+    pendingTitle: 'Xin tham gia HOME SPA', name: 'Họ tên', wantRole: 'Vai trò xin cấp', request: 'Gửi yêu cầu cho CEO duyệt',
+    waiting: (r: string) => `Đã gửi yêu cầu vai trò ${r}. Chờ CEO duyệt — duyệt xong mở lại app là vào được.`,
+    rejected: 'Yêu cầu trước đã bị từ chối. Có thể gửi lại nếu cần.', signOut: 'Đăng xuất',
+    ceoOnly: 'Chỉ CEO quản lý tài khoản và vai trò.', requests: 'Yêu cầu tham gia đang chờ', wants: 'Xin vai trò',
+    roleFor: (n: string) => `Vai trò cho ${n}`, approve: 'Duyệt', reject: 'Từ chối', approvedOk: 'Đã duyệt và gán vai trò', rejectedOk: 'Đã từ chối',
+    noRequests: 'Không có yêu cầu nào đang chờ', team: 'Tài khoản nhân sự', locked: 'đã khóa', hasAccount: 'Đã có tài khoản đăng nhập', noAccount: 'Chưa gắn tài khoản',
+    roleChanged: 'Đã đổi vai trò', lock: 'Khóa', unlock: 'Mở khóa', lockedOk: 'Đã khóa tài khoản', unlockedOk: 'Đã mở khóa',
+    realData: 'Bản thật: đăng nhập & phân quyền đã bật. Dữ liệu nghiệp vụ chưa nối máy chủ — các màn đang hiện số liệu mẫu.',
+  },
 } as const

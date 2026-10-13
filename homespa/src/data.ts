@@ -170,7 +170,8 @@ export const stamp = (min: number) => `${dateShort()} · ${hhmm(min)}`
 export const weekNo = (d = TODAY) => { const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())); const n = t.getUTCDay() || 7; t.setUTCDate(t.getUTCDate() + 4 - n); const y = new Date(Date.UTC(t.getUTCFullYear(), 0, 1)); return Math.ceil(((+t - +y) / 864e5 + 1) / 7) }
 /** Năm của tuần ISO (đầu tháng 1 có thể thuộc tuần 52/53 năm trước) */
 export const weekYear = (d = TODAY) => { const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())); t.setUTCDate(t.getUTCDate() + 4 - (t.getUTCDay() || 7)); return t.getUTCFullYear() }
-export const DEMO = true // chế độ chạy thử: hiện nút đổi vai trò, tua giờ, khôi phục dữ liệu mẫu
+/** Chế độ chạy thử (hiện nút đổi vai trò, tua giờ, khôi phục dữ liệu mẫu) — TỰ TẮT khi build có cấu hình Supabase (bản thật) */
+export const DEMO = !(import.meta.env?.VITE_SUPABASE_URL && import.meta.env?.VITE_SUPABASE_ANON_KEY)
 export const pctChange = (now: number, prev: number) => (prev === 0 ? 0 : Math.round(((now - prev) / prev) * 100))
 
 // ─────────────────────────────────────────────────────────────────────────────

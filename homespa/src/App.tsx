@@ -12,6 +12,8 @@ import { KtvMine } from './screens/mine'
 import { LeaderHome, TeamTab, LeaderCare, MarketingHome, MarketingCust, MarketingMine, CeoHome, CeoCust, CeoMoc, CeoMine } from './screens/roles'
 import { LeaderCustomers, MocScreen, MineScreen } from './screens/leader'
 import { KtvCustTab } from './screens/ktvCustomers'
+import { useAuth } from './auth'
+import { T } from './i18n'
 type Tab = { id: string; label: string; icon: string }
 const H: Tab = { id: 'home', label: 'Hôm nay', icon: 'home' }, C: Tab = { id: 'cust', label: 'Khách hàng', icon: 'users' }
 const M: Tab = { id: 'moc', label: 'Hỏi Mộc', icon: 'chat' }, ME: Tab = { id: 'me', label: 'Của tôi', icon: 'me' }
@@ -63,7 +65,8 @@ function useDesktop() {
 }
 
 export default function App() {
-  const { s, user, setUser, me, page, go, profile, openCustomer, toast, advance, reset } = useStore()
+  const { s, user, setUser, me, page, go, profile, openCustomer, toast, advance, reset, real } = useStore()
+  const auth = useAuth()
   const wd = useWorkDay(), past = isPastDay(), canWrite = user.role === 'leader' || user.role === 'ceo'
   const mainRef = useRef<HTMLElement>(null)
   useEffect(() => { mainRef.current?.scrollTo?.({ top: 0 }); window.scrollTo?.({ top: 0 }) }, [page, user.role]) // sang trang mới luôn bắt đầu từ đầu trang
@@ -117,12 +120,14 @@ export default function App() {
           <button className="rchip ghost" onClick={reset}>Dữ liệu mẫu · 5 bộ phận</button>
         </div>
       </div>}
+      {real && <div className="note small" style={{ margin: '8px 16px 0' }}>{T.auth.realData}</div>}
       <div className="appbar">
         <span className="avatar">{me.name.replace('Chị ', '')[0]}</span>
-        <div className="who"><small>{user.role === 'ceo' ? 'CEO' : user.role === 'ktv' ? 'KTV Trị liệu' : D.ROLE_LABEL[user.role]}</small><b>{user.role === 'ceo' ? 'Dr. Quyên' : me.name}</b></div>
+        <div className="who"><small>{user.role === 'ceo' ? 'CEO' : user.role === 'ktv' ? 'KTV Trị liệu' : D.ROLE_LABEL[user.role]}</small><b>{user.role === 'ceo' && !real ? 'Dr. Quyên' : me.name}</b></div>
         <span className="grow" />
         <label className={`today-chip${past ? ' past' : ''}`} title="Chọn ngày làm việc">📅 {D.TODAY.toLocaleDateString('vi-VN', { weekday: 'short' })} {D.dateShort()} ▾
           <input type="date" aria-label="Chọn ngày làm việc" min={iso(addDays(realToday(), -365))} max={iso(realToday())} value={iso(D.TODAY)} onClick={e => { try { (e.currentTarget as HTMLInputElement & { showPicker?: () => void }).showPicker?.() } catch { /* trình duyệt cũ */ } }} onChange={e => e.target.value && setWorkDay(e.target.value)} /></label>
+        {auth && <button className="iconbtn" onClick={auth.signOut} aria-label={T.auth.signOut} title={`${T.auth.signOut} · ${auth.email}`}><span aria-hidden="true" style={{ fontSize: 16 }}>⎋</span></button>}
         <button className="iconbtn" onClick={() => nav('home/notices')} aria-label={`Thông báo${unread ? `, ${unread} chưa đọc` : ''}`}><Icon n="bell" s={18} />{unread > 0 && <span className="dot" />}</button>
       </div>
       {past && <div className={`pastbar${canWrite ? ' w' : ''}`}>{canWrite ? `Đang ghi/sửa cho ngày ${D.dateShort()}` : `Đang xem ngày ${D.dateShort()} — chỉ xem`}<button className="btn sm" onClick={() => setWorkDay(iso(realToday()))}>Về hôm nay</button></div>}

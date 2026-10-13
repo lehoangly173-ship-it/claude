@@ -2,6 +2,7 @@
 import { periodRanges, metrics, showRate } from '../period'
 import { useState } from 'react'
 import { useStore } from '../store'
+import { REAL, RealMembers } from '../auth'
 import * as D from '../data'
 import { Pill, PageHeader, Seg, Empty, Sec, Stat, Delta, Modal } from '../ui'
 import { ProgramsPanel, RoiPanel } from './leader'
@@ -39,6 +40,7 @@ export function ApprovalsScreen() {
 
 export function MembersScreen() {
   const { s } = useStore()
+  if (REAL) return <><PageHeader eyebrow="CEO" title="Thành viên & phân quyền" sub="Duyệt tài khoản, gán vai trò, khóa tài khoản — có ghi nhật ký" /><RealMembers /></>
   return <>
     <PageHeader eyebrow="Chị Quyên · CEO" title="Thành viên & phân quyền" sub="Ai cũng đăng nhập bằng Google, gửi yêu cầu tham gia — chị duyệt và gán vai trò" />
     <Sec eyebrow="Yêu cầu tham gia"><div className="card list">{s.join.map(j => <div key={j.id} className="item"><div className="body"><div className="t">{j.name} · {j.email}</div><div className="d">Xin vai trò {D.ROLE_LABEL[j.wantedRole]} · duyệt trong mục Phê duyệt</div></div><Pill tone={j.status === 'Đã duyệt' ? 'green' : j.status === 'Từ chối' ? 'red' : 'yellow'}>{j.status}</Pill></div>)}</div></Sec>

@@ -434,6 +434,8 @@ export function customersCsv(list: Customer[]) {
 }
 /** R5: SĐT khách chỉ Lễ tân + CEO */
 export const canSeePhone = (role: import('./data').Role) => role === 'reception' || role === 'ceo'
+/** Tìm khách theo SĐT: chỉ Lễ tân/CEO và phải khớp ĐỦ số (≥ 9 chữ số) — không dò được từng phần số */
+export const phoneMatch = (role: import('./data').Role, phone: string, q: string) => { const a = phone.replace(/\D/g, ''), b = q.replace(/\D/g, ''); return canSeePhone(role) && b.length >= 9 && a === b }
 
 // ═══ FIX LẦN 1 — Kho, chi tiêu, công nợ (một nguồn số) ═══
 const IT = (id: string) => D.STOCK_ITEMS.find(x => x.id === id)!

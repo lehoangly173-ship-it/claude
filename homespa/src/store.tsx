@@ -61,9 +61,12 @@ export const BUDGET_LIMIT = 2000000
 
 const BLOCK_MSG = 'Ngày đã qua chỉ xem — chỉ Leader và CEO được ghi hoặc sửa'
 const lastBlock = { t: 0 }
-function useStoreValue() {
-  const [s, setS] = useState<State>(initial)
-  const [user, setUser] = useState<User>({ role: 'ktv', staffId: 'mai' })
+function useStoreValue(real?: { id: string; name: string; role: D.Role; shift: 1 | 2 | null }) {
+  // Bản thật: vai trò cố định theo tài khoản (bảng staff ở máy chủ), không đổi được ở máy người dùng
+  const withMe = (st: State): State => real && !st.staff.some(x => x.id === real.id) ? { ...st, staff: [...st.staff, { id: real.id, name: real.name, role: real.role, ...(real.shift ? { shift: real.shift } : {}) }] } : st
+  const [s, setS] = useState<State>(() => withMe(initial()))
+  const [user, setUser0] = useState<User>(real ? { role: real.role, staffId: real.id } : { role: 'ktv', staffId: 'mai' })
+  const setUser = (u: User) => { if (!real) setUser0(u) }
   const [toast, setToast] = useState<string | null>(null)
   const [page, go] = useState('home')
   const [profile, openCustomer] = useState<string | null>(null)
@@ -76,7 +79,7 @@ function useStoreValue() {
   // Mỗi ngày làm việc giữ một bộ dữ liệu riêng: đổi ngày → cất dữ liệu ngày cũ, mở dữ liệu ngày mới (ngày chưa có → dữ liệu mẫu)
   const wd = useWorkDay(), dayKey = useRef(iso(D.TODAY)), days = useRef(new Map<string, State>())
   useEffect(() => { const k = iso(D.TODAY); if (k === dayKey.current) return
-    days.current.set(dayKey.current, s); setS(days.current.get(k) ?? initial()); dayKey.current = k }, [wd])
+    days.current.set(dayKey.current, s); setS(days.current.get(k) ?? withMe(initial())); dayKey.current = k }, [wd])
   const blocked = () => isPastDay() && user.role !== 'leader' && user.role !== 'ceo'
   const mutate = (fn: (d: State) => void) => { if (blocked()) { lastBlock.t = Date.now(); say(BLOCK_MSG); return } setS(prev => { const d = clone(prev); fn(d); return d }) }
   const id = (d: State, p: string) => `${p}${++d.seq}`
@@ -86,11 +89,13 @@ function useStoreValue() {
     const e = check(s); if (e) return e
     mutate(d => { if (!check(d)) apply(d) }); if (ok) say(ok); return null
   }
+  /** Kiểm vai trò ngay tại thao tác (lớp bảo vệ thứ 2 — lớp chính là RLS ở máy chủ) */
+  const allow = (...roles: D.Role[]) => { if (roles.includes(user.role)) return true; say('Bạn không có quyền làm việc này'); return false }
   const notify = (d: State, n: Omit<D.Notif, 'id' | 'min' | 'readBy'>) => d.notifs.unshift({ ...n, id: id(d, 'n'), min: d.now, readBy: [] })
 
   const actions = {
-    reset: () => { if (blocked()) { lastBlock.t = Date.now(); return say(BLOCK_MSG) } setS(initial()); say('Đã khôi phục dữ liệu mẫu') },
-    advance: (m: number) => mutate(d => { d.now = Math.min(20 * 60, d.now + m) }),
+    reset: () => { if (real) return say('Bản thật không có nút khôi phục dữ liệu mẫu'); if (blocked()) { lastBlock.t = Date.now(); return say(BLOCK_MSG) } setS(initial()); say('Đã khôi phục dữ liệu mẫu') },
+    advance: (m: number) => real ? undefined : mutate(d => { d.now = Math.min(20 * 60, d.now + m) }),
 
     // ── Lịch hẹn ── (kiểm tra 2 lần: trước khi bấm và ngay lúc ghi, để bấm đúp không tạo trùng)
     addAppt: (f: { customerId: string; serviceId: string; ktvId: string; bedId: string; start: number; requested: boolean; channel: string; note?: string; status?: D.ApptStatus; rotate?: boolean }): string | null => {
@@ -189,6 +194,7 @@ function useStoreValue() {
     // ── Thu ngân ──
     confirmInvoice: (inv: Omit<D.Invoice, 'code' | 'createdAt' | 'createdMin' | 'creator' | 'log'>, pkgNew?: D.Package, pkgCollect = 0): string => {
       if (blocked()) { lastBlock.t = Date.now(); say(BLOCK_MSG); return '' }
+      if (!allow('reception', 'leader', 'ceo')) return ''
       let code = ''
       mutate(d => {
         code = 'HD' + String(150 + ++d.seq).padStart(6, '0')
@@ -257,7 +263,7 @@ function useStoreValue() {
       })
       say(`Đã chuyển cho ${D.staffName(to)}`)
     },
-    setFeedback: (fid: string, status: D.Feedback['status']) => mutate(d => { const f = d.feedback.find(x => x.id === fid)!; f.status = status; f.handlerId = me.id }),
+    setFeedback: (fid: string, status: D.Feedback['status']) => allow('leader', 'ceo', 'reception') && mutate(d => { const f = d.feedback.find(x => x.id === fid)!; f.status = status; f.handlerId = me.id }),
 
     // ── Chương trình / sáng kiến: ngoài quyền hạn → chị duyệt trước ──
     addProgram: (p: Omit<D.Program, 'id' | 'status' | 'reached' | 'booked' | 'arrived' | 'revenue' | 'cost'>) => {
@@ -359,6 +365,7 @@ function useStoreValue() {
       mutate(d => { d.approvals.unshift({ ...a, id: id(d, 'ap'), fromId: me.id, status: 'Chờ duyệt' }) }); say('Đã gửi chị duyệt')
     },
     importOpening: (customerId: string, p: D.Package) => {
+      if (!allow('reception', 'leader', 'ceo')) return
       mutate(d => { cust(d, customerId).packages.push(p); cust(d, customerId).care.unshift({ at: D.stamp(d.now), by: me.name, text: `Nhập số dư đầu kỳ ${p.cardCode} (chuyển từ hệ thống cũ — không tính doanh thu hôm nay)` }) })
       say('Đã lưu số dư đầu kỳ')
     },
@@ -469,7 +476,7 @@ function useStoreValue() {
     addHandover: (to: string, text: string) => { mutate(d => { d.handovers.unshift({ id: id(d, 'ho'), from: me.id, to, text, at: d.now, status: 'Chờ xác nhận' }); notify(d, { cat: 'Hệ thống', text: `${me.name} bàn giao ca cho bạn`, detail: text, roles: ['ktv', 'reception', 'leader'], to: [to], nav: 'home/handover' }) }); say('Đã gửi bàn giao') },
     answerHandover: (hid: string, ok: boolean, reason = '') => { mutate(d => { const h = d.handovers.find(x => x.id === hid); if (!h || h.to !== me.id || h.status !== 'Chờ xác nhận') return; h.status = ok ? 'Đồng ý' : 'Không đồng ý'; h.reason = reason
       notify(d, { cat: 'Hệ thống', text: ok ? `${me.name} đã nhận bàn giao ca` : `${me.name} không nhận bàn giao — giao lại người khác`, detail: h.text + (reason ? ` · ${reason}` : ''), roles: ok ? ['ktv', 'reception', 'leader'] : ['ktv', 'reception', 'leader'], to: ok ? undefined : [h.from], nav: 'home/handover' }) }); say(ok ? 'Đã nhận — báo nhóm chung' : 'Đã báo người bàn giao') },
-    addExpense: (e: Omit<D.Expense, 'id' | 'by' | 'at'>) => { mutate(d => { d.expenses.unshift({ ...e, id: id(d, 'ex'), by: me.id, at: d.now }) }); say('Đã nhập chi phí') },
+    addExpense: (e: Omit<D.Expense, 'id' | 'by' | 'at'>) => { if (!allow('reception', 'leader', 'ceo')) return; mutate(d => { d.expenses.unshift({ ...e, id: id(d, 'ex'), by: me.id, at: d.now }) }); say('Đã nhập chi phí') },
     saveProfile: (p: D.StaffProfile) => { if (!p.fullName.trim()) { say('⚠ Cần họ tên'); return false } mutate(d => { d.profiles[me.id] = p }); say('Đã lưu hồ sơ'); return true },
     requestAdjust: (date: string, text: string) => { mutate(d => { d.adjusts.unshift({ id: id(d, 'aj'), staffId: me.id, date, text, at: d.now, status: 'Chờ duyệt' }); notify(d, { cat: 'Leader', text: `${me.name} xin điều chỉnh chấm công ${date}`, detail: text, roles: ['leader'], nav: 'team/attendance' }) }); say('Đã gửi — chờ duyệt') },
     addOpsCheck: (item: string, ok: boolean, note: string) => { mutate(d => { d.opsChecks.unshift({ id: id(d, 'oc'), item, by: me.id, at: d.now, ok, note }) }); say('Đã ghi nhận') },
@@ -490,7 +497,7 @@ function useStoreValue() {
         notify(d, { cat: 'Điểm uy tín', text: `${ok ? 'Đã duyệt' : 'Không duyệt'} ${p.delta > 0 ? '+' : ''}${p.delta} điểm`, detail: p.reason, roles: ['ktv', 'reception', 'marketing'], to: [p.staffId, p.by], nav: 'me' })
       })
     },
-    setZoneOwner: (zone: number, staffId: string) => mutate(d => { d.zoneOwner[zone] = staffId }),
+    setZoneOwner: (zone: number, staffId: string) => allow('ceo') && mutate(d => { d.zoneOwner[zone] = staffId }),
     logCare: (customerId: string, e: Omit<D.CareEntry, 'at' | 'by'>) => mutate(d => { cust(d, customerId).care.unshift({ ...e, at: D.stamp(d.now), by: me.name }) }),
     markRead: (nid: string) => mutate(d => markReadIn(d, nid, me.id)),
     markUnread: (nid: string) => mutate(d => markUnreadIn(d, nid, me.id)),
@@ -498,10 +505,10 @@ function useStoreValue() {
     toggleZoneCheck: (zone: number, i: number, init: boolean[]) => mutate(d => { const k = zoneKey(zone, me.id); const a = d.zoneChecks[k] ?? [...init]; a[i] = !a[i]; d.zoneChecks[k] = a }),
     markAllRead: () => mutate(d => { d.notifs.forEach(n => { if (canSee(n, user.role, me.id) && !n.readBy.includes(me.id)) n.readBy.push(me.id) }) }),
   }
-  return { s, user, setUser, me, toast, say, page, go, profile, openCustomer, draftBill, setDraftBill, ...actions, CLEAN_MIN }
+  return { s, user, setUser, me, toast, real: !!real, say, page, go, profile, openCustomer, draftBill, setDraftBill, ...actions, CLEAN_MIN }
 }
 
-export function StoreProvider({ children }: { children: ReactNode }) {
-  const v = useStoreValue()
+export function StoreProvider({ children, real }: { children: ReactNode; real?: { id: string; name: string; role: D.Role; shift: 1 | 2 | null } }) {
+  const v = useStoreValue(real)
   return <StoreCtx.Provider value={v}>{children}</StoreCtx.Provider>
 }

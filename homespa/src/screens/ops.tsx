@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useStore } from '../store'
 import * as D from '../data'
 import { overview, alerts, ktvState, bedState, cust, suggestKtv, earliestFor, freeBedFor, ktvConflict, bedConflict, custConflict, inShift, Alert, CLEAN_MIN } from '../logic'
-import { canSee } from '../logic'
+import { canSee, phoneMatch } from '../logic'
 import { Icon, Pill, Stat, PageHeader, Seg, Modal, Empty, Sec, Av } from '../ui'
 
 const STATUS_LABEL: Record<D.ApptStatus, [string, any]> = {
@@ -124,7 +124,7 @@ export function ScheduleScreen({ openNew }: { openNew?: boolean }) {
     if (!drag) return
     const d = drag; setDrag(null)
     if (!d.moved || d.cur === d.orig) { // chạm = mở chi tiết
-      if (d.kind === 'appt') setSel(d.id); else setDraft({ ktvId: d.ktvId, start: d.cur })
+      if (d.kind === 'appt') { const ap = s.appts.find(x => x.id === d.id); if (ap) open(ap) } else setDraft({ ktvId: d.ktvId, start: d.cur })
       return
     }
     if (d.kind === 'pot') { setPotPos(p => ({ ...p, [d.id]: d.cur })); return }
@@ -217,7 +217,7 @@ export function ApptModal({ id, onClose }: { id: string; onClose: () => void }) 
 }
 
 export function NewApptModal({ init, onClose }: { init: NewDraft; onClose: () => void }) {
-  const { s, addAppt, addCustomer } = useStore()
+  const { s, addAppt, addCustomer, user } = useStore()
   const [custId, setCustId] = useState('')
   const [q, setQ] = useState('')
   const [serviceId, setService] = useState('m60')
@@ -233,7 +233,7 @@ export function NewApptModal({ init, onClose }: { init: NewDraft; onClose: () =>
   const realKtv = ktvId === 'auto' ? autoKtv : ktvId
   const bed = m != null ? freeBedFor(s, serviceId, m, m + dur) : null
   const conflict = m == null ? 'Giờ không hợp lệ (HH:MM)' : !realKtv ? 'Không còn KTV trống giờ này' : ktvConflict(s, realKtv, m, m + dur) || (!bed ? 'Không còn giường trống đúng khu vực' : null)
-  const matches = q.trim() ? s.customers.filter(c => c.name.toLowerCase().includes(q.toLowerCase()) || c.phone.replace(/\s/g, '').includes(q.replace(/\s/g, '')) || c.code.toLowerCase() === q.toLowerCase()).slice(0, 5) : []
+  const matches = q.trim() ? s.customers.filter(c => c.name.toLowerCase().includes(q.toLowerCase()) || phoneMatch(user.role, c.phone, q) || c.code.toLowerCase() === q.toLowerCase()).slice(0, 5) : []
   const submit = () => {
     let cid = custId
     if (!cid) { if (!q.trim()) return setErr('Chọn hoặc nhập tên khách'); const nc = addCustomer({ name: q.trim(), phone: '', group: 'VN', source: 'Chưa xác định' }); if (typeof nc === 'string') return setErr(nc); cid = nc.id; setCustId(nc.id) }
