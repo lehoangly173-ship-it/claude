@@ -5,6 +5,8 @@ import { createContext, useContext, useState, useEffect, useRef, ReactNode } fro
 import * as D from './data'
 import { State, markReadIn, markUnreadIn, zoneKey, ktvConflict, bedConflict, custConflict, cust, shiftInvoices, CLEAN_MIN, canSee, aiCheck, canSendReport, zoneReport, suggestionError } from './logic'
 import { T } from './i18n'
+import { sb } from './auth'
+import { loadCustomers, loadStaff, insertCustomer } from './db'
 
 export type User = { role: D.Role; staffId: string }
 const DEFAULT_USER: Record<D.Role, string> = { reception: 'lam', ktv: 'mai', leader: 'thao', ceo: 'quyen', marketing: 'khoa' }
@@ -52,6 +54,14 @@ const initial = (): State => ({
   expenses: clone(D.SEED_EXPENSES), profiles: {}, adjusts: [],
 })
 
+/** Bản thật: không có dữ liệu mẫu. Khách + nhân sự đọc từ máy chủ; các nhóm còn lại (lịch, hóa đơn…) bắt đầu trống, nối ở bước sau. */
+const emptyReal = (real: { id: string; name: string; role: D.Role; shift: 1 | 2 | null }): State => {
+  const b = initial()
+  return { ...b, appts: [], queue: [], customers: [], invoices: [], cleaning: {}, rotation: { 1: [], 2: [] }, tasks: [], feedback: [], programs: [], initiatives: [], approvals: [], reports: [], notifs: [], join: [],
+    staff: [{ id: real.id, name: real.name, role: real.role, ...(real.shift ? { shift: real.shift } : {}) }], zoneOwner: {}, cleanReports: [], bills: [], billCheck: null, reviews: [], productLogs: [], leaves: [], attendance: {},
+    shiftCloses: [], points: [], opsChecks: [], stockMoves: [], opsReqs: [], xpChecks: [], handovers: [], expenses: [], profiles: {}, adjusts: [] }
+}
+
 type Ctx = ReturnType<typeof useStoreValue>
 const StoreCtx = createContext<Ctx | null>(null)
 export const useStore = () => useContext(StoreCtx)!
@@ -64,7 +74,7 @@ const lastBlock = { t: 0 }
 function useStoreValue(real?: { id: string; name: string; role: D.Role; shift: 1 | 2 | null }) {
   // Bản thật: vai trò cố định theo tài khoản (bảng staff ở máy chủ), không đổi được ở máy người dùng
   const withMe = (st: State): State => real && !st.staff.some(x => x.id === real.id) ? { ...st, staff: [...st.staff, { id: real.id, name: real.name, role: real.role, ...(real.shift ? { shift: real.shift } : {}) }] } : st
-  const [s, setS] = useState<State>(() => withMe(initial()))
+  const [s, setS] = useState<State>(() => real ? emptyReal(real) : withMe(initial()))
   const [user, setUser0] = useState<User>(real ? { role: real.role, staffId: real.id } : { role: 'ktv', staffId: 'mai' })
   const setUser = (u: User) => { if (!real) setUser0(u) }
   const [toast, setToast] = useState<string | null>(null)
@@ -75,11 +85,28 @@ function useStoreValue(real?: { id: string; name: string; role: D.Role; shift: 1
   const me = s.staff.find(x => x.id === user.staffId)!
   const say = (t: string) => { if (Date.now() - lastBlock.t < 400 && t !== BLOCK_MSG) return; setToast(t); window.clearTimeout((say as any)._t); (say as any)._t = window.setTimeout(() => setToast(null), 2600) }
 
+  // Bản thật: đọc khách + nhân sự từ máy chủ; tự cập nhật khi có thay đổi (realtime) hoặc quay lại app, và dự phòng 30 giây/lần
+  const hydrate = async () => {
+    if (!real) return
+    try {
+      const [customers, staff] = await Promise.all([loadCustomers(sb()), loadStaff(sb())])
+      setS(d => ({ ...d, customers, staff: staff.some(x => x.id === real.id) ? staff : [...staff, ...d.staff], rotation: { 1: staff.filter(x => x.role === 'ktv' && x.shift === 1).map(x => x.id), 2: staff.filter(x => x.role === 'ktv' && x.shift === 2).map(x => x.id) } }))
+    } catch (e) { say('⚠ ' + T.sync.failed + ': ' + (e as Error).message) }
+  }
+  useEffect(() => {
+    if (!real) return
+    hydrate()
+    const ch = sb().channel('homespa-sync').on('postgres_changes', { event: '*', schema: 'public', table: 'customers' }, () => hydrate()).subscribe()
+    const iv = window.setInterval(hydrate, 30000), vis = () => { if (document.visibilityState === 'visible') hydrate() }
+    document.addEventListener('visibilitychange', vis)
+    return () => { window.clearInterval(iv); document.removeEventListener('visibilitychange', vis); sb().removeChannel(ch) }
+  }, [])
+
   // mutate: sao chép trạng thái, sửa trên bản sao, ghi lại
   // Mỗi ngày làm việc giữ một bộ dữ liệu riêng: đổi ngày → cất dữ liệu ngày cũ, mở dữ liệu ngày mới (ngày chưa có → dữ liệu mẫu)
   const wd = useWorkDay(), dayKey = useRef(iso(D.TODAY)), days = useRef(new Map<string, State>())
   useEffect(() => { const k = iso(D.TODAY); if (k === dayKey.current) return
-    days.current.set(dayKey.current, s); setS(days.current.get(k) ?? withMe(initial())); dayKey.current = k }, [wd])
+    days.current.set(dayKey.current, s); setS(days.current.get(k) ?? (real ? emptyReal(real) : withMe(initial()))); dayKey.current = k; if (real) hydrate() }, [wd])
   const blocked = () => isPastDay() && user.role !== 'leader' && user.role !== 'ceo'
   const mutate = (fn: (d: State) => void) => { if (blocked()) { lastBlock.t = Date.now(); say(BLOCK_MSG); return } setS(prev => { const d = clone(prev); fn(d); return d }) }
   const id = (d: State, p: string) => `${p}${++d.seq}`
@@ -177,7 +204,10 @@ function useStoreValue(real?: { id: string; name: string; role: D.Role; shift: 1
       if (c.code && s.customers.some(x => x.code === c.code)) return `Mã ${c.code} đã tồn tại`
       const n = s.customers.filter(x => x.code.startsWith('KL')).length + 101
       const nc: D.Customer = { id: 'c' + Date.now(), code: c.code || 'KL' + String(n).padStart(4, '0'), name: c.name || 'Khách mới', phone: c.phone, group: c.group, source: c.source, firstVisit: D.dateShort(), visits: 0, lastVisitDays: 0, totalPaid: 0, packages: [], care: [] }
-      mutate(d => { d.customers.push(nc) }); return nc
+      if (real) nc.id = crypto.randomUUID()
+      mutate(d => { d.customers.push(nc) })
+      if (real) insertCustomer(sb(), nc, me.role).catch(e => { say('⚠ ' + T.sync.saveFailed + ': ' + (e as Error).message); hydrate() })
+      return nc
     },
     /** KTV ghi nhận chăm sóc: chỉ khách mình đã phục vụ hôm nay (đang làm / xong / đã thanh toán) */
     addCareNote: (customerId: string, n: Omit<D.CareNote, 'at' | 'date' | 'by' | 'byId'>) => {

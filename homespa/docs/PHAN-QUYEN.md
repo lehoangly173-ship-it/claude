@@ -54,7 +54,10 @@ Thêm: không ai sửa được cột ngoài phần được phép (VD duyệt �
 ## 4. Việc còn lại để phát hành (theo thứ tự)
 1. **Ly tạo dự án Supabase** (miễn phí). Mình hướng dẫn từng bước; Ly giữ mật khẩu, mình không cần biết. Bật đăng nhập Google, thêm link app vào "Redirect URLs".
 2. Chạy file `supabase/migrations/0001_phan_quyen.sql` trên dự án đó. Tạo dòng CEO đầu tiên cho chị Quyên. Chạy Supabase Advisors (security).
-3. **Nối dữ liệu nghiệp vụ** vào các bảng (khách, lịch, hóa đơn…). Hiện bản thật vẫn hiện số liệu mẫu trong máy (có ghi chú trên màn). Khi nối xong mới bỏ dữ liệu mẫu khỏi bản build.
+3. **Nối dữ liệu nghiệp vụ** theo nhóm. Bản thật đã **bỏ dữ liệu mẫu** (các nhóm chưa nối hiện trống).
+   - ✅ Nhóm 1 (15/10): **Khách + nhân sự** — đọc từ máy chủ (`src/db.ts`), thêm khách ghi lên `customers` (+ `customer_contacts` nếu Lễ tân/CEO có SĐT), tự cập nhật qua realtime (`migrations/0002_realtime.sql`) + 30 giây/lần + khi quay lại app. KTV chỉ nhận khách của mình; SĐT/tiền chỉ vai được phép (RLS).
+   - ⏳ Còn: gói liệu trình + ghi nhận chăm sóc, lịch hẹn, hàng chờ, hóa đơn, chấm công, kho/chi tiêu, nghỉ phép/điểm/lương, thông báo, cài đặt, ảnh. Mỗi nhóm: bảng đã có sẵn trong `0001`; cần viết mapper như `db.ts`, bật realtime, thử bằng máy chủ giả.
+   - Lưu ý: mã khách (KLxxxx) hiện do máy tạo; 2 lễ tân thêm cùng lúc có thể trùng mã → máy chủ từ chối, app báo và tải lại. Nên chuyển sang mã do máy chủ cấp khi nối nhóm hóa đơn.
 4. Thông báo: chỉ chấp nhận đường dẫn trong app. Xuất file khách làm ở máy chủ, chỉ CEO, có ghi nhật ký. Ảnh: xóa thông tin vị trí (EXIF) trước khi tải lên.
 5. Nhập nhân sự thật, chạy thử 1–2 ngày với vài người. Ly duyệt rồi mới phát hành.
 

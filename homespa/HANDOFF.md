@@ -183,3 +183,8 @@ Thứ tự:
 6. Bảo mật thêm: xác thực 2 lớp cho Ly + chị Quyên; cảnh báo bất thường (xuất nhiều dữ liệu/đăng nhập lạ).
 7. Chạy thử nội bộ 1–2 ngày với vài người → Ly duyệt → public.
 **Sao lưu/khôi phục:** `docs/PHAN-QUYEN.md` mục 5 + `supabase/backup/backup.sh` (hằng đêm, mã hóa, giữ 30 ngày, nơi khác Supabase). Thử nội bộ: gói miễn phí + backup.sh; có khách thật: gói Pro + PITR (PITR = quay về từng giây trong ~7 ngày; kiểm tra lại giá trước khi mua). Thử khôi phục mỗi tháng.
+
+### Tiến độ nối dữ liệu (cập nhật 15/10)
+- Nhóm 1 xong trên `team/phan-quyen`: khách + nhân sự nối Supabase (`src/db.ts`, `store.tsx` hydrate + realtime, `migrations/0002_realtime.sql`). Bản thật không còn dữ liệu mẫu; các nhóm khác trống tới khi nối. Sửa lỗi Mộc khi chưa có chương trình.
+- Kiểm thử: 97 test (có `src/db.test.ts`), quét bản thật bằng máy chủ giả cho 5 vai trò (không lỗi trang), thêm khách → ghi đúng bảng. Chưa thử với Supabase thật (chờ Ly tạo dự án).
+- Tiếp theo: nhóm 2 = gói liệu trình + ghi nhận chăm sóc → lịch hẹn/hàng chờ → hóa đơn → chấm công → kho/chi tiêu.

@@ -30,6 +30,7 @@ export const STAFF: Staff[] = [
 // Danh sách nhân sự đang dùng (cập nhật khi chị duyệt thành viên mới) — mọi màn đọc từ đây
 let STAFF_LIVE: Staff[] = STAFF
 export const setStaffLive = (l: Staff[]) => { STAFF_LIVE = l }
+export const staffLive = () => STAFF_LIVE
 export const ktvs = () => STAFF_LIVE.filter(s => s.role === 'ktv')
 export const firstOf = (r: Role) => STAFF_LIVE.find(s => s.role === r)?.id ?? ''
 export const staffName = (id?: string) => STAFF_LIVE.find(s => s.id === id)?.name ?? (id || '—')
