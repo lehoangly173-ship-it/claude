@@ -1,11 +1,12 @@
 // KTV & LỄ TÂN — 4 nút mẹ: HÔM NAY · (CÔNG VIỆC / VẬN HÀNH) · KHÁCH HÀNG · HỎI ĐÁP MỘC · CỦA TÔI
 import { Income } from './mine'
+import { PerfTrend } from './fix4'
 import { OpsBase2, HandoverPage } from './reception2'
 import { ReactNode, useState, useRef } from 'react'
 import { useStore } from '../store'
 import * as D from '../data'
-import { prioOf, canSee, unreadCount, cust, myZones, zoneReport, tourOrder, billRows, overview, alerts, pointsOf, expectedByMethod, ktvState, lastCloseAt, soldToday } from '../logic'
-import { Hero, Tiles, Nodes, Block, ChipGrid, SubHead, Pill, Empty, Modal, Seg, Av, PhotoInput, NodeSpec, Icon, NumInput } from '../ui'
+import { prioOf, canSee, unreadCount, cust, myZones, zoneReport, tourOrder, billRows, overview, alerts, pointsOf, expectedByMethod, ktvState, lastCloseAt, soldToday, stayState } from '../logic'
+import { Hero, Tiles, Nodes, Block, ChipGrid, SubHead, Pill, Empty, Modal, Seg, Av, PhotoInput, NodeSpec, Icon, NumInput, StayPill } from '../ui'
 import { ShiftTourPage, CleaningPage, BoardPage, KtvCustomersPage, NoticesPage, BillsPage, ReviewsPage, ProductsPage, LeavePage, IncidentPage, LeaveModal, IdeaPage, IdeasInboxPage } from './daily'
 import { T } from '../i18n'
 import { OverviewScreen, ScheduleScreen, QueueScreen, BedsScreen } from './ops'
@@ -234,8 +235,9 @@ export function ReceptionCustomers({ embed }: { embed?: boolean } = {}) {
   const unhappy = new Set(s.feedback.filter(f => f.rating <= 3 && f.status !== 'đã xử lý').map(f => f.customerId))
   const referrers = new Set(s.customers.map(c => c.referredBy).filter(Boolean))
   const base = s.customers.filter(c => (c.group === 'NN') === isNN && (c.packages.length > 0) === isLT)
-  const filters = isLT ? ['Tất cả', 'Đã cọc, còn thiếu', 'Đã thanh toán đủ', 'Còn 2 buổi cuối', 'Còn buổi cuối cùng', 'Đã hết liệu trình', 'Sinh nhật tháng này', 'Chưa hài lòng', 'Lâu chưa quay lại']
-    : ['Tất cả', 'Khách mới (1 lần)', 'Lâu chưa quay lại', 'Sinh nhật tháng này', 'Chưa hài lòng', 'Có giới thiệu khách']
+  const STAYF = ['Đang ở Đà Nẵng', 'Chưa nhập lưu trú', 'Đã rời Đà Nẵng'] // Fix lần 4: lọc theo thời gian lưu trú
+  const filters = isLT ? ['Tất cả', 'Đã cọc, còn thiếu', 'Đã thanh toán đủ', 'Còn 2 buổi cuối', 'Còn buổi cuối cùng', 'Đã hết liệu trình', 'Sinh nhật tháng này', 'Chưa hài lòng', 'Lâu chưa quay lại', ...STAYF]
+    : ['Tất cả', 'Khách mới (1 lần)', 'Lâu chưa quay lại', 'Sinh nhật tháng này', 'Chưa hài lòng', 'Có giới thiệu khách', ...STAYF]
   const match = (c: D.Customer) => {
     switch (flt) {
       case 'Khách mới (1 lần)': return c.visits <= 1
@@ -243,11 +245,16 @@ export function ReceptionCustomers({ embed }: { embed?: boolean } = {}) {
       case 'Sinh nhật tháng này': return bday(c)
       case 'Chưa hài lòng': return unhappy.has(c.id)
       case 'Có giới thiệu khách': return referrers.has(c.id)
+      case 'Đang ở Đà Nẵng': return stayState(c) === 'in'
+      case 'Chưa nhập lưu trú': return stayState(c) == null
+      case 'Đã rời Đà Nẵng': return stayState(c) === 'left'
       case 'Tất cả': return true
       default: return c.packages.some(p => pkgIs(p, flt))
     }
   }
-  const list = base.filter(match).filter(c => (!rg.from || lastIso(c) >= rg.from) && (!rg.to || lastIso(c) <= rg.to)).filter(c => !q.trim() || c.name.toLowerCase().includes(q.toLowerCase()) || c.code.toLowerCase().includes(q.toLowerCase())).sort((a, b) => b.totalPaid - a.totalPaid)
+  // Không làm phiền khách đã rời Đà Nẵng: ẩn khỏi mọi bộ lọc CSKH, trừ khi chọn "Đã rời Đà Nẵng"
+  const away = flt === 'Đã rời Đà Nẵng' ? 0 : base.filter(match).filter(c => stayState(c) === 'left').length
+  const list = base.filter(match).filter(c => flt === 'Đã rời Đà Nẵng' || stayState(c) !== 'left').filter(c => (!rg.from || lastIso(c) >= rg.from) && (!rg.to || lastIso(c) <= rg.to)).filter(c => !q.trim() || c.name.toLowerCase().includes(q.toLowerCase()) || c.code.toLowerCase().includes(q.toLowerCase())).sort((a, b) => b.totalPaid - a.totalPaid)
   const script = (c: D.Customer) => unhappy.has(c.id) ? 'Gọi xin lỗi, hỏi rõ vấn đề, đề xuất xử lý trong quyền hạn' : bday(c) ? 'Chúc mừng sinh nhật + quà theo chương trình Sinh nhật vàng' : c.packages.some(p => ['Còn 2 buổi cuối', 'Còn buổi cuối cùng', 'Đã hết liệu trình'].includes(pkgState(p))) ? 'Hỏi tiến triển, tư vấn tái tục theo khung đã duyệt' : c.packages.some(p => D.pkgOwed(p) > 0) ? 'Nhắc nhẹ đóng tiếp khi khách đến' : c.lastVisitDays >= Math.max(7, days) ? 'Hỏi thăm, mời quay lại — hỏi lý do gián đoạn' : c.visits <= 1 ? 'Hỏi cảm nhận buổi đầu, mời đặt buổi 2' : 'Hỏi thăm sau dịch vụ'
   const logs = s.customers.flatMap(c => c.care.filter(x => x.kind))
   const fbBad = s.feedback.filter(f => f.rating <= 3)
@@ -263,16 +270,17 @@ export function ReceptionCustomers({ embed }: { embed?: boolean } = {}) {
     <section className="card pad col fbox"><span className="eyebrow">Chọn thời gian (lần đến gần nhất)</span><div className="grid fgrid">
       <label className="f">Từ ngày<input className="inp" type="date" value={rg.from} onChange={e => setRg({ ...rg, from: e.target.value })} /></label>
       <label className="f">Đến ngày<input className="inp" type="date" value={rg.to} onChange={e => setRg({ ...rg, to: e.target.value })} /></label></div></section>
-    <div style={{ overflowX: 'auto' }}><Seg value={grp} onChange={g => { setGrp(g); setFlt('Tất cả') }} items={[{ k: 'leVN', label: 'Khách lẻ Việt' }, { k: 'ltVN', label: 'Liệu trình Việt' }, { k: 'leNN', label: 'Khách lẻ nước ngoài' }, { k: 'ltNN', label: 'Liệu trình nước ngoài' }]} /></div>
+    <div style={{ overflowX: 'auto' }}><Seg value={grp} onChange={g => { setGrp(g); setFlt('Tất cả') }} items={[{ k: 'leVN', label: 'Khách lẻ Việt' }, { k: 'ltVN', label: 'Liệu trình Việt' }, { k: 'leNN', label: 'Khách lẻ nước ngoài ở Đà Nẵng' }, { k: 'ltNN', label: 'Liệu trình nước ngoài' }]} /></div>
     <div className="row">{filters.map(f => <button key={f} className={`btn sm${flt === f ? ' pri' : ''}`} onClick={() => setFlt(f)}>{f}</button>)}</div>
     <div className="row"><input className="inp" style={{ flex: 1, minWidth: 160 }} placeholder={isLT ? 'Tìm mã KH / tên' : 'Tìm tên / mã'} value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm khách" />
       {flt === 'Lâu chưa quay lại' && <label className="f" style={{ width: 150 }}>Số ngày ≥<NumInput className="inp num" min={7} step={7} value={days} onChange={v => setDays(v)} /></label>}</div>
+    {away > 0 && <div className="tiny muted">{T.stay.hidden(away)}</div>}
     <div className="card list">{list.map(c => <div key={c.id} className="item" style={{ alignItems: 'flex-start' }}><Av name={c.name} /><div className="body">
-      <button className="link" onClick={() => openCustomer(c.id)} style={{ color: 'var(--ink)' }}>{c.name} <span className="tiny muted">· mã {c.code}</span></button>
+      <button className="link" onClick={() => openCustomer(c.id)} style={{ color: 'var(--ink)' }}>{c.name} <span className="tiny muted">· mã {c.code}</span></button> <StayPill c={c} />
       <div className="d">{user.role === 'reception' || user.role === 'ceo' ? c.phone || 'chưa có SĐT' : 'SĐT ẩn'} · {c.visits} lần · {c.lastVisitDays ? `${c.lastVisitDays} ngày trước` : 'hôm nay'} · {D.vnd(c.totalPaid)}{c.packages.map(p => ` · ${p.cardCode}: ${pkgState(p)}`).join('')}</div>
       <div className="small" style={{ color: 'var(--green)' }}>🎯 {script(c)}</div>
       {c.care[0] && <div className="tiny muted">Gần nhất: {c.care[0].at} · {c.care[0].by}: {c.care[0].text}</div>}
-    </div>{user.role === 'reception' && <button className="btn sm pri" onClick={() => setCare(c)}>Ghi CSKH</button>}</div>)}
+    </div>{user.role === 'reception' && (stayState(c) === 'left' ? <span className="tiny muted">{T.stay.leftNoCare}</span> : <button className="btn sm pri" onClick={() => setCare(c)}>Ghi CSKH</button>)}</div>)}
       {!list.length && <Empty>Không có khách trong bộ lọc này</Empty>}</div>
     {care && <CareModal c={care} script={script(care)} onClose={() => setCare(null)} />}
   </>
@@ -312,6 +320,7 @@ export function MyPage({ sub }: { sub: string[] }) {
     case 'perf': return <><SubHead title="Hiệu suất & điểm uy tín" sub="Điểm đi theo sự kiện thật + minh chứng. Mộc chỉ giải thích, không tự cộng/trừ." onBack={back} />
       <Tiles items={user.role === 'ktv' ? [{ v: tours.length, l: 'Tour hôm nay' }, { v: tours.filter(x => ['done', 'paid'].includes(x.status)).length, l: 'Đã hoàn thành' }, { v: tours.filter(x => x.requested).length, l: 'Khách yêu cầu lại', tone: 'ok' }, { v: pointsOf(s, me.id), l: 'Điểm uy tín đã duyệt' }]
         : [{ v: s.invoices.filter(i => i.creator === me.name).length, l: 'Hóa đơn đã lập' }, { v: s.customers.reduce((t, c) => t + c.care.filter(x => x.by === me.name).length, 0), l: 'Lượt CSKH' }, { v: s.shiftCloses.filter(x => x.staffId === me.id).length, l: 'Lần chốt ca' }, { v: pointsOf(s, me.id), l: 'Điểm uy tín đã duyệt' }]} />
+      <PerfTrend id={me.id} role={user.role} />
       <Block title="Lịch sử điểm"><div className="card list">{pts.map(p => <div key={p.id} className="item"><span className="av" style={{ background: p.delta >= 0 ? 'var(--g-bg)' : 'var(--r-bg)', color: p.delta >= 0 ? 'var(--g-fg)' : 'var(--r-fg)' }}>{p.delta > 0 ? '+' : ''}{p.delta}</span><div className="body"><div className="t">{p.reason}</div><div className="d">{p.source} · {D.staffName(p.by)} · {D.hhmm(p.at)}</div></div><Pill tone={p.status === 'Đã duyệt' ? 'green' : p.status === 'Từ chối' ? 'red' : 'yellow'}>{p.status}</Pill></div>)}{!pts.length && <Empty>Chưa có điểm hôm nay</Empty>}</div></Block>
       <div className="note">Tiêu chí điểm uy tín: chuyên môn · chăm sóc khách · khách yêu cầu lại · feedback · tinh thần · chủ động · tuân thủ quy trình · học tập · văn hóa Home · sáng tạo.</div></>
     case 'train': return <><SubHead title="Đào tạo" sub="Học → Test → Tìm điểm yếu → Lộ trình → Nhắc luyện → Test lại" onBack={back} />

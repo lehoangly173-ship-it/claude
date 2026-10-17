@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useStore } from '../store'
 import * as D from '../data'
 import { cust, waitingBills, phoneMatch } from '../logic'
-import { Icon, Pill, Stat, PageHeader, Seg, Modal, Empty, NumInput } from '../ui'
+import { Icon, Pill, Stat, PageHeader, Seg, Modal, Empty, NumInput, NewCustFields, NEW_CUST, newCustArgs, type NewCust } from '../ui'
 
 const MAX_MANUAL_DISCOUNT = 0.2 // giảm tay tối đa 20%/dòng; hơn nữa phải qua chương trình/voucher đã được chị duyệt
 // Giá trị giảm của từng mã; mã chỉ dùng được khi chương trình gắn mã đó đang chạy (đã được duyệt)
@@ -92,7 +92,10 @@ function InvoiceEditor({ init, onClose }: { init: { customerId?: string; apptIds
   const [cat, setCat] = useState('p10'); const catObj = D.PACKAGE_CATALOG.find(p => p.id === cat)!
   const [cardCode, setCardCode] = useState(''); const [pkgDiscount, setPkgDiscount] = useState(0)
   const [renewOf, setRenewOf] = useState(''); const [contCard, setContCard] = useState(init.continueCard ?? '')
-  const [closer, setCloser] = useState(me.id); const [helper, setHelper] = useState(''); const [split, setSplit] = useState(100)
+  const [closer, setCloser] = useState(me.id); const [helper, setHelper] = useState('')
+  // Fix lần 4: lễ tân điền thẳng tiền HOA HỒNG SALE GÓI cho người chốt chính / người hỗ trợ → báo ở "Thu nhập của tôi"
+  const [comMain, setComMain] = useState(0); const [comHelp, setComHelp] = useState(0)
+  const [nc0, setNc] = useState<NewCust>(NEW_CUST)
   const [voucher, setVoucher] = useState(''); const [pays, setPays] = useState<{ method: D.PayMethod; amount: number }[]>([{ method: 'Tiền mặt', amount: 0 }])
   const [pkgCollect, setPkgCollect] = useState(0)
   const [err, setErr] = useState<string | null>(null)
@@ -132,7 +135,8 @@ function InvoiceEditor({ init, onClose }: { init: { customerId?: string; apptIds
       if (s.customers.some(x => x.packages.some(p => p.cardCode === cardCode.trim()))) return `Mã thẻ ${cardCode.trim()} đã tồn tại`
       if (pkgPrice <= 0) return 'Giá gói bằng 0 — cần chị duyệt trước'
       if (pkgDiscount > catObj.listPrice * MAX_MANUAL_DISCOUNT) return 'Giảm giá gói vượt khung — gửi chị duyệt trước'
-      if (helper && (split <= 0 || split >= 100)) return 'Có người hỗ trợ thì tỷ lệ người chốt phải từ 1–99%'
+      if (comMain < 0 || comHelp < 0) return 'Hoa hồng sale gói không được âm'
+      if (comMain + (helper ? comHelp : 0) > pkgPrice) return `Tổng hoa hồng sale gói (${D.vnd(comMain + (helper ? comHelp : 0))}) vượt giá bán gói`
     }
     if (mode === 'renew' && !renewOf) return 'Chọn gói cũ để tái tục'
     if (mode === 'continue' && (!contPkg || D.pkgOwed(contPkg) <= 0)) return 'Chọn gói còn thiếu tiền'
@@ -142,7 +146,7 @@ function InvoiceEditor({ init, onClose }: { init: { customerId?: string; apptIds
     if (hasPkg && svcCollect > svcPayable) return `Phân bổ cho dịch vụ lẻ thừa ${D.vnd(svcCollect - svcPayable)} — tăng phần thu cho gói`
     if (svcCollect < svcPayable) return `Dịch vụ lẻ phải thu đủ ${D.vnd(svcPayable)} (đang phân bổ ${D.vnd(Math.max(0, svcCollect))}). Chỉ gói mới được cọc / đóng một phần`
     return null
-  }, [c, lines, hasPkg, voucher, v, mode, cardCode, pkgPrice, pkgDiscount, helper, split, renewOf, contPkg, pays, paid, total, pkgCollect, pkgDueNow, svcCollect, svcPayable, s.customers, catObj])
+  }, [c, lines, hasPkg, voucher, v, mode, cardCode, pkgPrice, pkgDiscount, helper, comMain, comHelp, renewOf, contPkg, pays, paid, total, pkgCollect, pkgDueNow, svcCollect, svcPayable, s.customers, catObj])
 
   const sent = useRef(false)
   const submit = (draft: boolean) => {
@@ -150,7 +154,8 @@ function InvoiceEditor({ init, onClose }: { init: { customerId?: string; apptIds
     if (!draft && problem) return setErr(problem)
     if (!c) return setErr('Chưa chọn khách hàng')
     const today = D.dateShort(); const exp = new Date(D.TODAY); exp.setMonth(exp.getMonth() + catObj.months)
-    const pkgNew: D.Package | undefined = (mode === 'new' || mode === 'renew') ? { cardCode: cardCode.trim(), catalogId: cat, name: catObj.name, type: catObj.type, group: catObj.group, buyDate: today, expiry: D.dateShort(exp), finalPrice: pkgPrice, closer: helper ? `${D.staffName(closer)} ${split}% · ${D.staffName(helper)} ${100 - split}%` : closer, closerIds: [closer, helper].filter(Boolean), renewalOf: mode === 'renew' ? renewOf : undefined, sessions: catObj.sessions, bonus: catObj.bonus, used: 0, value: catObj.value, bonusValue: catObj.bonusValue, valueUsed: 0, payments: [], usage: [] } : undefined
+    const pkgNew: D.Package | undefined = (mode === 'new' || mode === 'renew') ? { cardCode: cardCode.trim(), catalogId: cat, name: catObj.name, type: catObj.type, group: catObj.group, buyDate: today, expiry: D.dateShort(exp), finalPrice: pkgPrice, closer: helper ? `${D.staffName(closer)} (chốt chính) · ${D.staffName(helper)} (hỗ trợ)` : closer, closerIds: [closer, helper].filter(Boolean),
+      commissions: [{ staffId: closer, role: 'Chốt chính' as const, amount: comMain }, ...(helper ? [{ staffId: helper, role: 'Hỗ trợ' as const, amount: comHelp }] : [])].filter(x => x.amount > 0).map(x => ({ ...x, date: today, at: D.stamp(s.now), by: me.name })), renewalOf: mode === 'renew' ? renewOf : undefined, sessions: catObj.sessions, bonus: catObj.bonus, used: 0, value: catObj.value, bonusValue: catObj.bonusValue, valueUsed: 0, payments: [], usage: [] } : undefined
     sent.current = true
     confirmInvoice({ customerId: c.id, voucherProgramId: v?.program, voucherDiscount: vDisc, pkgCollect: draft ? 0 : pkgCollect, status: draft ? 'Nháp' : status, lines: lines.map(({ key, ...l }) => l), total, paid: draft ? 0 : paid, payments: pays.filter(p => p.amount > 0), voucher: v ? v.label : undefined,
       pkgSale: mode === 'none' ? undefined : mode === 'continue' ? { cardCode: contCard, name: contPkg?.name ?? '', price: pkgDueNow, mode } : { cardCode: cardCode.trim(), name: catObj.name, price: pkgPrice, mode } }, draft ? undefined : pkgNew, draft ? 0 : pkgCollect)
@@ -165,7 +170,8 @@ function InvoiceEditor({ init, onClose }: { init: { customerId?: string; apptIds
     {/* A. Khách */}
     <div className="col inv-sec"><span className="inv-h">A · Khách hàng</span>
       {c ? <div className="row"><b>{c.name}</b><span className="muted small">mã {c.code} · {c.visits} lượt</span>{c.packages.map(p => <Pill key={p.cardCode} tone="brown">{p.cardCode}: còn {D.pkgLeftLabel(p)}</Pill>)}{!init.customerId && <button className="link small" onClick={() => setCustomerId('')}>Đổi</button>}</div>
-        : <><div className="row"><input id="ie-q" className="inp" style={{ flex: 1 }} value={q} onChange={e => setQ(e.target.value)} placeholder="Tìm mã khách, tên hoặc SĐT" />{q.trim() && !matches.length && <button className="btn" onClick={() => { const nc = addCustomer({ name: q.trim(), phone: '', group: 'VN', source: 'Chưa xác định' }); if (typeof nc !== 'string') setCustomerId(nc.id) }}>Tạo khách mới "{q.trim()}"</button>}</div>
+        : <><div className="row"><input id="ie-q" className="inp" style={{ flex: 1 }} value={q} onChange={e => setQ(e.target.value)} placeholder="Tìm mã khách, tên hoặc SĐT" />{q.trim() && !matches.length && <button className="btn" onClick={() => { const nc = addCustomer({ name: q.trim(), phone: '', source: 'Chưa xác định', ...newCustArgs(nc0) }); if (typeof nc !== 'string') setCustomerId(nc.id); else setErr(nc) }}>Tạo khách mới "{q.trim()}"</button>}</div>
+          {q.trim() && !matches.length && <NewCustFields v={nc0} onChange={setNc} />}
           {matches.map(x => <button key={x.id} className="btn sm" onClick={() => setCustomerId(x.id)}>{x.name} · {x.code}</button>)}</>}
     </div>
     {/* B. Dịch vụ */}
@@ -191,9 +197,10 @@ function InvoiceEditor({ init, onClose }: { init: { customerId?: string; apptIds
         <label className="f">Mã thẻ (khác mã khách)<input id="ie-card" className="inp" value={cardCode} onChange={e => setCardCode(e.target.value)} placeholder="VD: LT-0250" /></label>
         <label className="f">Giảm giá gói (≤ 20%)<NumInput id="ie-pdisc" className="inp num" min={0} step={100000} value={pkgDiscount} onChange={v => setPkgDiscount(Math.max(0, v))} /></label>
         <label className="f">Người chốt chính<select id="ie-closer" className="inp" value={closer} onChange={e => setCloser(e.target.value)}>{s.staff.filter(x => x.role !== 'ceo').map(x => <option key={x.id} value={x.id}>{x.name}</option>)}</select></label>
-        <label className="f">Người hỗ trợ<select id="ie-helper" className="inp" value={helper} onChange={e => { setHelper(e.target.value); setSplit(e.target.value ? 70 : 100) }}><option value="">Không</option>{s.staff.filter(x => x.id !== closer && x.role !== 'ceo').map(x => <option key={x.id} value={x.id}>{x.name}</option>)}</select></label>
-        {helper && <label className="f">Tỷ lệ người chốt (%)<NumInput id="ie-split" className="inp num" min={0} max={99} value={split} onChange={v => setSplit(v)} /></label>}
-        <div className="small" style={{ gridColumn: '1 / -1' }}>{catObj.type === 'session' ? `${catObj.sessions} buổi + tặng ${catObj.bonus}` : `Giá trị ${D.vnd(catObj.value!)} + tặng ${D.vnd(catObj.bonusValue!)}`} · hạn {catObj.months} tháng · giá bán <b>{D.vnd(pkgPrice)}</b>{helper && ` · hoa hồng chia ${split}% / ${100 - split}%`}</div>
+        <label className="f">Hoa hồng sale gói — người chốt chính (đ)<NumInput id="ie-com1" className="inp num" min={0} step={10000} value={comMain} onChange={v => setComMain(Math.max(0, v))} /></label>
+        <label className="f">Người hỗ trợ<select id="ie-helper" className="inp" value={helper} onChange={e => { setHelper(e.target.value); if (!e.target.value) setComHelp(0) }}><option value="">Không</option>{s.staff.filter(x => x.id !== closer && x.role !== 'ceo').map(x => <option key={x.id} value={x.id}>{x.name}</option>)}</select></label>
+        {helper && <label className="f">Hoa hồng sale gói — người hỗ trợ (đ)<NumInput id="ie-com2" className="inp num" min={0} step={10000} value={comHelp} onChange={v => setComHelp(Math.max(0, v))} /></label>}
+        <div className="small" style={{ gridColumn: '1 / -1' }}>{catObj.type === 'session' ? `${catObj.sessions} buổi + tặng ${catObj.bonus}` : `Giá trị ${D.vnd(catObj.value!)} + tặng ${D.vnd(catObj.bonusValue!)}`} · hạn {catObj.months} tháng · giá bán <b>{D.vnd(pkgPrice)}</b>{comMain + comHelp > 0 && ` · hoa hồng sale gói: ${D.staffName(closer)} ${D.vnd(comMain)}${helper ? ` · ${D.staffName(helper)} ${D.vnd(comHelp)}` : ''} (báo ở "Thu nhập của tôi")`}</div>
       </div>}
       {mode === 'continue' && <label className="f">Gói còn thiếu<select id="ie-cont" className="inp" value={contCard} onChange={e => setContCard(e.target.value)}><option value="">— chọn —</option>{c?.packages.filter(p => D.pkgOwed(p) > 0).map(p => <option key={p.cardCode} value={p.cardCode}>{p.cardCode} · thiếu {D.vnd(D.pkgOwed(p))}</option>)}</select></label>}
     </div>

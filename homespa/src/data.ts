@@ -71,7 +71,10 @@ export type Package = {
   buyDate: string; expiry: string; finalPrice: number; closer: string; closerIds?: string[]; renewalOf?: string
   sessions?: number; bonus?: number; used?: number; value?: number; bonusValue?: number; valueUsed?: number
   payments: Payment[]; usage: Usage[]
+  /** Hoa hồng sale gói do lễ tân nhập tay khi bán (Fix lần 4) — người chốt chính / người hỗ trợ */
+  commissions?: PkgCommission[]
 }
+export type PkgCommission = { staffId: string; role: 'Chốt chính' | 'Hỗ trợ'; amount: number; date: string; at: string; by: string }
 export const pkgPaid = (p: Package) => p.payments.reduce((s, x) => s + x.amount, 0)
 export const pkgOwed = (p: Package) => Math.max(0, p.finalPrice - pkgPaid(p))
 export const pkgLeft = (p: Package) => (p.type === 'session' ? (p.sessions ?? 0) + (p.bonus ?? 0) - (p.used ?? 0) : (p.value ?? 0) + (p.bonusValue ?? 0) - (p.valueUsed ?? 0))
@@ -101,6 +104,8 @@ export type Customer = {
   /** m4 (số liệu mẫu): có phản hồi chưa hài lòng · khách NN đã rời Đà Nẵng · tiến triển từng lần */
   unhappy?: boolean; departed?: boolean; progress?: string[]
   careNotes?: CareNote[]
+  /** Thời gian lưu trú tại Đà Nẵng (dd/mm/yyyy) — khách nước ngoài & khách Việt lẻ; hết hạn → không CSKH để tránh làm phiền */
+  stayFrom?: string; stayTo?: string
 }
 
 // ── Lịch phục vụ: vòng đời 1 lượt khách ──

@@ -16,6 +16,7 @@ import { OpsBase2, HandoverPage } from './reception2'
 import { TeamOps, LeaveApprove, OpsApprove, LeaderFin, LeaderMothers, StaffPerf, SalaryPage, TrainTree, LeaderCareTop } from './leader2'
 import { SettingDetail, RefPhotosPage } from './settings'
 import { MocDocs } from './mocDocs'
+import { PerfTrend, IncomeSummary } from './fix4'
 import { HealthDash, FinanceDash, StaffCompare, SourceDash, PeriodSummary } from './timeDash'
 import { HBars } from '../charts'
 
@@ -61,7 +62,7 @@ export function LeaderHome({ sub }: { sub: string[] }) {
     <Tiles items={[{ v: redo, l: 'Task cần làm lại', tone: redo ? 'warn' : undefined, onClick: () => go('home/cleaning') }, { v: stock, l: 'Kho cần đối chiếu', onClick: () => go('home/products') }, { v: incidents, l: 'Sự cố chưa đóng', tone: incidents ? 'warn' : undefined, onClick: () => go('home/tasks') }, { v: tourIssues, l: 'Lệch tour', onClick: () => go('home/bills') }]} />
     <TeamOps />
     {s.opsReqs.some(r => r.status === 'Chờ duyệt') && <button className="softbtn wide" onClick={() => go('home/approve')}>Duyệt đề xuất vận hành của lễ tân ({s.opsReqs.filter(r => r.status === 'Chờ duyệt').length})</button>}
-    <PeriodSummary onOpen={() => go('home/fin/rev')} />
+    <PeriodSummary onOpen={() => go('home/fin/money')} />
     <button className="softbtn wide" onClick={() => go('home/refphotos')}>🖼 Ảnh mẫu đối chiếu (Leader/CEO cấp & sửa)</button>
     <LeaderMothers />
     {opsBad > 0 && <Block title="Vấn đề cơ sở lễ tân báo"><div className="card list">{[...s.opsChecks.filter(x => !x.ok).map(x => ({ id: x.id, t: x.item, d: x.note, by: x.by, at: x.at })), ...s.xpChecks.filter(x => x.status === 'Không đạt – lễ tân xử lý' || x.help).map(x => ({ id: x.id, t: x.area, d: x.note || x.ai || '', by: x.by, at: x.at }))].map(x => <div key={x.id} className="item"><span className="sev cao" /><div className="body"><div className="t">{x.t}</div><div className="d">{x.d} · {D.staffName(x.by)} · {D.hhmm(x.at)}</div></div></div>)}</div></Block>}
@@ -151,7 +152,9 @@ export function MarketingMine({ sub }: { sub: string[] }) {
   const { me, go } = useStore()
   if (sub[0] === 'time' || sub[0] === 'perf') return <MyPage sub={sub} />
   return <SpecHub rows={MKT_NODES.M4.rows} sub={sub[0]} leaf={sub[1]} base="me" tag="Của tôi" title="Kết quả & năng lực"
-    custom={{ '4.2': () => <button className="softbtn" onClick={() => go('me/time')}>Mở lịch & chấm công</button>, '4.8': () => <button className="softbtn" onClick={() => go('me/perf')}>Mở điểm uy tín của tôi</button>, '4.5': () => <ProgramsPanel ownerFilter={me.id} only /> }} />
+    custom={{ '4.2': () => <button className="softbtn" onClick={() => go('me/time')}>Mở lịch & chấm công</button>, '4.8': () => <button className="softbtn" onClick={() => go('me/perf')}>Mở điểm uy tín của tôi</button>, '4.5': () => <ProgramsPanel ownerFilter={me.id} only />,
+      // Fix lần 4: KPI có mũi tên so với tháng trước + Tổng kết; Thu nhập có Tổng kết (bảng lương Marketing chờ CEO cài)
+      '4.7': () => <PerfTrend id={me.id} role="marketing" />, '4.9': () => <IncomeSummary /> }} />
 }
 
 // ═══════════════ CEO ═══════════════

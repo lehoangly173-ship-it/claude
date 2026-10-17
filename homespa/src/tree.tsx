@@ -10,6 +10,7 @@ import type { SpecRow } from './specs'
 import { lastRanges, metrics, cost as costOf, profit, prevOf, periodRanges, staffMetrics, customUnit, usePeriod, type Gran, type Period } from './period'
 import { PeriodBar } from './charts'
 import { ColChart, HBars, Donut } from './charts'
+import { NewTaskModal } from './screens/leader'
 
 export type Kid = { no?: string; l: string; onClick: () => void }
 export type TreeItem = { no?: ReactNode; icon?: string; t: string; d?: string; badge?: number; alert?: boolean; onClick: () => void; kids: Kid[] }
@@ -51,11 +52,30 @@ const acts = (r: SpecRow) => (parts(r)[2] ?? '').split(' · ').map(x => x.trim()
 const h = (str: string) => { let x = 7; for (const c of str) x = (x * 31 + c.charCodeAt(0)) >>> 0; return x }
 // ── Dữ liệu cho nút cháu: lấy thực thể THẬT trong app (nhân viên, khách, chiến dịch, nguồn, dự án, kho, tháng)
 //    rồi tính chỉ số theo cột chắt → số khớp với tổng quan; mục tiêu/kỳ trước là số liệu mẫu suy ra từ số thật.
-type Ent = { l: string; v: number; rev: number; cost: number; budget?: number; owner: string; ch: string; note: string; rate?: number; prev?: number; target?: number; date?: string }
+type Ent = { l: string; v: number; rev: number; cost: number; budget?: number; owner: string; ch: string; note: string; rate?: number; prev?: number; target?: number; date?: string
+  /** Fix lần 4: số đếm theo đúng tên cột (VD trạng thái việc: chưa làm · đang làm · chờ duyệt · quá hạn · hoàn thành) */
+  cnt?: Record<string, number>; vKey?: RegExp }
 type St = ReturnType<typeof useStore>['s']
 export function entities(s: St, ctx: string, per: Period = { g: 'month' }): { kind: string; rows: Ent[] } {
   const c = ctx.toLowerCase(), leader = D.staffLive().find(x => x.role === 'leader')?.name ?? 'Leader', mkt = D.staffLive().find(x => x.role === 'marketing')?.name ?? 'Marketing'
   const inv = s.invoices.filter(i => i.status !== 'Đã xóa' && i.status !== 'Nháp')
+  // Fix lần 4 — Công việc: đếm theo trạng thái thật của việc (không lấy tên người điền vào cột trạng thái)
+  if (/công việc|việc được giao|nhiệm vụ/.test(c)) {
+    const me = s.staff.find(x => x.role === (/marketing/.test(c) ? 'marketing' : /leader/.test(c) ? 'leader' : 'ceo'))
+    const st = (ts: D.Task[]) => ({ 'chưa làm': ts.filter(t => t.status === 'open').length, 'đang làm': ts.filter(t => t.status === 'doing').length, 'quá hạn': ts.filter(t => ['open', 'doing'].includes(t.status) && t.dueMin != null && t.dueMin < s.now).length, 'hoàn thành': ts.filter(t => t.status === 'done').length, 'đã xong': ts.filter(t => t.status === 'done').length, 'chờ duyệt': s.approvals.filter(a => a.status === 'Chờ duyệt' && ts.some(t => t.id === a.refId)).length })
+    const ent = (l: string, ts: D.Task[], owner: string, ch: string): Ent => ({ l, v: ts.length, rev: 0, cost: 0, owner, ch, note: ts[0] ? `Gần nhất: ${ts[0].title}` : 'Chưa có việc', cnt: st(ts), rate: ts.length ? Math.round(ts.filter(t => t.status === 'done').length / ts.length * 100) : undefined, vKey: /^số việc|^tổng/ })
+    if (/định kỳ/.test(c)) return { kind: 'Việc định kỳ', rows: [{ l: 'Việc lặp lại theo tuần/tháng', v: 0, rev: 0, cost: 0, owner: me?.name ?? '', ch: 'Định kỳ', note: 'Chưa nối — app chưa có lịch việc định kỳ', cnt: {} }] }
+    if (/phối hợp/.test(c) && me) { const mine = s.tasks.filter(t => t.createdBy === me.id && t.ownerId !== me.id), by = [...new Set(mine.map(t => t.ownerId))]
+      return { kind: 'Người phối hợp', rows: by.length ? by.map(id => ent(D.staffName(id), mine.filter(t => t.ownerId === id), D.staffName(id), D.ROLE_LABEL[s.staff.find(x => x.id === id)?.role ?? 'ktv'])) : [ent('Chưa giao việc cho ai', [], '', '—')] } }
+    if (/cá nhân/.test(c) && me) { const mine = s.tasks.filter(t => t.ownerId === me.id), cats = [...new Set(mine.map(t => t.category))]
+      return { kind: 'Nhóm việc', rows: cats.length ? cats.map(k => ent(k, mine.filter(t => t.category === k), me.name, k)) : [ent('Chưa có việc được giao', [], me.name, '—')] } }
+    return { kind: 'Bộ phận', rows: (['reception', 'ktv', 'leader', 'marketing'] as D.Role[]).map(r => ent(D.ROLE_LABEL[r], s.tasks.filter(t => s.staff.find(x => x.id === t.ownerId)?.role === r), D.staffLive().find(x => x.role === 'leader')?.name ?? '', `${s.staff.filter(x => x.role === r).length} người`)) }
+  }
+  // Fix lần 4 — Dịch vụ theo nhóm (Massage / Gội): số lượt & tiền theo từng dịch vụ HÔM NAY (dữ liệu thật trong app)
+  const sg = /^massage/.test(c) ? 'Massage trị liệu' : /^gội/.test(c) ? 'Gội đầu dưỡng sinh' : null
+  if (sg) { const ap = s.appts.filter(a => ['done', 'paid', 'in_service'].includes(a.status))
+    return { kind: 'Dịch vụ', rows: D.SERVICES.filter(v => v.group === sg).map(v => { const n = ap.filter(a => a.serviceId === v.id).length, lines = inv.flatMap(i => i.lines.filter(l => l.serviceId === v.id && !l.cardCode))
+      return { l: v.name, v: n, rev: lines.reduce((t, l) => t + Math.max(0, l.price - l.discount), 0), cost: 0, owner: '', ch: sg, note: `${n} lượt hôm nay · giá niêm yết ${D.vndShort(v.price)}`, date: `Hôm nay ${D.dateShort()}`, vKey: /lượt|dịch vụ đã thực hiện|số khách/ } }) } }
   if (/kết quả & năng lực/.test(c)) { const mine = s.programs.filter(p => D.staffName(p.ownerId) === mkt)
     const wk = lastRanges('week', 4)
     return { kind: 'Tuần', rows: wk.map(r => r.name + (r.partial ? ' (này)' : '')).map((l, i) => { const k = i === 3 ? 1 : 0.7 + (h(l) % 40) / 100
@@ -103,9 +123,11 @@ export function entities(s: St, ctx: string, per: Period = { g: 'month' }): { ki
   ] }
 }
 const pct = (n: number) => `${n}%`
-export function cell(col: string, e: Ent): { v: string; n?: number; pill?: string } {
+export function cell(col: string, e: Ent, first = true): { v: string; n?: number; pill?: string } {
   // không bịa số: thiếu mục tiêu / kỳ trước / tỉ lệ thật → "Chưa nối"
   const c = col.toLowerCase(), target = e.target, prev = e.prev
+  if (e.cnt) { const k = Object.keys(e.cnt).find(x => c.includes(x)); if (k) return { v: String(e.cnt[k]), n: e.cnt[k] } }
+  if (e.vKey?.test(c)) return { v: String(e.v), n: e.v }
   const ok = target != null && e.v >= target * 0.9, d = prev != null ? e.v - prev : 0
   if (/lợi nhuận|lãi/.test(c)) return { v: D.vndShort(e.rev - e.cost), n: e.rev - e.cost }
   if (/chi phí|chi |chi$|giá vốn/.test(c)) return { v: D.vndShort(e.cost), n: e.cost }
@@ -115,13 +137,14 @@ export function cell(col: string, e: Ent): { v: string; n?: number; pill?: strin
   if (/mục tiêu|kế hoạch|định mức/.test(c)) return target != null ? { v: String(target), n: target } : { v: 'Chưa nối' }
   if (/kỳ trước|trước/.test(c)) return prev != null ? { v: String(prev), n: prev } : { v: 'Chưa nối' }
   if (/chênh lệch|xu hướng|tăng|giảm|thay đổi/.test(c)) return prev == null ? { v: 'Chưa nối' } : { v: `${d >= 0 ? '↑' : '↓'} ${Math.abs(d)}${prev ? ` (${Math.round(Math.abs(d) / prev * 100)}%)` : ''}`, n: d }
-  if (/người|phụ trách|giao|chủ trì|xử lý|duyệt/.test(c)) return { v: e.owner || '—' }
+  if (!/^(chờ|đã|đang|chưa)/.test(c) && /người|phụ trách|giao cho|chủ trì|xử lý|duyệt/.test(c)) return { v: e.owner || '—' }
   if (/hạn|ngày|thời gian|lịch|kỳ|lần cuối/.test(c)) return { v: e.date ?? 'Chưa nối' }
   if (/trạng thái|tiến độ|kết quả|tình trạng|đánh giá/.test(c)) { if (target == null) return { v: 'Chưa nối' }; const st = ok ? 'Đạt' : e.v >= target * 0.6 ? 'Đang làm' : 'Cần xử lý'; return { v: st, pill: st } }
   if (/cảnh báo|mức|ưu tiên|rủi ro|ảnh hưởng/.test(c)) { if (target == null) return { v: 'Chưa nối' }; const lv = ok ? 'Thấp' : e.v >= target * 0.6 ? 'Vừa' : 'Cao'; return { v: lv, pill: lv === 'Thấp' ? 'Đạt' : lv === 'Vừa' ? 'Đang làm' : 'Cần xử lý' } }
   if (/kênh|nguồn|loại|nhóm/.test(c)) return { v: e.ch }
   if (/nguyên nhân|lý do|ghi chú|nội dung|vấn đề|đề xuất|phương án|bằng chứng|nhận xét|mô tả|bài học|hành động|việc/.test(c)) return { v: e.note }
-  return { v: String(e.v), n: e.v }
+  if (e.cnt) return { v: 'Chưa nối' } // cột trạng thái chưa có dữ liệu
+  return first ? { v: String(e.v), n: e.v } : { v: 'Chưa nối' } // chỉ cột số chính lấy số đếm — không lặp cùng một số ở nhiều cột
 }
 /** Trang nút con: nút cháu (xổ sẵn) + phần màn thật nếu có */
 export function ConPage({ row, base, back, custom }: { row: SpecRow; base: string; back: () => void; custom?: ReactNode }) {
@@ -147,14 +170,25 @@ const LINKS: [RegExp, string, string][] = [
 ]
 /** Trang nút cháu: danh sách lấy từ dữ liệu app + chỉ số theo cột chắt + Mộc phân tích (giả lập) + thao tác cuối */
 export function ChauPage({ row, idx, base, ctx }: { row: SpecRow; idx: number; base: string; ctx: string }) {
-  const { s, go, user } = useStore()
+  const { s, go, user, requestApproval, say } = useStore()
   const [done, setDone] = useState<string[]>([])
+  const [task, setTask] = useState<string | null>(null)
   const ks = chau(row), k = ks[idx] ?? ks[0], cs = cols(row)
   const [per] = usePeriod()
   const ents = entities(s, `${k} ${row.t} ${ctx}`, per)
-  const data = ents.rows.map(e => ({ l: e.l, c: cs.map(c => cell(c, e)) }))
+  // cột đầu tiên không khớp quy tắc nào mới nhận số đếm chính; các cột lạ sau → "Chưa nối" (tránh lặp số)
+  const data = ents.rows.map(e => { let used = false; return { l: e.l, c: cs.map(c => { const r0 = cell(c, e, !used); if (r0.n === e.v && !e.vKey && !e.cnt && r0.v === String(e.v)) used = true; return r0 }) } })
   const link = user.role === 'ceo' ? LINKS.find(([re]) => re.test(`${k} ${row.t}`)) : undefined
   const ni = cs.findIndex((_, j) => data.filter(r => r.c[j].n !== undefined).length > 1)
+  // Fix lần 4: nút thao tác làm việc thật khi app đã có chức năng (tạo việc · gửi duyệt · mở màn liên quan); còn lại ghi nhận trong bản chạy thử
+  const act = (a: string) => {
+    const x = a.toLowerCase()
+    if (/tạo việc|giao việc|nhận việc|tạo bàn giao|phân công/.test(x)) return setTask(`${k}: ${a}`)
+    if (/gửi (duyệt|leader|ceo|chị)|chuyển duyệt|đề xuất|xin duyệt/.test(x) && user.role !== 'ceo') { requestApproval({ kind: 'Chuyển vượt quyền', title: `${row.t} · ${k}`, detail: a }); return setDone([...done, a]) }
+    if (/duyệt/.test(x) && user.role === 'ceo') return go('moc')
+    if (/^(mở|xem)/.test(x) && link) return go(link[1])
+    setDone([...done, a]); say(`Đã ghi "${a}" (bản chạy thử)`)
+  }
   const full = data.filter(r => !/\((đến nay|này)\)/.test(r.l)) // kỳ chưa hết không đem so cao/thấp
   const sorted = ni >= 0 ? [...(full.length > 1 ? full : data)].sort((a, b) => (b.c[ni].n ?? 0) - (a.c[ni].n ?? 0)) : []
   return <>
@@ -169,8 +203,9 @@ export function ChauPage({ row, idx, base, ctx }: { row: SpecRow; idx: number; b
     {ni >= 0 && <ChauChart kind={ents.kind} col={cs[ni]} rows={data.map((r, j) => ({ l: r.l, v: r.c[ni].n ?? 0, date: ents.rows[j]?.date }))} money={/tiền|doanh thu|thu|chi phí|lợi nhuận|ngân sách|giá trị|lương|công nợ/i.test(cs[ni])} />}
     {link && <button className="softbtn wide" onClick={() => go(link[1])}>Mở màn liên quan: {link[2]}</button>}
     {sorted.length > 1 && <div className="note"><b>🌿 Mộc phân tích (giả lập — Chưa nối AI thật):</b> {sorted[0].l} cao nhất về "{cs[ni]}" ({sorted[0].c[ni].v}); {sorted[sorted.length - 1].l} thấp nhất ({sorted[sorted.length - 1].c[ni].v}) — nên xem nguyên nhân trước khi quyết định.</div>}
-    {acts(row).length > 0 && <Block title="Thao tác"><div className="row">{acts(row).map(a0 => a0[0].toUpperCase() + a0.slice(1)).map(a => <button key={a} className={`btn${done.includes(a) ? '' : ' pri'}`} disabled={done.includes(a)} onClick={() => setDone([...done, a])}>{done.includes(a) ? `✓ ${a}` : a}</button>)}</div>
+    {acts(row).length > 0 && <Block title="Thao tác"><div className="row">{acts(row).map(a0 => a0[0].toUpperCase() + a0.slice(1)).map(a => <button key={a} className={`btn${done.includes(a) ? '' : ' pri'}`} disabled={done.includes(a)} onClick={() => act(a)}>{done.includes(a) ? `✓ ${a}` : a}</button>)}</div>
       {done.length > 0 && <div className="tiny muted">Đã ghi thao tác trong bản chạy thử (chưa lưu máy chủ).</div>}</Block>}
+    {task && <NewTaskModal preset={{ title: task, detail: `${row.t} · ${k}`, category: /khách|cskh/i.test(row.t + k) ? 'Khách hàng' : /chiến dịch|nội dung|marketing/i.test(row.t + k) ? 'Chương trình' : 'Vận hành' }} onClose={() => setTask(null)} />}
   </>
 }
 

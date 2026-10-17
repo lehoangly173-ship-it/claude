@@ -3,10 +3,10 @@
 import { isPastDay, useWorkDay, iso } from './period'
 import { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react'
 import * as D from './data'
-import { State, markReadIn, markUnreadIn, zoneKey, ktvConflict, bedConflict, custConflict, cust, shiftInvoices, CLEAN_MIN, canSee, aiCheck, canSendReport, zoneReport, suggestionError } from './logic'
+import { stayError, State, markReadIn, markUnreadIn, zoneKey, ktvConflict, bedConflict, custConflict, cust, shiftInvoices, CLEAN_MIN, canSee, aiCheck, canSendReport, zoneReport, suggestionError } from './logic'
 import { T } from './i18n'
 import { sb } from './auth'
-import { loadCustomers, loadStaff, insertCustomer, loadPackages, loadCare, insertCare, upsertPackage } from './db'
+import { loadCustomers, loadStaff, insertCustomer, loadPackages, loadCare, insertCare, upsertPackage, updateCustomerStay } from './db'
 
 export type User = { role: D.Role; staffId: string }
 const DEFAULT_USER: Record<D.Role, string> = { reception: 'lam', ktv: 'mai', leader: 'thao', ceo: 'quyen', marketing: 'khoa' }
@@ -207,11 +207,12 @@ function useStoreValue(real?: { id: string; name: string; role: D.Role; shift: 1
     },
     removeQueue: (qid: string) => mutate(d => { d.queue = d.queue.filter(x => x.id !== qid) }),
 
-    addCustomer: (c: Pick<D.Customer, 'name' | 'phone' | 'group' | 'source'> & { code?: string }): D.Customer | string => {
+    addCustomer: (c: Pick<D.Customer, 'name' | 'phone' | 'group' | 'source'> & { code?: string; stayFrom?: string; stayTo?: string }): D.Customer | string => {
       if (blocked()) { lastBlock.t = Date.now(); say(BLOCK_MSG); return BLOCK_MSG }
+      const se = stayError(c.stayFrom, c.stayTo); if (se) return se
       if (c.code && s.customers.some(x => x.code === c.code)) return `Mã ${c.code} đã tồn tại`
       const n = s.customers.filter(x => x.code.startsWith('KL')).length + 101
-      const nc: D.Customer = { id: 'c' + Date.now(), code: c.code || 'KL' + String(n).padStart(4, '0'), name: c.name || 'Khách mới', phone: c.phone, group: c.group, source: c.source, firstVisit: D.dateShort(), visits: 0, lastVisitDays: 0, totalPaid: 0, packages: [], care: [] }
+      const nc: D.Customer = { id: 'c' + Date.now(), code: c.code || 'KL' + String(n).padStart(4, '0'), name: c.name || 'Khách mới', phone: c.phone, group: c.group, source: c.source, firstVisit: D.dateShort(), visits: 0, lastVisitDays: 0, totalPaid: 0, packages: [], care: [], ...(c.stayFrom ? { stayFrom: c.stayFrom } : {}), ...(c.stayTo ? { stayTo: c.stayTo } : {}) }
       if (real) nc.id = crypto.randomUUID()
       mutate(d => { d.customers.push(nc) })
       if (real) insertCustomer(sb(), nc, me.role).catch(e => { say('⚠ ' + T.sync.saveFailed + ': ' + (e as Error).message); hydrate() })
@@ -227,6 +228,14 @@ function useStoreValue(real?: { id: string; name: string; role: D.Role; shift: 1
         c.care.unshift({ at: note.at, by: me.name, text: `Ghi nhận chăm sóc: ${D.careSummary(note)}` }) })
       if (!blocked()) persist(() => insertCare(sb(), customerId, { note }))
       say('Đã lưu ghi nhận vào hồ sơ khách')
+    },
+    /** Fix lần 4: thời gian lưu trú tại Đà Nẵng (Lễ tân / Leader / CEO) — CSKH không làm phiền khách đã rời đi */
+    setStay: (customerId: string, from: string, to: string): string | null => {
+      if (!allow('reception', 'leader', 'ceo')) return 'Bạn không có quyền làm việc này'
+      const e = stayError(from, to); if (e) { say('⚠ ' + e); return e }
+      if (blocked()) { lastBlock.t = Date.now(); say(BLOCK_MSG); return BLOCK_MSG }
+      mutate(d => { const c = cust(d, customerId); if (from) c.stayFrom = from; else delete c.stayFrom; if (to) c.stayTo = to; else delete c.stayTo })
+      persist(() => updateCustomerStay(sb(), customerId, from, to)); say('Đã lưu thời gian lưu trú'); return null
     },
     addCare: (customerId: string, text: string) => { const e = { at: D.stamp(s.now), by: me.name, text }; mutate(d => { cust(d, customerId).care.unshift(e) }); if (!blocked()) persist(() => insertCare(sb(), customerId, { entry: e })) },
 
@@ -255,6 +264,8 @@ function useStoreValue(real?: { id: string; name: string; role: D.Role; shift: 1
           const amt = Math.min(inv.pkgSale.price, pkgCollect)
           if (amt > 0) pkgNew.payments.push({ at, amount: amt, method: pay0, by: me.name, invoice: code, kind: amt >= pkgNew.finalPrice ? 'Thanh toán đủ' : 'Cọc' })
           c.packages.push(pkgNew)
+          // Fix lần 4: báo hoa hồng sale gói cho người chốt chính / người hỗ trợ → hiện ở "Thu nhập của tôi"
+          ;(pkgNew.commissions ?? []).filter(x => x.amount > 0).forEach(x => { const who = d.staff.find(y => y.id === x.staffId); if (who) notify(d, { cat: 'Thu ngân', text: `Hoa hồng sale gói ${pkgNew.cardCode}: ${D.vnd(x.amount)}`, detail: `${x.role} · ${pkgNew.name} · khách ${c.code} · ${me.name} ghi nhận`, roles: [who.role], to: [who.id], nav: who.role === 'ktv' || who.role === 'reception' ? 'me/income' : 'me' }) })
         } else if (inv.pkgSale?.mode === 'continue') {
           const p = c.packages.find(x => x.cardCode === inv.pkgSale!.cardCode)!
           const amt = Math.min(D.pkgOwed(p), pkgCollect)

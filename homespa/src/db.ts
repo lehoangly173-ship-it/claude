@@ -9,7 +9,7 @@ const one = <T,>(x: One<T>): T | undefined => (Array.isArray(x) ? x[0] : x ?? un
 
 export type CustomerRow = {
   id: string; code: string; name: string; grp: 'VN' | 'NN'; source: string | null; first_visit: string | null
-  visits: number; last_visit: string | null; vip: boolean; birthday: string | null
+  visits: number; last_visit: string | null; vip: boolean; birthday: string | null; stay_from?: string | null; stay_to?: string | null
   customer_contacts?: One<{ phone: string | null; address: string | null }>
   customer_health?: One<{ health: string | null; allergies: string | null; preference: string | null }>
   customer_finance?: One<{ total_paid: number | string }>
@@ -27,6 +27,7 @@ export function rowToCustomer(r: CustomerRow): D.Customer {
     totalPaid: Number(f?.total_paid ?? 0), vip: r.vip || undefined, dob: r.birthday ? D.dateShort(fromIso(r.birthday)) : undefined,
     address: ct?.address ?? undefined, health: [h?.health, h?.allergies].filter(Boolean).join(' · ') || undefined, preference: h?.preference ?? undefined,
     packages: [], care: [], // gói liệu trình & ghi nhận: nhóm kế tiếp
+    ...(r.stay_from ? { stayFrom: D.dateShort(fromIso(r.stay_from)) } : {}), ...(r.stay_to ? { stayTo: D.dateShort(fromIso(r.stay_to)) } : {}),
   }
 }
 
@@ -44,7 +45,7 @@ export async function loadStaff(sb: SupabaseClient): Promise<D.Staff[]> {
 
 /** Thêm khách: bảng chính trước, rồi SĐT (chỉ Lễ tân/CEO được ghi — máy chủ chặn vai khác). */
 export async function insertCustomer(sb: SupabaseClient, c: D.Customer, role: D.Role): Promise<void> {
-  const a = await sb.from('customers').insert({ id: c.id, code: c.code, name: c.name, grp: c.group, source: c.source || null, first_visit: iso(D.TODAY), visits: 0 })
+  const a = await sb.from('customers').insert({ id: c.id, code: c.code, name: c.name, grp: c.group, source: c.source || null, first_visit: iso(D.TODAY), visits: 0, stay_from: c.stayFrom ? toIso(c.stayFrom) : null, stay_to: c.stayTo ? toIso(c.stayTo) : null })
   if (a.error) throw new Error(a.error.message)
   if (c.phone && (role === 'reception' || role === 'ceo')) {
     const b = await sb.from('customer_contacts').insert({ customer_id: c.id, phone: c.phone })
@@ -57,7 +58,7 @@ export type PackageRow = {
   card_code: string; customer_id: string; name: string; type: 'session' | 'money'; grp: string | null; buy_date: string; expiry: string | null
   final_price: number | string; closer_ids: string[] | null; closer: string | null; catalog_id: string | null; renewal_of: string | null
   sessions: number | null; bonus: number | null; used: number | null; value: number | string | null; bonus_value: number | string | null; value_used: number | string | null
-  payments: D.Payment[] | null; usage: D.Usage[] | null
+  payments: D.Payment[] | null; usage: D.Usage[] | null; commissions?: D.PkgCommission[] | null
 }
 const num = (x: number | string | null | undefined) => (x == null ? undefined : Number(x))
 
@@ -66,16 +67,16 @@ export function rowToPackage(r: PackageRow): D.Package {
     cardCode: r.card_code, catalogId: r.catalog_id ?? '', name: r.name, type: r.type, group: (r.grp ?? 'Tất cả') as D.Package['group'],
     buyDate: D.dateShort(fromIso(r.buy_date)), expiry: r.expiry ? D.dateShort(fromIso(r.expiry)) : '', finalPrice: Number(r.final_price), closer: r.closer ?? '',
     closerIds: r.closer_ids ?? [], renewalOf: r.renewal_of ?? undefined, sessions: num(r.sessions), bonus: num(r.bonus), used: num(r.used),
-    value: num(r.value), bonusValue: num(r.bonus_value), valueUsed: num(r.value_used), payments: r.payments ?? [], usage: r.usage ?? [],
+    value: num(r.value), bonusValue: num(r.bonus_value), valueUsed: num(r.value_used), payments: r.payments ?? [], usage: r.usage ?? [], commissions: r.commissions ?? [],
   }
 }
-const toIso = (vn: string) => { const [d, m, y] = vn.split('/').map(Number); return d && m && y ? `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}` : null }
+function toIso(vn: string) { if (/^\d{4}-\d{2}-\d{2}$/.test(vn)) return vn; const [d, m, y] = vn.split('/').map(Number); return d && m && y ? `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}` : null }
 export function packageToRow(customerId: string, p: D.Package) {
   return {
     card_code: p.cardCode, customer_id: customerId, name: p.name, type: p.type, grp: p.group, buy_date: toIso(p.buyDate) ?? iso(D.TODAY), expiry: toIso(p.expiry),
     final_price: p.finalPrice, closer_ids: p.closerIds ?? [], closer: p.closer || null, catalog_id: p.catalogId || null, renewal_of: p.renewalOf ?? null,
     sessions: p.sessions ?? null, bonus: p.bonus ?? null, used: p.used ?? 0, value: p.value ?? null, bonus_value: p.bonusValue ?? null, value_used: p.valueUsed ?? 0,
-    payments: p.payments, usage: p.usage,
+    payments: p.payments, usage: p.usage, commissions: p.commissions ?? [],
   }
 }
 
@@ -137,3 +138,9 @@ export async function saveMocDoc(sb: SupabaseClient, d: Omit<MocDoc, 'id'> & { i
   if (error) throw new Error(error.message)
 }
 export async function deleteMocDoc(sb: SupabaseClient, id: string): Promise<void> { const { error } = await sb.from('moc_docs').delete().eq('id', id); if (error) throw new Error(error.message) }
+
+/** Fix lần 4: lưu thời gian lưu trú tại Đà Nẵng (RLS: Lễ tân/Leader/CEO sửa khách) */
+export async function updateCustomerStay(sb: SupabaseClient, id: string, from: string, to: string): Promise<void> {
+  const { error } = await sb.from('customers').update({ stay_from: from ? toIso(from) : null, stay_to: to ? toIso(to) : null }).eq('id', id)
+  if (error) throw new Error(error.message)
+}

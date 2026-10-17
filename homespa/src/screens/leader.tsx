@@ -3,7 +3,7 @@
 // Một việc chỉ nhập kết quả MỘT lần → tự cập nhật hồ sơ khách và chỉ số cá nhân.
 import { HealthDash } from './timeDash'
 import { periodRanges, metrics, showRate, waitAvg } from '../period'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useStore, BUDGET_LIMIT } from '../store'
 import * as D from '../data'
 import { T } from '../i18n'
@@ -11,7 +11,8 @@ import { sb } from '../auth'
 import { askMoc } from '../db'
 import { buildMocContext } from '../mocContext'
 import { alerts, overview, cust, ktvState, custSegment, Alert, State, myZones, zoneReport, tourOrder, pointsOf, canSeePhone } from '../logic'
-import { Icon, Pill, Stat, PageHeader, Seg, Modal, Empty, Sec, Av, Delta, Hero, NumInput } from '../ui'
+import { Icon, Pill, Stat, PageHeader, Seg, Modal, Empty, Sec, Av, Delta, Hero, NumInput, Nodes } from '../ui'
+import { LeaderEval, LeaderSalary, LEADER_EVAL } from './fix4'
 
 const isRec = (s: State, id: string) => s.staff.find(x => x.id === id)?.role === 'reception'
 const FLOW = ['Mở việc', 'Nhận xử lý', 'Ghi kết quả / minh chứng', 'Hoàn thành / chuyển']
@@ -265,6 +266,9 @@ export function MocScreen({ groups }: { groups?: { t: string; q: string }[] }) {
   const { s, me, user, requestApproval, addTask, real } = useStore()
   const [log, setLog] = useState<Answer[]>(() => groups?.length || real ? [] : [answer(s, PROMPTS[0], me)])
   const [busy, setBusy] = useState(false)
+  // Fix lần 4: hỏi xong tự cuộn tới câu trả lời mới; chủ đề thu gọn thành hàng nút nhỏ để câu trả lời không bị đẩy xuống cuối trang
+  const chatRef = useRef<HTMLDivElement>(null)
+  useEffect(() => { if (log.length) chatRef.current?.lastElementChild?.scrollIntoView?.({ block: 'start', behavior: 'smooth' }) }, [log.length])
   const [q, setQ] = useState('')
   const [sop, setSop] = useState<string | null>(null)
   const [taskPreset, setTaskPreset] = useState<Partial<D.Task> | null>(null)
@@ -282,9 +286,10 @@ export function MocScreen({ groups }: { groups?: { t: string; q: string }[] }) {
   return <>
     <Hero tag="Hỏi đáp Mộc" title="Mộc luôn ở đây" sub="Hướng dẫn · nhắc việc · gia sư · giải thích dữ liệu của chính bạn. Mộc tách “dữ liệu đã xác nhận” với “giả thuyết”, và báo rõ khi Home chưa có quy định." />
     <div className="note small">{real ? T.moc.realNote : T.moc.demoNote}</div>
-    {groups?.length ? <div className="nodes">{groups.map((g, i) => <button key={g.t} className="node" onClick={() => ask(g.q)}><span className="no">{i + 1}</span><span className="body"><span className="t" style={{ display: 'block' }}>{g.t}</span><span className="d" style={{ display: 'block' }}>VD: {g.q}</span></span><span className="arr"><Icon n="arrow" s={18} /></span></button>)}</div>
+    {groups?.length && log.length ? <div className="col" style={{ gap: 6 }}><span className="eyebrow">{T.moc.otherTopics}</span><div className="chipgrid">{groups.map(g => <button key={g.t} className="cbtn" title={g.q} onClick={() => ask(g.q)}>{g.t}</button>)}</div></div>
+      : groups?.length ? <div className="nodes">{groups.map((g, i) => <button key={g.t} className="node" onClick={() => ask(g.q)}><span className="no">{i + 1}</span><span className="body"><span className="t" style={{ display: 'block' }}>{g.t}</span><span className="d" style={{ display: 'block' }}>VD: {g.q}</span></span><span className="arr"><Icon n="arrow" s={18} /></span></button>)}</div>
       : <div className="row">{PROMPTS.map(p => <button key={p} className="btn sm" onClick={() => ask(p)}>{p}</button>)}</div>}
-    <div className="chat">{log.map((a, i) => <div key={i} className="col"><div className="bubble me">{a.q}</div>
+    <div className="chat" ref={chatRef}>{log.map((a, i) => <div key={i} className="col"><div className="bubble me">{a.q}</div>
       <div className="bubble moc" aria-busy={a.pending || undefined}><b>{a.title}</b>{a.ai && <span className="tiny muted" style={{ display: 'block' }}>{T.moc.aiTag}</span>}
         {a.facts.length > 0 && <><h4 className="fact">Dữ liệu đã xác nhận</h4><ul>{a.facts.map((f, j) => <li key={j}>{f}</li>)}</ul></>}
         {a.hyps.length > 0 && <><h4 className="hyp">Giả thuyết cần kiểm tra</h4><ul>{a.hyps.map((f, j) => <li key={j}>{f}</li>)}</ul></>}
@@ -303,8 +308,11 @@ export function MocScreen({ groups }: { groups?: { t: string; q: string }[] }) {
 }
 
 // ═══════════════════════════ 4. CỦA TÔI ═══════════════════════════
-export function MineScreen() {
-  const st = useStore(); const { s, me } = st
+export function MineScreen({ sub = [] }: { sub?: string[] }) {
+  const st = useStore(); const { s, me, go } = st
+  // Fix lần 4: Của tôi của Leader có Bảng lương + Đánh giá năng lực Leader (8 nút con)
+  if (sub[0] === 'salary') return <LeaderSalary back={() => go('me')} />
+  if (sub[0] === 'eval') return <LeaderEval sub={sub[1]} back={() => go('me')} />
   const [report, setReport] = useState(false)
   const [ini, setIni] = useState<string | 'new' | null>(null)
   const myTasks = s.tasks.filter(t => t.ownerId === me.id || t.createdBy === me.id)
@@ -329,6 +337,10 @@ export function MineScreen() {
   return <>
     <PageHeader eyebrow={`Leader ${me.name}`} title="Của tôi" sub="Kết quả quản lý & đóng góp phát triển — liên kết với dữ liệu ở “Hôm nay”, không cần nhập lại"
       right={<button className="btn pri" onClick={() => setReport(true)}>Báo cáo tuần</button>} />
+    <Nodes items={[
+      { t: 'Bảng lương của tôi', d: 'Lương cơ bản · ngày công · thưởng · hoa hồng · phạt · tổng kết 2 năm', onClick: () => go('me/salary') },
+      { t: 'Đánh giá năng lực Leader', d: LEADER_EVAL.map((x, i) => `${i + 1}. ${x}`).join(' · '), onClick: () => go('me/eval') },
+    ]} />
     <HealthDash />
     <div className="split">
       <Sec eyebrow="KPI quản lý lễ tân & KTV">
@@ -336,11 +348,9 @@ export function MineScreen() {
           {[[`${done.length} việc đã xử lý`, `TB ${avgHandle} phút từ lúc nhận đến lúc xong`], [`${early} sự cố được báo sớm`, 'Báo sớm được khuyến khích, không trừ điểm người báo'], [`${s.feedback.filter(f => f.status === 'đã xử lý' && f.rating <= 3).length}/${s.feedback.filter(f => f.rating <= 3).length} phản hồi xấu đã xử lý`, 'Đánh giá cả việc ngăn tái diễn'], [`${s.tasks.filter(t => isRec(s, t.ownerId) && t.status === 'done').length} việc lễ tân hoàn thành`, `${s.tasks.filter(t => isRec(s, t.ownerId) && t.status !== 'done').length} việc đang mở`]].map(([a, b]) => <div key={a} className="item"><div className="body"><div className="t">{a}</div><div className="d">{b}</div></div></div>)}
         </div>
       </Sec>
-      <Sec eyebrow="Năng lực lãnh đạo · điểm uy tín">
-        <div className="card pad col"><div className="row"><span className="num" style={{ fontSize: 34, fontWeight: 800 }}>{total}</span><span className="muted small">/100 · {total >= 80 ? 'Sẵn sàng nhận dự án lớn hơn' : total >= 60 ? 'Đang phát triển tốt' : 'Cần kèm cặp'}</span></div>
-          {scores.map(c => <div key={c.l} className="col" style={{ gap: 3 }}><div className="row small"><span>{c.l} <span className="muted">· {c.w}%</span></span><span className="right-al num strong">{c.v}</span></div><div className="bar"><i style={{ width: c.v + '%' }} /></div></div>)}
-          <div className="tiny muted">Số lượng ý tưởng chỉ là chỉ số phụ ({mineIni.length} đề xuất). Không thưởng chỉ vì báo cáo đẹp — xem sáng kiến đã thực hiện và kết quả thực tế.</div>
-          <div className="small"><b>Lộ trình:</b> Leader ca → Quản lý vận hành (khi đạt ≥ 80 trong 3 tháng và có ≥ 2 sáng kiến được kiểm chứng)</div></div>
+      <Sec eyebrow="Năng lực lãnh đạo · 8 tiêu chí">
+        <div className="card list">{LEADER_EVAL.map((x, i) => <button key={x} className="item" onClick={() => go(`me/eval/${i}`)}><div className="body"><div className="t">{i + 1}. {x}</div><div className="d">Chỉ số từ dữ liệu app · điểm CEO chấm: Chưa nối</div></div><Icon n="arrow" s={18} /></button>)}</div>
+        <div className="tiny muted">Không thưởng chỉ vì báo cáo đẹp — xem sáng kiến đã thực hiện và kết quả thực tế ({mineIni.length} đề xuất, {verified} đã được chị kiểm chứng).</div>
       </Sec>
     </div>
     <Sec eyebrow="Sáng kiến & dự án tôi phụ trách" right={<button className="btn sm pri" onClick={() => setIni('new')}><Icon n="plus" />Tạo mới</button>}>

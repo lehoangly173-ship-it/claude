@@ -175,6 +175,13 @@ export const T = {
     exportNote: 'Chỉ CEO được xuất file dữ liệu khách.',
   },
   moc: {
+    /** Fix lần 4: câu hỏi mẫu thật cho 9 chủ đề Mộc của Marketing (theo sơ đồ M3) */
+    mktQ: {
+      '3.1': 'Điểm khác biệt của massage trị liệu ở Home là gì?', '3.2': 'Quy trình đăng bài và người duyệt nội dung?', '3.3': 'Gợi ý bài đăng cho khách văn phòng đau cổ vai gáy',
+      '3.4': 'Soạn tin CSKH cho khách lâu chưa quay lại', '3.5': 'Tuần này khách quay lại giảm ở nhóm nào?', '3.6': 'Lên chương trình marketing cho từng nhóm khách',
+      '3.7': 'Quy trình xử lý khiếu nại', '3.8': 'Tôi nên học gì để viết nội dung tốt hơn?', '3.9': 'Đề xuất sáng kiến cải tiến luồng chăm sóc khách',
+    } as Record<string, string>,
+    otherTopics: 'Chủ đề khác',
     realNote: 'Mộc AI chỉ đọc số đếm vận hành và quy trình đã duyệt theo vai trò của bạn — không xem SĐT, sức khỏe hay bất kỳ số tiền nào.',
     demoNote: 'Bản demo: Mộc trả lời theo mẫu có sẵn (giả lập — Chưa nối AI thật).',
     thinking: 'Mộc đang đọc dữ liệu…', failed: 'Mộc chưa trả lời được', aiTag: 'AI · chỉ dữ liệu không nhạy cảm',
@@ -182,6 +189,12 @@ export const T = {
     docTitle: 'Tiêu đề', docBody: 'Nội dung', docRoles: 'Ai được Mộc dùng kiến thức này', add: 'Thêm kiến thức', save: 'Lưu', del: 'Xóa', none: 'Chưa có kiến thức nào — Mộc đang dùng các quy trình có sẵn trong app.', saved: 'Đã lưu kiến thức cho Mộc', deleted: 'Đã xóa',
     approved: 'Mộc đang dùng', pending: 'Chờ CEO duyệt — Mộc chưa dùng', approve: 'Duyệt',
     noMoney: 'Không ghi số tiền, SĐT, thông tin sức khỏe vào đây — Mộc sẽ tự che nếu có.',
+  },
+  stay: {
+    title: 'Thời gian lưu trú tại Đà Nẵng', from: 'Từ ngày', to: 'Đến ngày', save: 'Lưu lưu trú', none: 'Chưa nhập thời gian lưu trú',
+    hint: 'Khách nước ngoài & khách Việt lẻ: nhập để CSKH không làm phiền khách đã rời Đà Nẵng.', leftNoCare: 'Đã rời ĐN — không CSKH',
+    hidden: (n: number) => `${n} khách đã rời Đà Nẵng đang được ẩn để tránh làm phiền — chọn "Đã rời Đà Nẵng" để xem.`,
+    group: 'Nhóm khách', vn: 'Khách Việt Nam', nn: 'Khách nước ngoài',
   },
   sync: { failed: 'Chưa tải được dữ liệu từ máy chủ', saveFailed: 'Chưa lưu được lên máy chủ' },
   auth: {

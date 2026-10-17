@@ -515,3 +515,64 @@ export function ktvPerf(s: State, id: string, extra = false): { g: string; rows:
 /** Mức ưu tiên của một thông báo: Leader/CEO đặt riêng > mặc định theo loại (CEO cài) > Bình thường */
 export const prioKey = (n: { tag?: string; cat: string }) => n.tag ?? n.cat
 export const prioOf = (s: Pick<State, 'prioCat' | 'prioSet'>, n: { id: string; tag?: string; cat: string }): import('./data').Prio => s.prioSet[n.id] ?? s.prioCat[prioKey(n)] ?? 4
+
+// ── Fix lần 4: lưu trú tại Đà Nẵng · hoa hồng sale gói ──
+export type StayState = 'in' | 'left' | 'soon' | null
+/** Khách có đang ở Đà Nẵng hôm nay không: 'in' đang ở · 'left' đã rời · 'soon' chưa tới · null = chưa nhập thời gian lưu trú */
+export function stayState(c: Pick<Customer, 'stayFrom' | 'stayTo'>, day = D.dateShort()): StayState {
+  const f = dayNum(c.stayFrom), t = dayNum(c.stayTo), n = dayNum(day)!
+  if (f == null && t == null) return null
+  if (t != null && n > t) return 'left'
+  if (f != null && n < f) return 'soon'
+  return 'in'
+}
+export const STAY_LABEL: Record<Exclude<StayState, null>, string> = { in: 'Đang ở Đà Nẵng', left: 'Đã rời Đà Nẵng', soon: 'Chưa tới Đà Nẵng' }
+/** Kiểm tra thời gian lưu trú nhập vào (dd/mm/yyyy hoặc yyyy-mm-dd) */
+/** Ngày có thật trên lịch (chặn 31/02, 32/13…) — dd/mm/yyyy hoặc yyyy-mm-dd */
+function realDay(x: string): boolean {
+  const a = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(x.trim()), b = /^(\d{4})-(\d{2})-(\d{2})$/.exec(x.trim())
+  const [d, mo, y] = a ? [+a[1], +a[2], +a[3]] : b ? [+b[3], +b[2], +b[1]] : [0, 0, 0]
+  const dt = new Date(y, mo - 1, d)
+  return !!(a || b) && dt.getFullYear() === y && dt.getMonth() === mo - 1 && dt.getDate() === d
+}
+export function stayError(from?: string, to?: string): string | null {
+  const f = dayNum(from), t = dayNum(to)
+  if ((from && (f == null || !realDay(from))) || (to && (t == null || !realDay(to)))) return 'Ngày lưu trú không hợp lệ'
+  if (f != null && t != null && t < f) return 'Ngày rời Đà Nẵng phải sau ngày đến'
+  return null
+}
+/** Khách được nhắn tin / gọi CSKH: không làm phiền khách đã rời Đà Nẵng */
+export const canContact = (c: Pick<Customer, 'stayFrom' | 'stayTo'>) => stayState(c) !== 'left'
+
+/** Hoa hồng sale gói của một nhân sự (mọi gói của mọi khách), lọc theo khoảng ngày bán nếu có */
+export function commissionsOf(s: Pick<State, 'customers'>, staffId: string, r?: { from: Date; to: Date }) {
+  const lo = r ? Math.floor(Date.UTC(r.from.getFullYear(), r.from.getMonth(), r.from.getDate()) / 864e5) : -Infinity
+  const hi = r ? Math.floor(Date.UTC(r.to.getFullYear(), r.to.getMonth(), r.to.getDate()) / 864e5) : Infinity
+  return s.customers.flatMap(c => c.packages.flatMap(p => (p.commissions ?? []).filter(x => x.staffId === staffId).map(x => ({ c, p, x }))))
+    .filter(e => { const d = dayNum(e.x.date); return d != null && d >= lo && d <= hi })
+    .sort((a, b) => (dayNum(b.x.date) ?? 0) - (dayNum(a.x.date) ?? 0))
+}
+/** Fix lần 4 — các tệp khách CSKH (Leader): khách đã rời Đà Nẵng bị loại khỏi mọi tệp để không làm phiền */
+export const CARE_GROUPS = ['Khách lẻ Việt', 'Khách liệu trình Việt', 'Khách nước ngoài lẻ đang cư trú tại Đà Nẵng', 'Khách liệu trình nước ngoài', 'Khách lâu chưa quay lại (tệp 1–5)'] as const
+export function careGroup(s: Pick<State, 'customers'>, g: typeof CARE_GROUPS[number]): Customer[] {
+  const ok = s.customers.filter(c => stayState(c) !== 'left'), lt = (c: Customer) => c.packages.length > 0
+  switch (g) {
+    case 'Khách lẻ Việt': return ok.filter(c => c.group === 'VN' && !lt(c))
+    case 'Khách liệu trình Việt': return ok.filter(c => c.group === 'VN' && lt(c))
+    case 'Khách nước ngoài lẻ đang cư trú tại Đà Nẵng': return ok.filter(c => c.group === 'NN' && !lt(c) && stayState(c) === 'in')
+    case 'Khách liệu trình nước ngoài': return ok.filter(c => c.group === 'NN' && lt(c))
+    case 'Khách lâu chưa quay lại (tệp 1–5)': return ok.filter(c => c.lastVisitDays >= 45)
+  }
+}
+/** Fix lần 4 — giá trị buổi gói ĐÃ LÀM trong kỳ (doanh thu thực tế từ gói), cùng cách định giá với Công nợ (debtSummary):
+ *  thẻ buổi = giá bán ÷ tổng buổi (kể cả tặng) · thẻ tiền = phần trừ × giá bán ÷ (mệnh giá + quà). Lấy từ lịch sử trừ thẻ trong app. */
+export function usedPkgValue(s: Pick<State, 'customers'>, r: { from: Date; to: Date }) {
+  const lo = Math.floor(Date.UTC(r.from.getFullYear(), r.from.getMonth(), r.from.getDate()) / 864e5), hi = Math.floor(Date.UTC(r.to.getFullYear(), r.to.getMonth(), r.to.getDate()) / 864e5)
+  let value = 0, sessions = 0
+  for (const c of s.customers) for (const p of c.packages) for (const u of p.usage) {
+    const d = dayNum(u.at.split(' · ')[0]); if (d == null || d < lo || d > hi) continue
+    if (p.type === 'session') { value += p.finalPrice / Math.max(1, (p.sessions ?? 0) + (p.bonus ?? 0)); sessions++ }
+    else { const used = Number(u.deducted.replace(/\D/g, '')) || 0; value += used * p.finalPrice / Math.max(1, (p.value ?? 0) + (p.bonusValue ?? 0)) }
+  }
+  return { value: Math.round(value), sessions }
+}

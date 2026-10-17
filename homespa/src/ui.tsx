@@ -1,7 +1,7 @@
 import { ReactNode, useState, useEffect, createContext, useContext, CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import { useStore } from './store'
-import { Tone, cust, ktvCanOpen, dobNoYear } from './logic'
+import { Tone, cust, ktvCanOpen, dobNoYear, stayState, STAY_LABEL } from './logic'
 import { T } from './i18n'
 import { CareNotesList } from './screens/careNote'
 import * as D from './data'
@@ -50,6 +50,14 @@ export function Delta({ now, prev, invert, unit = '' }: { now: number; prev: num
   const good = invert ? diff < 0 : diff > 0
   const abs = unit === 'đ' ? D.vndShort(Math.abs(diff)) : `${Math.abs(diff)}${unit}`
   return <span className={`delta ${good ? 'up' : 'down'}`}>{diff > 0 ? '▲' : '▼'} {diff > 0 ? 'tăng' : 'giảm'} {abs} ({Math.abs(pct)}%)</span>
+}
+/** Fix lần 4 — mũi tên tăng/giảm so với tháng trước (gọn, đặt sau mỗi hạng mục) */
+export function MonthArrow({ now, prev, invert, unit = '' }: { now: number | null; prev: number | null; invert?: boolean; unit?: string }) {
+  if (now == null || prev == null) return null
+  const diff = Math.round((now - prev) * 10) / 10
+  if (!diff) return <span className="delta muted" title="So với tháng trước">= tháng trước</span>
+  const good = invert ? diff < 0 : diff > 0
+  return <span className={`delta ${good ? 'up' : 'down'}`} title={`Tháng trước: ${prev}${unit}`}>{diff > 0 ? '▲' : '▼'} {diff > 0 ? '+' : '−'}{Math.abs(diff)}{unit} so với tháng trước</span>
 }
 export function PageHeader({ eyebrow, title, sub, right }: { eyebrow?: string; title: string; sub?: ReactNode; right?: ReactNode }) {
   return <div className="ph"><div>{eyebrow && <div className="eyebrow">{withDay(eyebrow)}</div>}<h1>{title}</h1>{sub && <p>{sub}</p>}</div>{right && <div className="right">{right}</div>}</div>
@@ -160,14 +168,14 @@ export function CustomerModal({ customerId, onClose }: { customerId: string; onC
   // m4: KTV chỉ mở khách thuộc tập G4 hoặc có tour hôm nay với mình
   if (user.role === 'ktv' && !ktvCanOpen(s, me, customerId)) return <Modal title={T.cust.profile} onClose={onClose}><Empty>{T.cust.noAccess}</Empty></Modal>
   return <Modal title={<>{c.name} <span className="muted small">· mã {c.code}</span></>} onClose={onClose} wide>
-    <div className="row">{c.vip && <Pill tone="yellow">VIP</Pill>}<Pill tone="purple">{c.group === 'NN' ? 'Khách nước ngoài' : 'Khách Việt Nam'}</Pill><Pill>Nguồn: {c.source}</Pill><span className="muted small">{c.visits} lượt · lần cuối {c.lastVisitDays === 0 ? 'hôm nay' : `${c.lastVisitDays} ngày trước`}</span></div>
+    <div className="row">{c.vip && <Pill tone="yellow">VIP</Pill>}<Pill tone="purple">{c.group === 'NN' ? 'Khách nước ngoài' : 'Khách Việt Nam'}</Pill><StayPill c={c} /><Pill>Nguồn: {c.source}</Pill><span className="muted small">{c.visits} lượt · lần cuối {c.lastVisitDays === 0 ? 'hôm nay' : `${c.lastVisitDays} ngày trước`}</span></div>
     <Seg value={tab} onChange={setTab} items={[{ k: 'info', label: 'Thông tin' }, { k: 'pkg', label: `Gói liệu trình (${c.packages.length})` }, { k: 'care', label: 'Chăm sóc & phản hồi' }, { k: 'profile', label: T.cust.profileTab }]} />
     {tab === 'profile' && <CustomerProfile customerId={c.id} />}
     {tab === 'info' && <div className="grid g2">
       <div className="col small"><span className="eyebrow">Liên hệ</span><span><span className="kv-l">SĐT:</span> {user.role === 'reception' || user.role === 'ceo' ? c.phone || '—' : 'ẩn (chỉ lễ tân thấy)'}</span><span><span className="kv-l">Sinh nhật:</span> {(user.role === 'ktv' ? dobNoYear(c.dob) : c.dob) || '—'}</span><span><span className="kv-l">Khách từ:</span> {c.firstVisit}</span>{canSeeMoney && <span><span className="kv-l">Tổng chi:</span> <b className="num">{D.vnd(c.totalPaid)}</b></span>}</div>
       <div className="col small"><span className="eyebrow">Lưu ý khi phục vụ</span>{c.careNotes?.[0] && <span><span className="kv-l">Ghi nhận gần nhất ({c.careNotes[0].date} · KTV {c.careNotes[0].by}):</span> {D.careSummary(c.careNotes[0])}</span>}<span><span className="kv-l">Sức khỏe:</span> {c.health || 'Không có lưu ý'}</span><span><span className="kv-l">Sở thích:</span> {c.preference || '—'}</span></div>
       <div className="col small" style={{ gridColumn: '1 / -1' }}><span className="eyebrow">Hôm nay</span>{visits.length ? visits.map(a => <span key={a.id}>{D.hhmm(a.start)} · {D.svc(a.serviceId).name} · KTV {D.staffName(a.ktvId)} · {a.bedId}</span>) : <span className="muted">Không có lịch hôm nay</span>}</div>
-    </div>}
+    <StayEditor c={c} /></div>}
     {tab === 'pkg' && (c.packages.length ? c.packages.map(p => <div key={p.cardCode} className="card pad col">
       <div className="row"><b>{p.name}</b><Pill tone="brown">{p.cardCode}</Pill><span className="right-al strong num">Còn {!canSeeMoney && p.type === 'money' ? T.cust.moneyCard : D.pkgLeftLabel(p)}</span></div>
       <div className="small muted">Mua {p.buyDate} · hạn {p.expiry} · người chốt {D.staffName(p.closer) !== '—' ? D.staffName(p.closer) : p.closer}{canSeeMoney && ` · giá ${D.vnd(p.finalPrice)} · đã đóng ${D.vnd(D.pkgPaid(p))}`}{canSeeMoney && D.pkgOwed(p) > 0 && <b style={{ color: 'var(--r-fg)' }}> · còn thiếu {D.vnd(D.pkgOwed(p))}</b>}</div>
@@ -213,4 +221,43 @@ export function NumInput({ value, onChange, min, max, step, optional, ...rest }:
   return <input {...rest} className={rest.className ?? 'inp num'} type="number" inputMode={min != null && min < 0 ? undefined : 'numeric'} min={min} max={max} step={step} value={txt} placeholder={rest.placeholder ?? '0'}
     onChange={e => { const t = e.target.value; setTxt(t); if (t === '' || t === '-') { (onChange as (n: number | null) => void)(optional ? null : 0); return } const n = Number(t); if (!Number.isFinite(n)) return; const c = max != null ? Math.min(n, max) : n; if (c !== n) setTxt(String(c)); onChange(c) }}
     onBlur={() => { if (min != null && value != null && value < min) onChange(min) }} />
+}
+
+/** Fix lần 4 — nhãn lưu trú tại Đà Nẵng (Đang ở / Đã rời / Chưa tới) */
+export function StayPill({ c }: { c: D.Customer }) {
+  const st = stayState(c)
+  return st ? <Pill tone={st === 'in' ? 'green' : st === 'left' ? 'red' : 'yellow'}>{STAY_LABEL[st]}</Pill> : null
+}
+/** Fix lần 4 — Thời gian lưu trú tại Đà Nẵng: Lễ tân / Leader / CEO nhập & sửa; người khác chỉ xem */
+export function StayEditor({ c }: { c: D.Customer }) {
+  const { user, setStay } = useStore()
+  const can = user.role === 'reception' || user.role === 'leader' || user.role === 'ceo'
+  const toIn = (vn?: string) => (vn ? vn.split('/').reverse().join('-') : ''), toVn = (x: string) => (x ? x.split('-').reverse().join('/') : '')
+  const [f, setF] = useState({ from: toIn(c.stayFrom), to: toIn(c.stayTo) })
+  useEffect(() => setF({ from: toIn(c.stayFrom), to: toIn(c.stayTo) }), [c.stayFrom, c.stayTo])
+  const changed = f.from !== toIn(c.stayFrom) || f.to !== toIn(c.stayTo)
+  return <div className="col small" style={{ gridColumn: '1 / -1' }}><span className="eyebrow">{T.stay.title}</span>
+    <div className="row"><StayPill c={c} />{c.stayFrom || c.stayTo ? <span>{c.stayFrom ?? '…'} → {c.stayTo ?? '…'}</span> : <span className="muted">{T.stay.none}</span>}</div>
+    {can && <div className="row" style={{ alignItems: 'flex-end' }}>
+      <label className="f">{T.stay.from}<input className="inp" type="date" value={f.from} onChange={e => setF({ ...f, from: e.target.value })} /></label>
+      <label className="f">{T.stay.to}<input className="inp" type="date" value={f.to} min={f.from || undefined} onChange={e => setF({ ...f, to: e.target.value })} /></label>
+      <button className="btn sm pri" disabled={!changed || (!!f.from && !!f.to && f.to < f.from)} onClick={() => setStay(c.id, toVn(f.from), toVn(f.to))}>{T.stay.save}</button></div>}
+    <span className="tiny muted">{T.stay.hint}</span></div>
+}
+
+/** Fix lần 4 — khi lễ tân tạo khách mới: nhóm khách + thời gian lưu trú tại Đà Nẵng (khách nước ngoài & khách Việt lẻ) */
+export type NewCust = { group: 'VN' | 'NN'; stayFrom: string; stayTo: string }
+export const NEW_CUST: NewCust = { group: 'VN', stayFrom: '', stayTo: '' }
+/** yyyy-mm-dd (ô ngày) → dd/mm/yyyy (dữ liệu app) */
+export const isoToVn = (x: string) => (x ? x.split('-').reverse().join('/') : '')
+export const newCustArgs = (n: NewCust) => ({ group: n.group, ...(n.stayFrom ? { stayFrom: isoToVn(n.stayFrom) } : {}), ...(n.stayTo ? { stayTo: isoToVn(n.stayTo) } : {}) })
+export function NewCustFields({ v, onChange }: { v: NewCust; onChange: (v: NewCust) => void }) {
+  return <div className="card pad col">
+    <div className="grid g3">
+      <label className="f">{T.stay.group}<select className="inp" value={v.group} onChange={e => onChange({ ...v, group: e.target.value as NewCust['group'] })}><option value="VN">{T.stay.vn}</option><option value="NN">{T.stay.nn}</option></select></label>
+      <label className="f">{T.stay.title} · {T.stay.from}<input className="inp" type="date" value={v.stayFrom} onChange={e => onChange({ ...v, stayFrom: e.target.value })} /></label>
+      <label className="f">{T.stay.to}<input className="inp" type="date" value={v.stayTo} min={v.stayFrom || undefined} onChange={e => onChange({ ...v, stayTo: e.target.value })} /></label>
+    </div>
+    <span className="tiny muted">{T.stay.hint}</span>
+  </div>
 }

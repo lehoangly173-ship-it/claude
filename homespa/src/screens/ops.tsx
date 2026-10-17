@@ -4,7 +4,7 @@ import { useStore } from '../store'
 import * as D from '../data'
 import { overview, alerts, ktvState, bedState, cust, suggestKtv, earliestFor, freeBedFor, ktvConflict, bedConflict, custConflict, inShift, Alert, CLEAN_MIN } from '../logic'
 import { canSee, phoneMatch } from '../logic'
-import { Icon, Pill, Stat, PageHeader, Seg, Modal, Empty, Sec, Av } from '../ui'
+import { Icon, Pill, Stat, PageHeader, Seg, Modal, Empty, Sec, Av, NewCustFields, NEW_CUST, newCustArgs, type NewCust } from '../ui'
 
 const STATUS_LABEL: Record<D.ApptStatus, [string, any]> = {
   booked: ['Đã đặt', 'purple'], checked_in: ['Khách đã đến', 'purple'], in_service: ['Đang làm', 'green'],
@@ -227,6 +227,7 @@ export function NewApptModal({ init, onClose }: { init: NewDraft; onClose: () =>
   const [channel, setChannel] = useState('Điện thoại')
   const [note, setNote] = useState('')
   const [err, setErr] = useState<string | null>(null)
+  const [nc0, setNc] = useState<NewCust>(NEW_CUST)
   const m = D.parseHHMM(start), dur = D.svc(serviceId).duration
   // KTV "Home sắp xếp": người đầu hàng xoay tour trống đúng giờ đó
   const autoKtv = m == null ? null : [...s.rotation[1], ...s.rotation[2]].find(k => (m > s.now + 30 || (s.attendance[k]?.in != null && s.attendance[k]?.out == null)) && !ktvConflict(s, k, m, m + dur)) ?? null
@@ -236,7 +237,7 @@ export function NewApptModal({ init, onClose }: { init: NewDraft; onClose: () =>
   const matches = q.trim() ? s.customers.filter(c => c.name.toLowerCase().includes(q.toLowerCase()) || phoneMatch(user.role, c.phone, q) || c.code.toLowerCase() === q.toLowerCase()).slice(0, 5) : []
   const submit = () => {
     let cid = custId
-    if (!cid) { if (!q.trim()) return setErr('Chọn hoặc nhập tên khách'); const nc = addCustomer({ name: q.trim(), phone: '', group: 'VN', source: 'Chưa xác định' }); if (typeof nc === 'string') return setErr(nc); cid = nc.id; setCustId(nc.id) }
+    if (!cid) { if (!q.trim()) return setErr('Chọn hoặc nhập tên khách'); const nc = addCustomer({ name: q.trim(), phone: '', source: 'Chưa xác định', ...newCustArgs(nc0) }); if (typeof nc === 'string') return setErr(nc); cid = nc.id; setCustId(nc.id) }
     if (conflict || !realKtv || !bed || m == null) return setErr(conflict)
     const e = addAppt({ customerId: cid, serviceId, ktvId: realKtv, bedId: bed, start: m, requested: requested && ktvId !== 'auto', channel, note, rotate: ktvId === 'auto' })
     if (e) setErr(e); else onClose()
@@ -244,7 +245,7 @@ export function NewApptModal({ init, onClose }: { init: NewDraft; onClose: () =>
   return <Modal title="Tạo lịch hẹn" onClose={onClose} footer={<><button className="btn" onClick={onClose}>Hủy</button><button className="btn pri" onClick={submit} disabled={!!conflict}>Xác nhận tạo lịch</button></>}>
     <label className="f">Khách hàng (tên, SĐT hoặc mã)<input id="na-q" className="inp" value={custId ? cust(s, custId).name : q} onChange={e => { setCustId(''); setQ(e.target.value) }} placeholder="VD: Lan, 0901…, 125" /></label>
     {!custId && matches.length > 0 && <div className="card list">{matches.map(c => <button key={c.id} className="item" onClick={() => setCustId(c.id)}><div className="body"><div className="t">{c.name}</div><div className="d">Mã {c.code} · {c.visits} lượt{c.packages.length ? ` · ${c.packages.length} gói` : ''}</div></div></button>)}</div>}
-    {!custId && q.trim() && !matches.length && <div className="muted small">Không thấy hồ sơ — sẽ tạo khách mới "{q.trim()}"</div>}
+    {!custId && q.trim() && !matches.length && <><div className="muted small">Không thấy hồ sơ — sẽ tạo khách mới "{q.trim()}"</div><NewCustFields v={nc0} onChange={setNc} /></>}
     <div className="grid g2">
       <label className="f">Dịch vụ<select id="na-svc" className="inp" value={serviceId} onChange={e => setService(e.target.value)}>{D.SERVICES.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}</select></label>
       <label className="f">Giờ bắt đầu<input id="na-start" className="inp" value={start} onChange={e => setStart(e.target.value)} placeholder="HH:MM" /></label>
@@ -308,11 +309,14 @@ function AddGuestModal({ onClose }: { onClose: () => void }) {
   const { s, addQueue, addCustomer } = useStore()
   const [q, setQ] = useState(''); const [cid, setCid] = useState('')
   const [serviceId, setSvc] = useState('m60'); const [strength, setStr] = useState<'nhẹ' | 'vừa' | 'mạnh'>('vừa'); const [req, setReq] = useState(''); const [note, setNote] = useState('')
+  const [nc0, setNc] = useState<NewCust>(NEW_CUST), [err, setErr] = useState('')
   const matches = q.trim() && !cid ? s.customers.filter(c => c.name.toLowerCase().includes(q.toLowerCase()) || c.code === q).slice(0, 4) : []
-  const add = () => { let id = cid; if (!id) { if (!q.trim()) return; const nc = addCustomer({ name: q.trim(), phone: '', group: 'VN', source: 'Đi ngang' }); if (typeof nc === 'string') return; id = nc.id } if (!addQueue({ customerId: id, serviceId, strength, requestedKtvId: req || undefined, note: note || undefined })) onClose() }
+  const add = () => { let id = cid; if (!id) { if (!q.trim()) return; const nc = addCustomer({ name: q.trim(), phone: '', source: 'Đi ngang', ...newCustArgs(nc0) }); if (typeof nc === 'string') return setErr(nc); id = nc.id } if (!addQueue({ customerId: id, serviceId, strength, requestedKtvId: req || undefined, note: note || undefined })) onClose() }
   return <Modal title="Thêm khách vào hàng chờ" onClose={onClose} footer={<><button className="btn" onClick={onClose}>Hủy</button><button className="btn pri" disabled={!q.trim() && !cid} onClick={add}>Thêm vào hàng chờ</button></>}>
     <label className="f">Khách<input id="ag-q" className="inp" value={cid ? cust(s, cid).name : q} onChange={e => { setCid(''); setQ(e.target.value) }} placeholder="Tên hoặc mã khách" /></label>
     {matches.map(c => <button key={c.id} className="btn sm" onClick={() => setCid(c.id)}>{c.name} · {c.code}</button>)}
+    {!cid && q.trim() && !matches.length && <NewCustFields v={nc0} onChange={setNc} />}
+    {err && <div className="err">{err}</div>}
     <div className="grid g2"><label className="f">Dịch vụ<select id="ag-svc" className="inp" value={serviceId} onChange={e => setSvc(e.target.value)}>{D.SERVICES.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}</select></label>
       <label className="f">Lực<select id="ag-str" className="inp" value={strength} onChange={e => setStr(e.target.value as any)}><option>nhẹ</option><option>vừa</option><option>mạnh</option></select></label>
       <label className="f">Yêu cầu KTV (nếu có)<select id="ag-req" className="inp" value={req} onChange={e => setReq(e.target.value)}><option value="">Không</option>{D.ktvs().map(k => <option key={k.id} value={k.id}>{k.name}</option>)}</select></label>

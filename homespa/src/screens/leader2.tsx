@@ -6,10 +6,11 @@ import { cost, FIXED_CATS, iso } from '../period'
 import { useState } from 'react'
 import { useStore } from '../store'
 import * as D from '../data'
-import { overview, billRows, zoneReport, inboxSuggestions, debtSummary, ktvPerf, alerts } from '../logic'
+import { overview, billRows, zoneReport, inboxSuggestions, debtSummary, ktvPerf, alerts, CARE_GROUPS, careGroup } from '../logic'
 import { Block, Pill, Empty, Tiles, Seg, SubHead, Av } from '../ui'
 import { TreeNodes } from '../tree'
 import { ExpensePage } from './reception2'
+import { PerfTrend, RowTrend, LeaderMoney, MONEY_KIDS } from './fix4'
 
 const Red = ({ n }: { n: number }) => n ? <span className="badge red">{n}</span> : <Pill tone="green">Ổn</Pill>
 type Row = { t: string; n: number; ai: string; go: string }
@@ -77,11 +78,10 @@ export function LeaderMothers() {
   const k = (base: string, ls: string[]) => ls.map((l, i) => ({ no: String(i + 1), l, onClick: () => go(`${base}/${i}`) }))
   return <TreeNodes items={[
     { no: '②', t: 'Chăm sóc khách hàng Home', d: 'Chiến lược · tin nhắn · phân quyền gọi · kết quả · 4 nhóm khách', onClick: () => go('cust'), kids: [['Chiến lược chăm sóc', 'care-1'], ['Kích hoạt luồng tin nhắn', 'care-2'], ['Phân quyền gọi điện → Kết quả', 'care-3'], ['Khách lẻ / liệu trình Việt & nước ngoài', 'care-4']].map(([l, id]) => ({ l, onClick: () => { go('cust'); setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 120) } })) },
-    { no: '③', t: 'Vận hành', d: 'Chi phí sản phẩm · chi phí duy trì', onClick: () => go('home/fin/ops'), kids: k('home/fin/ops', ['Chi phí sản phẩm / 1 khách', 'Chi phí duy trì']) },
-    { no: '④', t: 'Chi tổng', d: 'Chi phí tổng · tổng chi phí / 1 khách', onClick: () => go('home/fin/spend'), kids: k('home/fin/spend', ['Chi phí tổng', 'Tổng chi phí / 1 khách']) },
-    { no: '⑤', t: 'Số tiền thu vào – Doanh thu – Lợi nhuận', d: 'Theo nhóm khách · nguồn khách · KTV · tổng', onClick: () => go('home/fin/rev'), kids: k('home/fin/rev', ['Lợi nhuận từng nhóm khách', 'Lợi nhuận tổng', 'Lợi nhuận từng nguồn khách', 'Theo kĩ thuật viên']) },
-    { no: '⑥', t: 'Công nợ', d: 'Số buổi spa đang nợ khách · cọc · hoàn thành gói', onClick: () => go('home/fin/debt'), kids: k('home/fin/debt', ['Số buổi spa đang nợ khách', 'Tổng công nợ cọc', 'Công nợ khách đã hoàn thành gói']) },
-    { no: '⑦', t: 'Nhân sự', d: 'Lương · điểm uy tín · hiệu suất · đào tạo', onClick: () => go('team'), kids: [{ l: 'Lương', onClick: () => go('team/salary') }, { l: 'Điểm uy tín', onClick: () => go('team/points') }, { l: 'Hiệu suất nhân sự (KTV / Lễ tân)', onClick: () => go('team/perf') }, { l: 'Đào tạo', onClick: () => go('team/train') }] },
+    // Fix lần 4: gộp Vận hành + Chi tổng + Số tiền thu vào – Doanh thu – Lợi nhuận thành MỘT mục, không trùng lặp
+    { no: '③', t: 'Vận hành / Tiền vào / Doanh thu / Lợi nhuận', d: 'Tiền thu vào · doanh thu thực tế · công nợ gói · chi phí · lợi nhuận — tổng và trên 1 khách', onClick: () => go('home/fin/money'), kids: k('home/fin/money', MONEY_KIDS) },
+    { no: '④', t: 'Công nợ', d: 'Số buổi spa đang nợ khách · cọc · hoàn thành gói', onClick: () => go('home/fin/debt'), kids: k('home/fin/debt', ['Số buổi spa đang nợ khách', 'Tổng công nợ cọc', 'Công nợ khách đã hoàn thành gói']) },
+    { no: '⑤', t: 'Nhân sự', d: 'Lương · điểm uy tín · hiệu suất · đào tạo', onClick: () => go('team'), kids: [{ l: 'Lương', onClick: () => go('team/salary') }, { l: 'Điểm uy tín', onClick: () => go('team/points') }, { l: 'Hiệu suất nhân sự (KTV / Lễ tân)', onClick: () => go('team/perf') }, { l: 'Đào tạo', onClick: () => go('team/train') }] },
   ]} />
 }
 
@@ -99,34 +99,10 @@ export function LeaderFin({ sub, back }: { sub: string[]; back: () => void }) {
   const fixed = FIXED_CATS.map(c => ({ l: c, v: m.byCat[c] ?? 0 })).filter(x => x.v)
   const inCur = (e: D.Expense) => { const d = toISO(e.date); return d >= iso(cur.from) && d <= iso(cur.to) }
   const [page, idx] = sub
-  if (page === 'ops') return <>
-    <SubHead title="③ Vận hành" sub="Chi phí sản phẩm (dầu massage, cao hổ, sữa chua, khăn lạnh, dầu gội, dầu xả) · chi phí duy trì" onBack={back} />
-    <PeriodBar compare={false} />
-    <Tiles items={[{ v: D.vndShort(m.costProd), l: 'Chi phí sản phẩm', s: `${cur.label} · vật tư dùng cho khách` }, { v: per(m.costProd), l: 'Chi phí SP / 1 khách', s: `${m.guests} khách có hóa đơn` }, { v: D.vndShort(m.costFixed), l: 'Chi phí duy trì', s: `${cur.label} · điện · nước · rác+wifi · mặt bằng` }]} />
-    <div className="grid g2">{f.prod.some(x => x.cost > 0) && <Block title="Vật tư đã xuất hôm nay theo loại" sub={`Phiếu kho ${D.dateShort()}`}><Donut label="Vật tư hôm nay" parts={f.prod.map(x => ({ l: x.it.name, v: x.cost }))} /></Block>}
-      {fixed.length > 0 && <Block title="Chi phí duy trì theo hạng mục" sub={cur.label}><Donut label="Chi phí duy trì" parts={fixed} /></Block>}</div>
-    {idx !== '1' && <Block title="Vật tư đã xuất hôm nay" sub={`Cấp − hoàn trả × giá vốn · ${D.dateShort()}`}><div className="card list">{f.prod.filter(x => x.v > 0).map(x => <div key={x.it.id} className="item"><div className="body"><div className="t">{x.it.name}</div><div className="d">{x.v.toLocaleString('vi-VN')} {x.it.unit} · giá vốn {D.SAMPLE_NOTE}</div></div><span className="num strong">{D.vnd(x.cost)}</span></div>)}{!f.prod.some(x => x.v > 0) && <Empty>Chưa xuất vật tư</Empty>}</div></Block>}
-    {idx !== '0' && <Block title="Chứng từ chi phí duy trì đã nhập" sub={cur.label}><div className="card list">{s.expenses.filter(e => (FIXED_CATS as readonly string[]).includes(e.cat) && inCur(e)).map(e => <div key={e.id} className="item"><div className="body"><div className="t">{e.cat}</div><div className="d">{e.date} · {e.note}</div></div><span className="num strong">{D.vnd(e.amount)}</span></div>)}{!s.expenses.some(e => (FIXED_CATS as readonly string[]).includes(e.cat) && inCur(e)) && <Empty>Chưa có chứng từ trong kỳ — đang dùng số liệu mẫu</Empty>}</div></Block>}
-  </>
-  if (page === 'spend') return <>
-    <SubHead title="④ Chi tổng" sub="Chi phí tổng = vật tư + duy trì + chi khác (quảng cáo, hàng hóa, giá vốn hàng bán) · lễ tân nhập ở Chi tiêu vận hành" onBack={back} />
-    <FinanceDash show={['kpi', 'trend', 'cost']} />
-    <Block title="Chi phí theo nhóm" sub={cur.label}><Tiles items={[{ v: D.vndShort(cost(m)), l: 'Chi phí tổng' }, { v: per(cost(m)), l: 'Chi phí / 1 khách', s: `${m.guests} khách có hóa đơn` }, { v: D.vndShort(m.costProd), l: 'Chi phí sản phẩm' }, { v: D.vndShort(m.costFixed), l: 'Chi phí duy trì' }, { v: D.vndShort(m.costOther), l: 'Chi khác' }]} /></Block>
-    <ExpensePage readOnly />
-  </>
-  if (page === 'rev') {
-    const share = m.revenue ? cost(m) / m.revenue : 0 // phân bổ chi phí theo tỉ lệ tiền thu
-    const ln = (v: number) => D.vnd(Math.round(v * (1 - share)))
-    const groups: [string, number][] = [['Khách lẻ', m.lePart], ['Liệu trình', m.pkgPart], ['Bán sản phẩm', m.prodPart]]
-    const bySrc = Object.entries(m.bySource).filter(x => x[1]).sort((a, b) => b[1] - a[1])
-    return <>
-      <SubHead title="⑤ Số tiền thu vào – Doanh thu – Lợi nhuận" sub="Tiền thu từ hóa đơn + bán sản phẩm · lợi nhuận = thu − chi phí, phân bổ theo tỉ lệ tiền thu" onBack={back} />
-      <FinanceDash />
-      <StaffCompare bar={false} pick="revenue" lockRole />
-      <Block title="Lợi nhuận trên từng nhóm khách" sub={`${cur.label} · chi phí chiếm ${m.revenue ? Math.round(share * 100) : 0}% tiền thu`}>{groups.map(([g, v]) => <div key={g} className="row small"><b>{g}</b><span className="right-al">thu {D.vnd(v)} · LN ≈ {ln(v)}</span></div>)}</Block>
-      <Block title="Lợi nhuận trên từng nguồn khách" sub={`${cur.label} · Facebook · TikTok · Google…`}><div className="card list">{bySrc.map(([k, n]) => <div key={k} className="item"><div className="body"><div className="t">{k}</div><div className="d">LN ≈ {ln(n)}</div></div><span className="num strong">{D.vnd(n)}</span></div>)}{!bySrc.length && <Empty>Chưa có tiền thu trong kỳ</Empty>}</div></Block>
-    </>
-  }
+  // Fix lần 4: ③ ④ ⑤ cũ (ops · spend · rev) gộp thành một trang — đường dẫn cũ vẫn mở đúng phần tương ứng
+  if (page === 'money' || page === 'ops' || page === 'spend' || page === 'rev') return <LeaderMoney idx={page === 'money' ? idx : page === 'rev' ? '2' : '1'} back={back}
+    Dash={() => <FinanceDash />} Staff={() => <StaffCompare bar={false} pick="revenue" lockRole />} Expenses={() => <ExpensePage readOnly />}
+    prodToday={f.prod.map(x => ({ name: x.it.name, unit: x.it.unit, qty: Math.max(0, x.v), cost: x.cost }))} />
   if (page === 'debt') {
     const d = debtSummary(s)
     const perTour = f.prod.reduce((t, x) => t + (x.it.perTour ?? 0) * x.it.cost, 0) || 3600
@@ -135,7 +111,7 @@ export function LeaderFin({ sub, back }: { sub: string[]; back: () => void }) {
       return <div key={x.p.cardCode} className="item"><div className="body"><div className="t">{x.c.name} · {x.p.cardCode}</div><div className="d">{x.p.name} · còn {D.pkgLeftLabel(x.p)} · hạn {x.p.expiry}{D.pkgOwed(x.p) ? ` · còn thiếu ${D.vnd(D.pkgOwed(x.p))}` : ''}</div></div><span className="small">lợi nhuận <b>{D.vnd(v - cost)}</b></span></div> })}{!items.length && <Empty>Không có</Empty>}</div></Block>
     const sorted = [...d.left].sort((a, b) => b.p.expiry.split('/').reverse().join('').localeCompare(a.p.expiry.split('/').reverse().join('')))
     return <>
-      <SubHead title="⑥ Công nợ" sub={`Tính đến hôm nay ${D.dateShort()} · số buổi spa đang nợ khách · chi phí/tour ước theo định mức vật tư (${D.SAMPLE_NOTE})`} onBack={back} />
+      <SubHead title="④ Công nợ" sub={`Tính đến hôm nay ${D.dateShort()} · số buổi spa đang nợ khách · chi phí/tour ước theo định mức vật tư (${D.SAMPLE_NOTE})`} onBack={back} />
       {(() => { const cost = d.sessionsOwed * perTour, depCost = d.deposit.reduce((t, x) => t + (x.p.type === 'session' ? D.pkgLeft(x.p) * perTour : 0), 0)
         return <div className="debt2">
           <div className="col"><span className="eyebrow">Công nợ</span><Tiles items={[
@@ -162,24 +138,25 @@ export function LeaderFin({ sub, back }: { sub: string[]; back: () => void }) {
 /** Chăm sóc khách hàng Home (Leader): chiến lược · luồng tin nhắn · phân quyền gọi · kết quả */
 export function LeaderCareTop() {
   const { s } = useStore()
-  const [ch, setCh] = useState<'Facebook' | 'Zalo' | 'SĐT'>('Zalo')
+  const [ch, setCh] = useState<'Facebook' | 'Zalo' | 'WhatsApp' | 'TikTok' | 'SĐT'>('Zalo')
   const [on, setOn] = useState<string[]>([])
   const [caller, setCaller] = useState<Record<string, string>>({})
   const recs = s.staff.filter(x => x.role === 'reception')
-  const groups = ['Khách lẻ Việt', 'Khách liệu trình Việt', 'Khách liệu trình nước ngoài', 'Khách lâu chưa quay lại (tệp 1–5)']
+  const groups = CARE_GROUPS, n = (g: typeof CARE_GROUPS[number]) => careGroup(s, g).length // Fix lần 4: thêm tệp khách nước ngoài lẻ đang ở Đà Nẵng · bỏ khách đã rời ĐN
   const logs = s.customers.flatMap(c => c.care.filter(x => x.kind))
   return <>
     <div id="care-1" />
-    <Block title="Chiến lược chăm sóc" sub="Cập nhật sau qua file, video — Chưa nối"><div className="card list">{groups.map(g => <div key={g} className="item"><div className="body"><div className="t">{g}</div><div className="d">Kịch bản & tài liệu: Chưa nối</div></div></div>)}</div></Block>
+    <Block title="Chiến lược chăm sóc" sub="Cập nhật sau qua file, video — Chưa nối"><div className="card list">{groups.map(g => <div key={g} className="item"><div className="body"><div className="t">{g}</div><div className="d">{n(g)} khách · Kịch bản & tài liệu: Chưa nối</div></div></div>)}</div></Block>
     <div id="care-2" />
     <Block title="Kích hoạt luồng tin nhắn" sub="Chọn nền tảng tin nhắn → chọn tệp khách (giả lập — chưa gửi thật)">
-      <Seg value={ch} onChange={setCh} items={[{ k: 'Facebook', label: 'Facebook' }, { k: 'Zalo', label: 'Zalo' }, { k: 'SĐT', label: 'SĐT (gọi/nhắn)' }]} />
-      <div className="row">{groups.map(g => { const k = `${ch}|${g}`; return <button key={k} className={`btn sm${on.includes(k) ? '' : ' pri'}`} onClick={() => setOn(on.includes(k) ? on.filter(x => x !== k) : [...on, k])}>{on.includes(k) ? `✓ ${g}` : `Kích hoạt: ${g}`}</button> })}</div>
+      <div style={{ overflowX: 'auto' }}><Seg value={ch} onChange={setCh} items={[{ k: 'Facebook', label: 'Facebook' }, { k: 'Zalo', label: 'Zalo' }, { k: 'WhatsApp', label: 'WhatsApp' }, { k: 'TikTok', label: 'TikTok' }, { k: 'SĐT', label: 'SĐT (gọi/nhắn)' }]} /></div>
+      <div className="row">{groups.map(g => { const k = `${ch}|${g}`; return <button key={k} className={`btn sm${on.includes(k) ? '' : ' pri'}`} style={{ whiteSpace: 'normal', maxWidth: '100%', textAlign: 'left' }} onClick={() => setOn(on.includes(k) ? on.filter(x => x !== k) : [...on, k])}>{on.includes(k) ? `✓ ${g} (${n(g)})` : `Kích hoạt: ${g} (${n(g)})`}</button> })}</div>
+      <div className="tiny muted">Khách đã rời Đà Nẵng (theo thời gian lưu trú lễ tân nhập) tự được loại khỏi mọi tệp để không làm phiền.</div>
       {ch === 'SĐT' && <div className="tiny muted">Leader không xem SĐT khách — luồng gọi giao cho lễ tân ở mục Phân quyền gọi điện.</div>}
     </Block>
     <div id="care-3" />
     <Block title="Phân quyền gọi điện → Kết quả">
-      <div className="card list">{groups.map(g => <div key={g} className="item"><div className="body"><div className="t">{g}</div></div><select className="inp" style={{ width: 160 }} value={caller[g] ?? ''} onChange={e => setCaller({ ...caller, [g]: e.target.value })} aria-label={`Người gọi ${g}`}><option value="">— lễ tân gọi —</option>{recs.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}</select></div>)}</div>
+      <div className="card list">{groups.map(g => <div key={g} className="item"><div className="body"><div className="t">{g}</div><div className="d">{n(g)} khách</div></div><select className="inp" style={{ width: 160 }} value={caller[g] ?? ''} onChange={e => setCaller({ ...caller, [g]: e.target.value })} aria-label={`Người gọi ${g}`}><option value="">— lễ tân gọi —</option>{recs.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}</select></div>)}</div>
       <Tiles items={[{ v: logs.filter(x => x.kind === 'Gọi điện' && x.ok).length, l: 'Gọi thành công' }, { v: logs.filter(x => x.kind === 'Nhắn tin' && x.ok).length, l: 'Nhắn tin thành công' }, { v: logs.filter(x => x.replied).length, l: 'Khách phản hồi' }, { v: logs.filter(x => x.came).length, l: 'Khách hẹn tới', tone: 'ok' }]} />
     </Block>
   </>
@@ -199,11 +176,13 @@ export function StaffPerf({ back }: { back: () => void }) {
     <div className="sec-title"><span className="eyebrow">Chi tiết từng người · hôm nay {D.dateShort()}</span></div>
     <select className="inp" value={cur} onChange={e => setId(e.target.value)} aria-label="Chọn nhân sự">{ppl.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
     {cur && <PerfView id={cur} extra />}
+    {cur && <PerfTrend key={cur} id={cur} role={role} />}
   </>
 }
 export function PerfView({ id, extra }: { id: string; extra?: boolean }) {
   const { s } = useStore()
-  return <>{ktvPerf(s, id, extra).map(g => <Block key={g.g} title={g.g}><div className="card list">{g.rows.map(r => <div key={r.t} className="item"><div className="body"><div className="t">{r.t}</div></div>{r.v === null ? <Pill>Chưa nối</Pill> : <span className="num strong">{r.v}</span>}</div>)}</div></Block>)}</>
+  const role = s.staff.find(x => x.id === id)?.role ?? 'ktv'
+  return <>{ktvPerf(s, id, extra).map(g => <Block key={g.g} title={g.g}><div className="card list">{g.rows.map(r => <div key={r.t} className="item"><div className="body"><div className="t">{r.t}</div><RowTrend id={id} role={role} title={r.t} /></div>{r.v === null ? <Pill>Chưa nối</Pill> : <span className="num strong">{r.v}</span>}</div>)}</div></Block>)}</>
 }
 export function SalaryPage({ back }: { back: () => void }) {
   const { s } = useStore()
