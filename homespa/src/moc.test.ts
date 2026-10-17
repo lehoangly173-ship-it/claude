@@ -95,3 +95,14 @@ describe('Mộc: hàm máy chủ', () => {
     expect((await handle(req({ q: 'a' }), env('k'), { db: db('leader'), fetch: slow, timeoutMs: 30 })).status).toBe(502)
   })
 })
+
+describe('Mộc: sau rà soát lần 2', () => {
+  it('che cả số tiền không có đơn vị và "trăm", "50$"', () => {
+    for (const t of ['1.500.000', '300.000', '1 500 000', '50$', '5 trăm']) expect(scrub(`x ${t} y`)).not.toMatch(/\d{3}|\$|trăm/)
+    expect(scrub('Ca 1 · 08:00–18:00 · 17/10/2026')).toBe('Ca 1 · 08:00–18:00 · 17/10/2026')
+  })
+  it('mã khách chỉ có số vẫn giữ trong lịch của KTV', () => {
+    const c = sanitizeContext({ myDay: { tours: [{ from: '09:00', to: '10:00', service: 'X', bed: 'TL-01', status: 'đã đặt', customerCode: '125' }] } }, 'ktv') as { myDay: { tours: { customerCode?: string }[] } }
+    expect(c.myDay.tours[0].customerCode).toBe('125')
+  })
+})

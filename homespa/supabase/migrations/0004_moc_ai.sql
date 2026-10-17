@@ -23,9 +23,9 @@ begin
 end $$;
 create trigger moc_docs_stamp before insert or update on public.moc_docs for each row execute function public.moc_docs_stamp();
 
--- Đọc: CEO thấy hết; Leader thấy hết để soạn; người khác chỉ thấy kiến thức đã duyệt dành cho vai trò mình
+-- Đọc: CEO thấy hết; Leader thấy để soạn (trừ mục chỉ dành cho CEO); người khác chỉ thấy kiến thức đã duyệt dành cho vai trò mình
 create policy moc_docs_read on public.moc_docs for select to authenticated
-  using (public.has_role('ceo','leader') or (approved and public.app_role() = any(roles)));
+  using (public.has_role('ceo') or (public.has_role('leader') and not (roles <@ array['ceo'])) or (approved and public.app_role() = any(roles)));
 create policy moc_docs_insert on public.moc_docs for insert to authenticated with check (public.has_role('ceo','leader'));
 create policy moc_docs_update on public.moc_docs for update to authenticated using (public.has_role('ceo','leader')) with check (public.has_role('ceo','leader'));
 create policy moc_docs_delete on public.moc_docs for delete to authenticated using (public.has_role('ceo'));

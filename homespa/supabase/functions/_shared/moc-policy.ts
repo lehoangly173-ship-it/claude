@@ -82,8 +82,8 @@ const COMMON = ['me', 'today', 'now', 'services']
 // ── Che SĐT, email, số tiền trong chữ ──
 const PHONE = /(?:\+?\d[\s.\-()]*){9,}/g // mọi dãy ≥ 9 chữ số (SĐT, số tài khoản…), kể cả có dấu cách/chấm/gạch
 const EMAIL = /[\p{L}\p{N}._%+-]+@[\p{L}\p{N}.-]+\.\p{L}{2,}/gu
-const MONEY = /\$\s?\d[\d.,]*|\d[\d.,\s]*\s?(?:đồng|đ|vnđ|vnd|₫|nghìn|ngàn|triệu|tỷ|tỉ|usd|k|tr)(?:\d+)?(?!\p{L})/giu
-export const scrub = (t: string) => t.replace(EMAIL, '[đã ẩn email]').replace(MONEY, '[đã ẩn số tiền]').replace(PHONE, '[đã ẩn số]')
+const MONEY = /\$\s?\d[\d.,]*|\d[\d.,]*\s?\$|\d[\d.,\s]*\s?(?:đồng|đ|vnđ|vnd|₫|trăm|nghìn|ngàn|triệu|tỷ|tỉ|usd|k|tr)(?:\d+)?(?!\p{L})|\b\d{1,3}(?:[.,\s]\d{3})+\b/giu
+export const scrub = (t: string) => t.replace(EMAIL, '[đã ẩn email]').replace(PHONE, '[đã ẩn số]').replace(MONEY, '[đã ẩn số tiền]')
 
 const isTime = (x: unknown) => typeof x === 'string' && /^\d{2}:\d{2}$/.test(x)
 function check(s: Sch, v: unknown): unknown {
@@ -92,7 +92,7 @@ function check(s: Sch, v: unknown): unknown {
     case 'bool': return typeof v === 'boolean' ? v : undefined
     case 'time': return isTime(v) ? v : undefined
     case 'date': return typeof v === 'string' && /^\d{2}\/\d{2}\/\d{4}$/.test(v) ? v : undefined
-    case 'code': return typeof v === 'string' && /^[A-Za-z]{1,4}\d{1,8}$|^—$/.test(v) ? v : undefined
+    case 'code': return typeof v === 'string' && /^[A-Za-z]{0,4}\d{1,8}$|^—$/.test(v) ? v : undefined
     case 'str': return typeof v === 'string' ? scrub(v.slice(0, s.max)).slice(0, s.max + 20) : undefined
     case 'enum': return typeof v === 'string' && s.of.includes(v) ? v : undefined
     case 'opt': return v === null ? null : check(s.of, v)

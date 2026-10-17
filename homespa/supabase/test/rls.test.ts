@@ -292,6 +292,8 @@ describe('Mộc AI: kiến thức + lượt hỏi', () => {
     await as(U.leader); await db.query(`update moc_docs set body='Sửa', approved=true where title='Quy định đồng phục'`)
     await as(U.ceo); r = await rows(`select approved, updated_by from moc_docs where title='Quy định đồng phục'`); expect(r[0].approved).toBe(false); expect(r[0].updated_by).toBe('thao')
     expect(await fails(`insert into moc_docs (title, body, roles) values ('Sai vai','xx', '{admin}')`)).toBe(true)
+    await db.query(`insert into moc_docs (title, body, roles, approved) values ('Chỉ CEO','Riêng', '{ceo}', true)`)
+    await as(U.leader); expect(await rows(`select * from moc_docs where title='Chỉ CEO'`)).toHaveLength(0); await as(U.ceo)
     await root()
   })
   it('Lượt hỏi: trả về vai trò thật, tối đa 60/24 giờ; chưa duyệt/khách lạ bị chặn; không ai đọc được bảng lượt', async () => {

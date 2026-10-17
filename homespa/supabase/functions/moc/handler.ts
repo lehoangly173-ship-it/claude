@@ -42,17 +42,17 @@ export async function handle(req: Request, env: Env, deps: Deps): Promise<Respon
     const docs = (Array.isArray(d.data) ? d.data : []) as { title: string; body: string }[]
 
     const ac = new AbortController(), timer = setTimeout(() => ac.abort(), deps.timeoutMs ?? 25000)
-    let r: Response
+    let text = ''
     try {
-      r = await deps.fetch('https://api.anthropic.com/v1/messages', {
+      const r = await deps.fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST', signal: ac.signal,
         headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
         body: JSON.stringify({ model: env.get('MOC_MODEL') ?? 'claude-haiku-5-5', max_tokens: 900, system: systemPrompt(role), messages: [{ role: 'user', content: userMessage(q, ctx, docs) }] }),
       })
+      if (!r.ok) return json({ error: 'Mộc AI đang bận, thử lại sau ít phút' }, 502)
+      const out = await r.json() as { content?: { type: string; text?: string }[] } // đọc câu trả lời cũng nằm trong giới hạn thời gian
+      text = (out.content ?? []).filter(c => c.type === 'text').map(c => c.text ?? '').join('\n')
     } finally { clearTimeout(timer) }
-    if (!r.ok) return json({ error: 'Mộc AI đang bận, thử lại sau ít phút' }, 502)
-    const out = await r.json() as { content?: { type: string; text?: string }[] }
-    const text = (out.content ?? []).filter(c => c.type === 'text').map(c => c.text ?? '').join('\n')
     return json(parseAnswer(text))
   } catch {
     return json({ error: 'Mộc AI đang bận, thử lại sau ít phút' }, 502) // không lộ chi tiết lỗi bên trong

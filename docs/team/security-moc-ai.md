@@ -58,3 +58,31 @@ What works: the AI key stays on the server (handler.ts:22, not in src/ or .env.e
 
 12. [low] mocContext.ts:19,26,33,38 — Staff names, check-in times, late minutes and reputation points are sent to a third party (Anthropic). These are not customer data and not money. However, late minutes and points may feed bonus or penalty pay.
     Fix: ask the owner to confirm that this is acceptable. Mention AI processing in the staff privacy notice. Consider sending staff codes instead of names.
+
+---
+
+## Re-review (after fixes, working tree)
+
+VERDICT: PASS (0 critical, 0 high open). The only items left open are low or need an owner decision.
+
+1. PASS — `SCHEMA` (moc-policy.ts:45-70) is now an exact allow-list: fixed keys and types, `hasOwnProperty`, enum-only count labels with `other: 'Khác'`, and unknown keys or sections dropped. Client-sent `docs` are no longer in `COMMON` (:80). Keys can no longer be used as a channel, and accented keys are dropped.
+   - Residual [low]: the context is still built by the client. A malicious approved user could put customer text into free `str` fields (`me.name`, `ops.ktv[].name`, `stockLow[].item`, `tours[].service`) or a figure into a `num` field. This is the same channel as typing it into `q`, so it is accepted. The long-term fix is still a server-side `moc_context()` RPC.
+   - Functional, not security: the `code` check (moc-policy.ts:95) requires at least one letter. Numeric customer codes from the seed data (`'125'`, `'628'`, `'77'`) are therefore dropped from `tours[].customerCode`. Use `/^[A-Za-z]{0,4}\d{1,8}$/`; with at most 8 digits it still cannot carry a phone number.
+2. PASS — The body is capped at 32 KB (handler.ts:26-27). The schema bounds every array and string. Docs are limited to `approved` rows, `limit(20)` (:41). The quota uses `pg_advisory_xact_lock` (0004:68).
+   - Residual [low]: `req.text()` buffers the whole body before the length check when there is no `content-length` (chunked upload). The platform request limit covers this. A streaming reader with a byte cap would be stricter.
+   - Still recommended: a monthly spend cap on the Anthropic workspace (this is an operations step for Ly, not code).
+3. PASS — The `approved` flag works. The BEFORE trigger forces `approved=false` for anyone who is not CEO, on both insert and update (0004:17-24). The edge function reads only approved docs. Non-CEO and non-leader roles see only approved docs for their own role.
+   - Residual [low]: leaders can now read every doc, including ones whose `roles` exclude leader, such as CEO-only docs (0004:28). Accept this or limit it to `has_role('leader') and 'leader' = any(roles)`.
+   - UX: mocDocs.tsx:19,29 shows "Duyệt" and sends `approved: true` for leaders too. The trigger silently resets it to false. Hide the button for non-CEO users.
+4. PASS (partial) — Fixed: emails; any run of 9 or more digits with separators (covers grouped and bracketed phones); `đ/vnđ/ngàn/nghìn/triệu/tỷ/k/tr/1tr5/USD/$` (moc-policy.ts:83-86). Patterns were checked for catastrophic backtracking; the worst case is about quadratic on the 4000-char doc body, which is acceptable.
+   - Residual [low]: plain thousand-separated numbers with no unit are still not masked: `1.500.000`, `300.000`, `1 500 000`. Neither are `50$`, `2 trăm nghìn`, or `5 trăm`. Approved docs, which the CEO checks, and `q` could carry prices written that way.
+   - Fix: add `\b\d{1,3}(?:[.,\s]\d{3})+\b` and `\d+\s*\$`, plus `trăm` before the unit group.
+5. PASS — Task titles were replaced by counts per priority or category. Program names were removed. `bySource` maps to the fixed list (mocContext.ts:27,42,41). The remaining free text is staff, service, zone and stock names only.
+6. PASS — A trigger now sets `updated_by` and `updated_at` on the server, so client values are ignored. `roles` has a CHECK (cardinality 1-5, `<@` the allowed set). The functional bug where editing someone else's doc failed is gone.
+7. PASS — Requests use an AbortController with a 25 s timeout, and every failure returns the same generic 502 with no internals (handler.ts:33-59).
+   - Residual [low]: the timer is cleared before `r.json()`, so a body that streams slowly has no time limit. Clear the timer after `r.json()`.
+8. PASS (config-dependent) — The origin now comes from `ALLOWED_ORIGIN` (handler.ts:17). It still falls back to `*` if the variable is unset. Set `ALLOWED_ORIGIN=https://homespa--flow.expo.app` when deploying.
+9. PASS (accepted) — The bearer token needs at least 10 non-space characters. JWT checking relies on the platform default `verify_jwt` (documented). The AI key is still checked before auth, so the 503 tells callers whether Mộc is enabled. This is informational only.
+10. PASS — `set search_path = public, pg_temp` with every object fully qualified is safe. Supabase advisors may still flag it; `''` would remove that warning.
+11. PASS — `moc_take_quota` purges rows older than 2 days (0004:69).
+12. OPEN (owner decision) — Unchanged. Staff names, check-in times, late minutes and reputation points still go to Anthropic. Ly should confirm this and mention it in the staff privacy notice.
