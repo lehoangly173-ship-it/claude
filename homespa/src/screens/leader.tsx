@@ -349,7 +349,7 @@ export function MineScreen({ sub = [] }: { sub?: string[] }) {
         </div>
       </Sec>
       <Sec eyebrow="Năng lực lãnh đạo · 8 tiêu chí">
-        <div className="card list">{LEADER_EVAL.map((x, i) => <button key={x} className="item" onClick={() => go(`me/eval/${i}`)}><div className="body"><div className="t">{i + 1}. {x}</div><div className="d">Chỉ số từ dữ liệu app · điểm CEO chấm: Chưa nối</div></div><Icon n="arrow" s={18} /></button>)}</div>
+        <div className="card list">{LEADER_EVAL.map((x, i) => <button key={x} className="item" onClick={() => go(`me/eval/${i}`)}><div className="body"><div className="t">{i + 1}. {x}</div><div className="d">Chỉ số từ dữ liệu app · điểm CEO chấm thang 1–10</div></div><Icon n="arrow" s={18} /></button>)}</div>
         <div className="tiny muted">Không thưởng chỉ vì báo cáo đẹp — xem sáng kiến đã thực hiện và kết quả thực tế ({mineIni.length} đề xuất, {verified} đã được chị kiểm chứng).</div>
       </Sec>
     </div>

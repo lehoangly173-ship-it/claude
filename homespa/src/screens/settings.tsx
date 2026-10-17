@@ -5,7 +5,8 @@ import { useStore, BUDGET_LIMIT } from '../store'
 import * as D from '../data'
 import { custSegment, pointsOf } from '../logic'
 import { Block, Pill, Tiles, SubHead, Empty, RefPhoto, PhotoInput } from '../ui'
-import { PAY_RULE, FIXED_CATS } from '../period'
+import { FIXED_CATS } from '../period'
+import { PaySettings } from './paySettings'
 import { CEO_NODES } from '../specs'
 import { MocDocs } from './mocDocs'
 
@@ -66,9 +67,7 @@ export function SettingDetail({ no, back }: { no: string; back: () => void }) {
       <Tbl head={['Khu', 'Ca', 'Số việc', 'Phụ trách', 'Minh chứng']} rows={D.ZONES.map(z => [`${z.no}. ${z.name}`, z.shift === 1 ? 'Sáng' : 'Chiều', z.std.length, D.staffName(s.zoneOwner[z.no]), 'Ảnh + Leader kiểm tra'])} /></Block>,
     '13.9': () => <><Block title="Tiêu chí điểm uy tín" right={S}><Tbl head={['Sự việc', 'Điểm', 'Người xác nhận']} rows={[['Khu vực dọn dẹp đạt chuẩn', `+${D.ZONE_POINTS}`, 'Leader'], ['Khách khen / đánh giá 5★', '+2', 'Lễ tân → Leader duyệt'], ['Báo sự cố sớm', '+1', 'Leader'], ['Đi muộn không báo', '−1', 'Hệ thống chấm công'], ['Khách phàn nàn có căn cứ', '−2', 'Leader / CEO']]} /></Block>
       <Block title="Điểm hiện tại" right={R}><Tbl head={['Nhân viên', 'Vai trò', 'Điểm']} rows={s.staff.filter(x => x.role === 'ktv' || x.role === 'reception').map(x => [x.name, D.ROLE_LABEL[x.role], pointsOf(s, x.id)])} /></Block></>,
-    '13.10': () => <Block title="Công thức lương – hoa hồng – thưởng" sub="Đang dùng cho trang Thu nhập của tôi" right={S}>
-      <Tbl head={['Thành phần', 'KTV', 'Lễ tân']} rows={[['Lương cơ bản / tháng', D.vnd(PAY_RULE.base.ktv), D.vnd(PAY_RULE.base.reception)], ['Công chuẩn', `${PAY_RULE.stdDays} ngày`, `${PAY_RULE.stdDays} ngày`], ['Tiền tour', 'Chưa nối (CEO cài mức/tour)', '—'], ['Hoa hồng sale gói', 'Lễ tân nhập khi bán gói', 'Lễ tân nhập khi bán gói'], ['Thưởng', `${D.vnd(PAY_RULE.perPoint)} / điểm uy tín`, `${D.vnd(PAY_RULE.perPoint)} / điểm uy tín`], ['Phạt', `${D.vnd(PAY_RULE.perLate)} / lần đi muộn`, `${D.vnd(PAY_RULE.perLate)} / lần đi muộn`]]} />
-      <div className="tiny muted">Tổng lương thưởng = lương theo công + hoa hồng + thưởng − phạt. Khi CEO chốt công thức thật, cập nhật bảng này là mọi trang (Thu nhập của tôi, Lương) tự tính lại.</div></Block>,
+    '13.10': () => <PaySettings />,
     '13.11': () => <><Block title="Nhóm chi phí" right={R}><Tbl head={['Hạng mục', 'Loại']} rows={D.EXP_CATS.map(c => [c, (FIXED_CATS as readonly string[]).includes(c) ? 'Cố định hằng tháng' : 'Phát sinh'])} /></Block>
       <Block title="Quỹ" right={S}><Tbl head={['Quỹ', 'Trích từ lợi nhuận', 'Mục đích']} rows={[['Quỹ vận hành', '20%', 'Lương, mặt bằng khi doanh thu thấp'], ['Quỹ dự phòng', '10%', 'Sửa chữa, sự cố'], ['Quỹ đầu tư', '5%', 'Thiết bị, mở rộng']]} /></Block></>,
     '13.12': () => <Block title="Luồng phê duyệt" right={<Pill tone="green">theo quy tắc app</Pill>}><Tbl head={['Việc', 'Ai duyệt', 'Hạn phản hồi']} rows={[['Ngân sách ≤ ' + D.vndShort(BUDGET_LIMIT), 'Leader / Marketing tự quyết', '—'], ['Ngân sách > ' + D.vndShort(BUDGET_LIMIT) + ' · đổi giá · ưu đãi', 'CEO', '24 giờ (mẫu)'], ['Nghỉ phép / đổi ca', 'Leader hoặc CEO (không tự duyệt đơn mình)', 'Trước ca'], ['Điểm uy tín lễ tân ghi nhận', 'Leader / CEO', '24 giờ (mẫu)'], ['Xóa hóa đơn', 'CEO', 'Trong ngày'], ['Đề xuất vận hành của lễ tân', 'Leader', 'Trong ca']]} /></Block>,

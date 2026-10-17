@@ -464,8 +464,10 @@ export function buySuggest(s: State) {
 }
 export const expensesTotal = (s: State) => s.expenses.reduce((t, e) => t + e.amount, 0)
 /** Công nợ: buổi spa đang nợ khách (liệu trình còn buổi) và tiền cọc còn thiếu */
-export function debtSummary(s: State) {
-  const pk = s.customers.flatMap(c => c.packages.map(p => ({ c, p })))
+/** Công nợ gói (tính đến hôm nay). Có r → chỉ gói MUA trong khoảng ngày r (Leader chọn ngày bắt đầu – kết thúc). */
+export function debtSummary(s: State, r?: { from: Date; to: Date }) {
+  const inR = (vn: string) => { const [d, m, y] = vn.split('/').map(Number); const x = +new Date(y, m - 1, d); return Number.isFinite(x) && x >= +r!.from && x <= +r!.to }
+  const pk = s.customers.flatMap(c => c.packages.map(p => ({ c, p }))).filter(x => !r || inR(x.p.buyDate))
   const left = pk.filter(x => D.pkgLeft(x.p) > 0)
   const deposit = pk.filter(x => D.pkgOwed(x.p) > 0), full = left.filter(x => D.pkgOwed(x.p) === 0)
   const perSession = (p: D.Package) => p.type === 'session' ? p.finalPrice / Math.max(1, (p.sessions ?? 0) + (p.bonus ?? 0)) : 1

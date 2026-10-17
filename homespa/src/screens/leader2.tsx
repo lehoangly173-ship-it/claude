@@ -2,12 +2,13 @@
 // Vận hành, Chi tổng, Doanh thu – lợi nhuận, Công nợ, Nhân sự (lương · điểm · hiệu suất · đào tạo)
 import { FinanceDash, StaffCompare, usePeriodMetrics } from './timeDash'
 import { Donut, PeriodBar } from '../charts'
-import { cost, FIXED_CATS, iso } from '../period'
+import { cost, FIXED_CATS, iso, fromIso } from '../period'
+import { T } from '../i18n'
 import { useState } from 'react'
 import { useStore } from '../store'
 import * as D from '../data'
 import { overview, billRows, zoneReport, inboxSuggestions, debtSummary, ktvPerf, alerts, CARE_GROUPS, careGroup } from '../logic'
-import { Block, Pill, Empty, Tiles, Seg, SubHead, Av } from '../ui'
+import { Block, Pill, Empty, Tiles, Seg, SubHead, Av, isoToVn } from '../ui'
 import { TreeNodes } from '../tree'
 import { ExpensePage } from './reception2'
 import { PerfTrend, RowTrend, LeaderMoney, MONEY_KIDS } from './fix4'
@@ -103,15 +104,35 @@ export function LeaderFin({ sub, back }: { sub: string[]; back: () => void }) {
   if (page === 'money' || page === 'ops' || page === 'spend' || page === 'rev') return <LeaderMoney idx={page === 'money' ? idx : page === 'rev' ? '2' : '1'} back={back}
     Dash={() => <FinanceDash />} Staff={() => <StaffCompare bar={false} pick="revenue" lockRole />} Expenses={() => <ExpensePage readOnly />}
     prodToday={f.prod.map(x => ({ name: x.it.name, unit: x.it.unit, qty: Math.max(0, x.v), cost: x.cost }))} />
-  if (page === 'debt') {
-    const d = debtSummary(s)
-    const perTour = f.prod.reduce((t, x) => t + (x.it.perTour ?? 0) * x.it.cost, 0) || 3600
+  if (page === 'debt') return <LeaderDebt back={back} perTour={f.prod.reduce((t, x) => t + (x.it.perTour ?? 0) * x.it.cost, 0) || 3600} />
+  return null
+}
+
+/** ④ Công nợ (Leader): mặc định mọi gói còn nợ; "Tùy chọn ngày" → chỉ gói mua trong khoảng ngày bắt đầu – kết thúc */
+function LeaderDebt({ back, perTour }: { back: () => void; perTour: number }) {
+  const { s } = useStore()
+  const t0 = iso(D.TODAY), m0 = iso(new Date(D.TODAY.getFullYear(), D.TODAY.getMonth(), 1))
+  const [mode, setMode] = useState<'all' | 'range'>('all')
+  const [rg, setRg] = useState({ from: m0, to: t0 })
+  const bad = mode === 'range' && (!rg.from || !rg.to || rg.from > rg.to)
+  const r = mode === 'range' && !bad ? { from: fromIso(rg.from), to: fromIso(rg.to) } : undefined
+  const d = debtSummary(s, r)
+  const scope = r ? T.debt.scopeRange(isoToVn(rg.from), isoToVn(rg.to)) : T.debt.scopeAll
     const list = (nn: boolean, dep: boolean) => (dep ? d.deposit : d.full).filter(x => (x.c.group === 'NN') === nn)
     const L = ({ title, items }: { title: string; items: typeof d.left }) => <Block title={title} right={<span className="badge">{items.length}</span>}><div className="card list">{items.map(x => { const v = d.owedValue(x.p), cost = x.p.type === 'session' ? D.pkgLeft(x.p) * perTour : 0
       return <div key={x.p.cardCode} className="item"><div className="body"><div className="t">{x.c.name} · {x.p.cardCode}</div><div className="d">{x.p.name} · còn {D.pkgLeftLabel(x.p)} · hạn {x.p.expiry}{D.pkgOwed(x.p) ? ` · còn thiếu ${D.vnd(D.pkgOwed(x.p))}` : ''}</div></div><span className="small">lợi nhuận <b>{D.vnd(v - cost)}</b></span></div> })}{!items.length && <Empty>Không có</Empty>}</div></Block>
     const sorted = [...d.left].sort((a, b) => b.p.expiry.split('/').reverse().join('').localeCompare(a.p.expiry.split('/').reverse().join('')))
     return <>
-      <SubHead title="④ Công nợ" sub={`Tính đến hôm nay ${D.dateShort()} · số buổi spa đang nợ khách · chi phí/tour ước theo định mức vật tư (${D.SAMPLE_NOTE})`} onBack={back} />
+      <SubHead title="④ Công nợ" sub={`Tính đến hôm nay ${D.dateShort()} · ${scope} · chi phí/tour ước theo định mức vật tư (${D.SAMPLE_NOTE})`} onBack={back} />
+      <div className="card pad col" style={{ gap: 8 }}>
+        <Seg value={mode} onChange={v => setMode(v as 'all' | 'range')} items={[{ k: 'all', label: T.debt.all }, { k: 'range', label: T.debt.range }]} />
+        {mode === 'range' && <div className="grid fgrid">
+          <label className="f" htmlFor="debt-from">{T.debt.from}<input id="debt-from" className="inp" type="date" max={t0} value={rg.from} onChange={e => setRg({ ...rg, from: e.target.value })} /></label>
+          <label className="f" htmlFor="debt-to">{T.debt.to}<input id="debt-to" className="inp" type="date" min={rg.from || undefined} max={t0} value={rg.to} onChange={e => setRg({ ...rg, to: e.target.value })} /></label>
+        </div>}
+        {bad && <span className="small" role="alert" style={{ color: 'var(--r-fg)' }}>{T.debt.bad}</span>}
+        <span className="tiny muted">{mode === 'range' ? T.debt.rangeNote : T.debt.allNote}</span>
+      </div>
       {(() => { const cost = d.sessionsOwed * perTour, depCost = d.deposit.reduce((t, x) => t + (x.p.type === 'session' ? D.pkgLeft(x.p) * perTour : 0), 0)
         return <div className="debt2">
           <div className="col"><span className="eyebrow">Công nợ</span><Tiles items={[
@@ -131,8 +152,6 @@ export function LeaderFin({ sub, back }: { sub: string[]; back: () => void }) {
       <L title="Liệu trình Việt — hoàn thành gói tiền, chưa đi hết" items={list(false, false)} />
       <L title="Liệu trình nước ngoài — hoàn thành gói tiền, chưa đi hết" items={list(true, false)} />
     </>
-  }
-  return null
 }
 
 /** Chăm sóc khách hàng Home (Leader): chiến lược · luồng tin nhắn · phân quyền gọi · kết quả */

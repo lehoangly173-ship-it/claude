@@ -3,6 +3,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import * as D from './data'
 import { fromIso, iso } from './period'
+import { defaultPay, PAY_ROLES, TOUR_DURATIONS, type PayConfig, type LeaderEvalRec } from './pay'
 
 type One<T> = T | T[] | null | undefined
 const one = <T,>(x: One<T>): T | undefined => (Array.isArray(x) ? x[0] : x ?? undefined)
@@ -143,4 +144,33 @@ export async function deleteMocDoc(sb: SupabaseClient, id: string): Promise<void
 export async function updateCustomerStay(sb: SupabaseClient, id: string, from: string, to: string): Promise<void> {
   const { error } = await sb.from('customers').update({ stay_from: from ? toIso(from) : null, stay_to: to ? toIso(to) : null }).eq('id', id)
   if (error) throw new Error(error.message)
+}
+
+// ── Bảng cài đặt lương + điểm năng lực Leader (migration 0006) ──
+const numOrNull = (v: unknown, fb: number | null): number | null => (v === null ? null : typeof v === 'number' && Number.isFinite(v) ? v : fb)
+/** Dữ liệu máy chủ (có thể thiếu khóa, hoặc chỉ có phần của vai trò mình) → bảng đủ khóa; khóa thiếu = Chưa đặt */
+export function normalizePay(x: unknown): PayConfig {
+  const b = defaultPay(false), o = (x && typeof x === 'object' ? x : {}) as Record<string, any>
+  for (const r of PAY_ROLES) { const s = o.roles?.[r]; if (!s || typeof s !== 'object') continue
+    b.roles[r] = { base: numOrNull(s.base, null), stdDays: (v => (Number.isInteger(v) && v! >= 1 && v! <= 31 ? v! : 26))(numOrNull(s.stdDays, 26)), perPoint: numOrNull(s.perPoint, null), perLate: numOrNull(s.perLate, null), otPerHour: numOrNull(s.otPerHour, null), stdHours: numOrNull(s.stdHours, null) } }
+  for (const d of TOUR_DURATIONS) b.tour[String(d)] = numOrNull(o.tour?.[String(d)], null)
+  b.otMinMin = numOrNull(o.otMinMin, 30) ?? 30; b.evalPerPoint = numOrNull(o.evalPerPoint, null)
+  if (typeof o.by === 'string') b.by = o.by; if (typeof o.at === 'string') b.at = o.at
+  b.sample = false
+  return b
+}
+/** CEO đọc cả bảng; người khác chỉ nhận phần của vai trò mình (hàm my_pay_settings ở máy chủ) */
+export async function loadPayConfig(sb: SupabaseClient): Promise<PayConfig> {
+  const { data, error } = await sb.rpc('my_pay_settings'); if (error) throw new Error(error.message)
+  return normalizePay(data)
+}
+export async function savePayConfig(sb: SupabaseClient, c: PayConfig): Promise<void> {
+  const { error } = await sb.from('pay_settings').upsert({ id: 1, data: c, updated_at: new Date().toISOString() }); if (error) throw new Error(error.message)
+}
+export async function loadLeaderEvals(sb: SupabaseClient): Promise<LeaderEvalRec[]> {
+  const { data, error } = await sb.from('leader_evals').select('leader_id, ym, scores, by_name, updated_at'); if (error) throw new Error(error.message)
+  return (Array.isArray(data) ? data : []).map((r: any) => ({ leaderId: r.leader_id, ym: r.ym, scores: Array.from({ length: 8 }, (_, i) => r.scores?.[i] ?? null), by: r.by_name ?? '', at: r.updated_at ? D.dateShort(new Date(r.updated_at)) : '' }))
+}
+export async function upsertLeaderEval(sb: SupabaseClient, e: LeaderEvalRec): Promise<void> {
+  const { error } = await sb.from('leader_evals').upsert({ leader_id: e.leaderId, ym: e.ym, scores: e.scores, by_name: e.by, updated_at: new Date().toISOString() }); if (error) throw new Error(error.message)
 }

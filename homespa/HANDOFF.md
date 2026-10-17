@@ -206,3 +206,14 @@ Thứ tự:
 
 ## Cập nhật 18/10 (Leader)
 - Thêm 2 chỉ số **Khách mới mua liệu trình** và **Khách cũ tái liệu trình** (đếm khách, theo gói đầu tiên / gói nối tiếp `renewalOf`) ở Leader · Của tôi: nút con "Tổng kết", bảng "So với tháng trước" và mục 5 "Kết quả kinh doanh của đội" (`fix4.tsx`: `teamPkgCustomers`). Sửa luôn chữ lỗi `f4(` hiện ở chú thích Tổng kết và dòng điểm uy tín.
+
+## Bảng cài đặt lương + tăng ca + điểm Leader + công nợ chọn ngày (18/10, câu trả lời của chị Quyên), nhánh `team/phan-quyen`
+- Câu trả lời: (1) giá tour do CEO cài, 60/90/120 phút khác giá; (2) xác nhận lễ tân nhập hoa hồng sale gói; (3) lương thưởng Leader và mọi nhân sự cài ở Cài đặt CEO; 8 tiêu chí năng lực chấm thang 1–10; thêm **tăng ca** vào lương mọi nhân sự, cài ở Cài đặt CEO; Leader ④ Công nợ có chọn ngày bắt đầu–kết thúc.
+- Một nguồn: `src/pay.ts` (`PayConfig`, `payslip`, `otOfDay`, `evalAvg`) — đọc bởi Thu nhập KTV/Lễ tân, Bảng lương Leader, Thu nhập Marketing (4.9), Tổng kết. Store giữ `pay` + `evals` CHUNG mọi ngày làm việc (không theo ngày như dữ liệu vận hành).
+- CEO sửa ở ⑬ 13.10 (`screens/paySettings.tsx`): lương cơ bản, công chuẩn, thưởng/điểm uy tín, phạt/lần muộn, tăng ca/giờ theo từng vai trò; giờ chuẩn/ngày cho vai trò không có ca (Leader, Marketing); giá tour 45/60/90/120; ngưỡng tính tăng ca (mặc định 30 phút); thưởng năng lực Leader/điểm; chấm 8 tiêu chí Leader theo tháng (1–10).
+- Ô CEO chưa nhập = "Chưa đặt", không cộng vào tổng; Thu nhập ghi rõ "Chưa cộng: …". Bản thật mặc định trống hết; bản demo giữ số mẫu cũ cho KTV/Lễ tân (ghi "số liệu mẫu").
+- Tiền tour: chỉ tour đã xong (done/paid) × giá theo thời lượng. Tăng ca: KTV/Lễ tân = giờ chấm công ra − giờ hết ca; Leader/Marketing = (ra − vào) − giờ chuẩn; chỉ tính ngày ≥ ngưỡng.
+- Máy chủ: migration `0006_luong_tour_tang_ca.sql` — `pay_settings` (chỉ CEO), hàm `my_pay_settings()` trả phần vai trò của người hỏi; `leader_evals` (CEO ghi, Leader xem điểm mình); nhật ký audit; realtime. RLS test 31.
+- Công nợ Leader (`LeaderDebt` ở leader2.tsx): "Tất cả gói còn nợ" | "Tùy chọn ngày" → lọc gói theo NGÀY MUA; số còn nợ vẫn tính đến hôm nay (`debtSummary(s, r)`).
+- Sửa 2 chỗ chữ hỏng ("f4(" lộ ra màn hình) ở Thu nhập và Tổng kết hiệu suất.
+- Kiểm thử: 155 test (RLS 31); scratchpad `pay.mjs` (34 kiểm tra luồng), `realpay.mjs` (bản thật + máy chủ giả). Rà soát độc lập `docs/team/reviews/luong-tang-ca.md`: 4 mục vừa + các mục nhỏ đã sửa.

@@ -5,17 +5,17 @@ import { ReactNode, useState } from 'react'
 import { useStore } from '../store'
 import * as D from '../data'
 import { commissionsOf, usedPkgValue, debtSummary } from '../logic'
-import { staffDays, staffMetrics, payslip, PAY_RULE, rangeOf, today, metrics, showRate, waitAvg, periodRanges, usePeriod, FIXED_CATS } from '../period'
+import { staffDays, staffMetrics, rangeOf, today, metrics, showRate, waitAvg, periodRanges, usePeriod, FIXED_CATS } from '../period'
 import { SubHead, Block, Pill, Empty, Tiles, Seg, MonthArrow, Icon } from '../ui'
 import { ColChart, Donut } from '../charts'
 import { useMemo } from 'react'
-import { f4 } from '../i18n'
+import { f4, T } from '../i18n'
+import { payslip, otOfDay, evalAvg, evalOf, isPayRole, SHIFT_ROLES, ymOf, EVAL_N, type PayConfig, type PayRole, type LeaderEvalRec } from '../pay'
 /** Số theo kỳ chung (giống usePeriodMetrics ở timeDash — để tránh import vòng) */
 function usePeriodMetricsLite() { const { s } = useStore(), [p] = usePeriod(); return useMemo(() => { const { cur } = periodRanges(p); return { cur, m: metrics(s, cur) } }, [s, p]) }
 
 const CN = <Pill>{f4('Chưa nối')}</Pill>
 const money = (n: number) => <span className="num strong">{D.vnd(n)}</span>
-const ymOf = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 const monthRange = (ym: string) => { const [y, m] = ym.split('-').map(Number); return rangeOf('month', new Date(y, m - 1, 1)) }
 const lastMonths = (n: number) => { const t = today(); return Array.from({ length: n }, (_, i) => rangeOf('month', new Date(t.getFullYear(), t.getMonth() - (n - 1 - i), 1))) }
 const short = (name: string) => name.replace(/^Tháng (\d+)\/\d{2}(\d{2})$/, 'T$1/$2')
@@ -30,79 +30,98 @@ function Row({ t, v, open, onToggle, children, sub }: { t: ReactNode; v: ReactNo
 }
 const dl = (d: Date) => D.dateShort(d)
 
-/** Lương + hoa hồng sale gói của một người trong một tháng — dùng chung cho bảng tháng và Tổng kết */
-function monthPay(s: ReturnType<typeof useStore>['s'], id: string, role: 'ktv' | 'reception', r: { from: Date; to: Date }) {
-  const sm = staffMetrics(s, r, role).find(x => x.id === id)
+/** Phiếu lương một người trong một kỳ — đơn giá từ Bảng cài đặt lương CEO (pay.ts), số liệu từ period.ts (một nguồn) */
+type St = ReturnType<typeof useStore>['s']
+export function monthPay(s: St, pay: PayConfig, evals: LeaderEvalRec[], id: string, role: PayRole, r: { from: Date; to: Date }) {
+  const sm = staffMetrics(s, r, role).find(x => x.id === id); if (!sm) return null
+  const days = staffDays(s, r, id, role)
+  const otMin = days.reduce((t, d) => t + otOfDay(pay, role, d), 0)
   const com = commissionsOf(s, id, r), comSum = com.reduce((t, e) => t + e.x.amount, 0)
-  return sm ? { sm, com, ps: payslip(sm, comSum) } : null
+  const ev = role === 'leader' ? evalAvg(evalOf(evals, id, ymOf(r.from))) : null
+  const ps = payslip(pay, sm, { commission: comSum, otMin, evalAvg: ev })
+  // vai trò không có ca: chưa đặt giờ chuẩn/ngày thì không tính được tăng ca → ghi rõ, không im lặng ra 0
+  if (ps && !SHIFT_ROLES.includes(role) && pay.roles[role].stdHours == null && sm.days > 0) ps.missing.push(T.pay.miss.stdHours)
+  return ps ? { sm, com, ps, days } : null
 }
+const UN = <Pill>{T.pay.unset}</Pill>
+const rate = (v: number | null) => (v == null ? T.pay.unset : D.vndShort(v))
+const orUn = (v: number | null) => (v == null ? UN : money(v))
 
-// ═══════════════ 2. THU NHẬP CỦA TÔI (KTV · Lễ tân; Leader/Marketing: chờ CEO cài bảng lương) ═══════════════
+// ═══════════════ 2. THU NHẬP CỦA TÔI (KTV · Lễ tân · Leader · Marketing) ═══════════════
 export function Income({ back }: { back: () => void }) {
-  const { s, me } = useStore()
+  return <><SubHead title="Thu nhập của tôi" sub={f4('Chỉ bạn và CEO xem ·') + ' ' + T.pay.title} onBack={back} /><IncomeBody /><IncomeSummary /></>
+}
+export function IncomeBody() {
+  const { s, me, pay, evals } = useStore()
   const t = today(), [ym, setYm] = useState(ymOf(t))
   const r = monthRange(ym)
-  const role = me.role === 'reception' ? 'reception' : 'ktv'
-  const payroll = me.role === 'ktv' || me.role === 'reception'
-  const mp = payroll ? monthPay(s, me.id, role, r) : null
-  const days = payroll ? staffDays(s, r, me.id, role) : []
+  const role = isPayRole(me.role) ? me.role : null
+  const mp = role ? monthPay(s, pay, evals, me.id, role, r) : null
   const [open, setOpen] = useState<string | null>(null)
   const tog = (k: string) => () => setOpen(open === k ? null : k)
   // Bản thật: KTV không đọc được bảng gói (RLS) → chưa có hoa hồng của mình cho tới khi nối bảng lương máy chủ — ghi Chưa nối, không hiện 0đ
   const comHidden = !D.DEMO && me.role === 'ktv'
   return <>
-    <SubHead title="Thu nhập của tôi" sub={<>{f4('Chỉ bạn và CEO xem ·')} <span className="rtag">📅 {r.label}</span></>} onBack={back} />
-    <label className="f" style={{ maxWidth: 220 }}>{f4('Chọn tháng')}<input className="inp" type="month" value={ym} max={ymOf(t)} onChange={e => /^\d{4}-\d{2}$/.test(e.target.value) && setYm(e.target.value)} /></label>
-    {!mp ? <Empty>Bảng lương {D.ROLE_LABEL[me.role]}: Chưa nối — chờ CEO cài công thức (⑨ Dòng tiền & lương)</Empty> : (() => { const { sm, com, ps } = mp
+    <div className="row" style={{ flexWrap: 'wrap' }}><label className="f" style={{ maxWidth: 220 }}>{f4('Chọn tháng')}<input className="inp" type="month" value={ym} max={ymOf(t)} onChange={e => /^\d{4}-\d{2}$/.test(e.target.value) && setYm(e.target.value)} /></label>
+      <span className="rtag">📅 {r.label}</span>{pay.sample ? <Pill tone="yellow">{T.pay.sample}</Pill> : pay.by ? <Pill tone="green">{T.pay.savedBy(pay.by, pay.at ?? '')}</Pill> : null}</div>
+    {!role || !mp ? <Empty>{T.pay.noPayroll}</Empty> : (() => { const { sm, com, ps, days } = mp, rp = ps.rp
       const worked = days.filter(d => d.worked), off = days.filter(d => d.leave), late = days.filter(d => d.late), pts = days.filter(d => d.points)
+      const otDays = days.map(d => ({ d, m: otOfDay(pay, role, d) })).filter(x => x.m > 0)
+      const miss = comHidden ? [...ps.missing, T.pay.miss.comReal] : ps.missing
       return <>
-        <Tiles items={[{ v: D.vndShort(ps.total), l: f4('Tổng lương thưởng tôi nhận'), s: f4('chưa gồm tiền tour (Chưa nối)'), color: 'deep' }, { v: `${sm.days}/${PAY_RULE.stdDays}`, l: f4('Ngày công') }, { v: sm.leave, l: f4('Ngày nghỉ'), s: f4('nghỉ phép đã duyệt') }, { v: sm.late, l: f4('Lần đi muộn') }]} />
+        <Tiles items={[{ v: D.vndShort(ps.total), l: T.pay.rowTotal, s: miss.length ? T.pay.missing(miss.join(', ')) : undefined, color: 'deep' }, { v: `${sm.days}/${rp.stdDays}`, l: f4('Ngày công') }, { v: sm.leave, l: f4('Ngày nghỉ'), s: f4('nghỉ phép đã duyệt') }, { v: sm.late, l: f4('Lần đi muộn') }]} />
         <div className="card list">
-          <Row t="Lương cơ bản" v={<span className="num strong">{D.vnd(ps.base)}/tháng</span>} />
-          <Row t={`Công thực tế (${sm.days}/${PAY_RULE.stdDays} công)`} v={money(ps.byDays)} open={open === 'work'} onToggle={tog('work')}>
-            {worked.length ? worked.map(d => <span key={+d.d} className="small">{dl(d.d)} · đi làm{d.late ? ` · trễ ${d.lateMin ?? ''} phút` : ''}{d.real ? '' : ` · ${D.SAMPLE_NOTE}`}</span>) : <span className="small muted">{f4('Chưa có ngày công trong tháng')}</span>}
+          <Row t={T.pay.rowBase} v={ps.base == null ? UN : <span className="num strong">{D.vnd(ps.base)}{T.pay.perMonth}</span>} />
+          <Row t={T.pay.rowWork(sm.days, rp.stdDays)} v={orUn(ps.byDays)} open={open === 'work'} onToggle={tog('work')}>
+            {worked.length ? worked.map(d => <span key={+d.d} className="small">{dl(d.d)} · đi làm{d.inMin != null ? ` ${D.hhmm(d.inMin)}${d.outMin != null ? `–${D.hhmm(d.outMin)}` : ''}` : ''}{d.late ? ` · trễ ${d.lateMin ?? ''} phút` : ''}{d.real ? '' : ` · ${D.SAMPLE_NOTE}`}</span>) : <span className="small muted">{f4('Chưa có ngày công trong tháng')}</span>}
           </Row>
-          <Row t="Ngày nghỉ" v={<span className="num strong">{sm.leave} ngày</span>} open={open === 'off'} onToggle={tog('off')}>
+          <Row t={T.pay.rowOff} v={<span className="num strong">{sm.leave} ngày</span>} open={open === 'off'} onToggle={tog('off')}>
             {off.length ? off.map(d => <span key={+d.d} className="small">{dl(d.d)} · nghỉ{d.real ? ' phép đã duyệt' : ` · ${D.SAMPLE_NOTE}`}</span>) : <span className="small muted">{f4('Không nghỉ ngày nào')}</span>}
           </Row>
-          {role === 'ktv' && <Row t="Tiền tour của tôi" sub={`${sm.tours} tour trong tháng · mức tiền/tour chờ CEO cài`} v={CN} open={open === 'tour'} onToggle={tog('tour')}>
-            {worked.filter(d => d.tours).map(d => <span key={+d.d} className="small">{dl(d.d)} · {d.tours} tour{d.requested ? ` · ${d.requested} khách yêu cầu` : ''}{d.real ? '' : ` · ${D.SAMPLE_NOTE}`}</span>)}
-            {!worked.some(d => d.tours) && <span className="small muted">{f4('Chưa có tour trong tháng')}</span>}
+          {role === 'ktv' && <Row t={T.pay.rowTour} sub={T.pay.tourSubLine(ps.tourN)} v={orUn(ps.tourPay)} open={open === 'tour'} onToggle={tog('tour')}>
+            {ps.tour.map(x => <span key={x.dur} className="small strong">{x.pay == null ? T.pay.tourNoRate(x.dur, x.n) : T.pay.tourLine(x.dur, x.n, D.vndShort(x.rate!), D.vnd(x.pay))}</span>)}
+            {worked.filter(d => Object.keys(d.tourBy).length).map(d => <span key={+d.d} className="small">{dl(d.d)} · {Object.entries(d.tourBy).map(([du, n]) => `${n} tour ${du}′`).join(' · ')}{d.requested ? ` · ${d.requested} khách yêu cầu` : ''}{d.real ? '' : ` · ${D.SAMPLE_NOTE}`}</span>)}
+            {!ps.tourN && <span className="small muted">{T.pay.noTour}</span>}
           </Row>}
-          <Row t="Hoa hồng sale gói" sub={comHidden ? 'Bản thật: KTV xem hoa hồng của mình khi nối bảng lương máy chủ' : f4('Lễ tân nhập khi bán gói (người chốt chính / người hỗ trợ)')} v={comHidden ? CN : money(ps.commission)} open={open === 'com'} onToggle={comHidden ? undefined : tog('com')}>
+          <Row t={`${T.pay.rowOt} (${rate(rp.otPerHour)}${T.pay.perHour})`} sub={T.pay.otSubLine(T.pay.hm(ps.otMin))} v={orUn(ps.ot)} open={open === 'ot'} onToggle={tog('ot')}>
+            {otDays.length ? otDays.map(({ d, m }) => <span key={+d.d} className="small">{d.outMin != null && d.otRaw != null && SHIFT_ROLES.includes(role) ? T.pay.otDay(dl(d.d), D.hhmm(d.outMin), T.pay.hm(m)) : T.pay.otDayNoShift(dl(d.d), T.pay.hm(d.workMin ?? 0), T.pay.hm(m))}{d.real ? '' : ` · ${D.SAMPLE_NOTE}`}</span>) : <span className="small muted">{T.pay.noOt}</span>}
+            <span className="tiny muted">{T.pay.otMinNote} ({pay.otMinMin} phút){!SHIFT_ROLES.includes(role) ? ` · ${T.pay.stdHours}: ${rp.stdHours ?? T.pay.unset}` : ''}</span>
+          </Row>
+          <Row t={T.pay.rowCom} sub={comHidden ? 'Bản thật: KTV xem hoa hồng của mình khi nối bảng lương máy chủ' : f4('Lễ tân nhập khi bán gói (người chốt chính / người hỗ trợ)')} v={comHidden ? CN : money(ps.commission)} open={open === 'com'} onToggle={comHidden ? undefined : tog('com')}>
             {com.length ? com.map(e => <span key={e.p.cardCode + e.x.role} className="small">{e.x.date} · gói {e.p.cardCode} ({e.p.name}) · khách {e.c.code} · {e.x.role} · <b>{D.vnd(e.x.amount)}</b> · {e.x.by} nhập</span>) : <span className="small muted">{f4('Chưa có hoa hồng sale gói trong tháng')}</span>}
           </Row>
-          <Row t={`Thưởng (${Math.max(0, sm.points)} điểm uy tín × ${D.vndShort(PAY_RULE.perPoint)})`} v={money(ps.bonus)} open={open === 'pt'} onToggle={tog('pt')}>
+          <Row t={T.pay.rowBonus(Math.max(0, sm.points), rate(rp.perPoint))} v={orUn(ps.bonus)} open={open === 'pt'} onToggle={tog('pt')}>
             {pts.length ? pts.map(d => <span key={+d.d} className="small">{dl(d.d)} · {d.points > 0 ? '+' : ''}{d.points} điểm{d.real ? '' : ` · ${D.SAMPLE_NOTE}`}</span>) : <span className="small muted">{f4('Chưa có điểm uy tín trong tháng')}</span>}
-            {s.points.filter(p => p.staffId === me.id && p.status === 'Đã duyệt').map(p => <span key={p.id} className="tiny muted">Hôm nay: {p.delta > 0 ? '+' : ''}{p.delta} · {p.reason}</span>)}
+            {+r.to >= +t && s.points.filter(p => p.staffId === me.id && p.status === 'Đã duyệt').map(p => <span key={p.id} className="tiny muted">Hôm nay: {p.delta > 0 ? '+' : ''}{p.delta} · {p.reason}</span>)}
           </Row>
-          <Row t={`Phạt (${sm.late} lần đi muộn × ${D.vndShort(PAY_RULE.perLate)})`} v={<span className="num strong" style={{ color: ps.penalty ? 'var(--r-fg)' : undefined }}>−{D.vnd(ps.penalty)}</span>} open={open === 'late'} onToggle={tog('late')}>
+          {role === 'leader' && <Row t={T.pay.rowEval} sub={ps.evalAvg == null ? T.pay.evalNone : T.pay.evalLine(ps.evalAvg, rate(pay.evalPerPoint))} v={orUn(ps.evalBonus)} />}
+          <Row t={T.pay.rowPenalty(sm.late, rate(rp.perLate))} v={ps.penalty == null ? UN : <span className="num strong" style={{ color: ps.penalty ? 'var(--r-fg)' : undefined }}>−{D.vnd(ps.penalty)}</span>} open={open === 'late'} onToggle={tog('late')}>
             {late.length ? late.map(d => <span key={+d.d} className="small">{dl(d.d)} · đi muộn {d.lateMin ?? ''} phút{d.real ? '' : ` · ${D.SAMPLE_NOTE}`}</span>) : <span className="small muted">{f4('Không đi muộn lần nào')}</span>}
           </Row>
-          <Row t="Tổng lương thưởng tôi nhận" sub="= công thực tế + hoa hồng sale gói + thưởng − phạt (chưa gồm tiền tour)" v={<span className="num strong" style={{ color: 'var(--g-fg)', fontSize: 16 }}>{D.vnd(ps.total)}</span>} />
+          <Row t={T.pay.rowTotal} sub={<>{T.pay.totalSub}{miss.length ? <><br /><span style={{ color: 'var(--r-fg)' }}>{T.pay.missing(miss.join(', '))}</span></> : null}</>} v={<span className="num strong" style={{ color: 'var(--g-fg)', fontSize: 16 }}>{D.vnd(ps.total)}</span>} />
         </div>
-        <div className="tiny muted">{D.SAMPLE_NOTE}: lương cơ bản, thưởng/phạt là công thức tạm; tiền tour Chưa nối. Hôm nay lấy từ chấm công, lịch, điểm thật trong app; các ngày trước là {D.SAMPLE_NOTE}. Hoa hồng sale gói là số lễ tân nhập thật.</div>
+        <div className="tiny muted">{T.pay.note} {D.DEMO ? T.pay.pastSample : T.pay.pastNone}</div>
       </> })()}
-    <IncomeSummary />
   </>
 }
 
-/** TỔNG KẾT: quá trình lương 1–2 năm (biểu đồ cột) + ngày nghỉ, hoa hồng, thưởng, phạt từng tháng */
+/** TỔNG KẾT: quá trình lương 1–2 năm (biểu đồ cột) + ngày nghỉ, tour, tăng ca, hoa hồng, thưởng, phạt từng tháng */
 export function IncomeSummary() {
-  const { s, me } = useStore()
+  const { s, me, pay, evals } = useStore()
   const [n, setN] = useState<12 | 24>(12)
-  const payroll = me.role === 'ktv' || me.role === 'reception', role = me.role === 'reception' ? 'reception' : 'ktv'
+  const role = isPayRole(me.role) ? me.role : null
   const tKey = +today() // đổi ngày làm việc → tính lại
-  const ms = useMemo(() => (payroll ? lastMonths(n).map(r => ({ r, p: monthPay(s, me.id, role, r) })) : []), [s, me.id, role, n, payroll, tKey])
-  if (!payroll) return <Block title="Tổng kết" sub="Quá trình lương 2 năm">{CN}<div className="tiny muted">Bảng lương {D.ROLE_LABEL[me.role]} chờ CEO cài — khi có sẽ hiện biểu đồ ở đây.</div></Block>
+  const ms = useMemo(() => (role ? lastMonths(n).map(r => ({ r, p: monthPay(s, pay, evals, me.id, role, r) })) : []), [s, pay, evals, me.id, role, n, tKey])
+  if (!role) return null
   const rows = ms.filter(x => x.p && (x.p.sm.days || x.p.sm.leave || x.p.ps.commission))
   return <Block title="Tổng kết" sub={`Quá trình lương ${n === 12 ? '1 năm' : f4('2 năm')} · nhìn lại để thấy mình tiến bộ hay đi xuống`} right={<Seg value={String(n)} onChange={v => setN(+v as 12 | 24)} items={[{ k: '12', label: f4('1 năm') }, { k: '24', label: f4('2 năm') }]} />}>
-    {rows.length > 0 && <ColChart label="Tổng lương thưởng" cats={rows.map(x => short(x.r.name) + (x.r.partial ? '*' : ''))} tips={rows.map(x => x.r.label)} series={[{ name: 'Tổng lương thưởng', color: 'var(--green)', values: rows.map(x => x.p!.ps.total) }, { name: f4('Hoa hồng + thưởng'), color: 'var(--gold)', values: rows.map(x => x.p!.ps.commission + x.p!.ps.bonus) }]} />}
-    <div className="tbl-wrap"><table><thead><tr><th>{f4('Tháng')}</th><th>{f4('Ngày công')}</th><th>{f4('Ngày nghỉ')}</th>{role === 'ktv' && <th>Tour</th>}<th>{f4('Hoa hồng gói')}</th><th>{f4('Thưởng')}</th><th>{f4('Phạt')}</th><th>{f4('Tổng')}</th></tr></thead>
-      <tbody>{[...rows].reverse().map(({ r, p }) => <tr key={r.name}><td className="strong">{r.name}{r.partial ? ' *' : ''}</td><td className="num">{p!.sm.days}</td><td className="num">{p!.sm.leave}</td>{role === 'ktv' && <td className="num">{p!.sm.tours}</td>}<td className="num">{D.vndShort(p!.ps.commission)}</td><td className="num">{D.vndShort(p!.ps.bonus)}</td><td className="num">−{D.vndShort(p!.ps.penalty)}</td><td className="num strong">{D.vndShort(p!.ps.total)}</td></tr>)}</tbody></table></div>
+    {rows.length > 0 && <ColChart label="Tổng lương thưởng" cats={rows.map(x => short(x.r.name) + (x.r.partial ? '*' : ''))} tips={rows.map(x => x.r.label)} series={[{ name: 'Tổng lương thưởng', color: 'var(--green)', values: rows.map(x => x.p!.ps.total) }, { name: f4('Hoa hồng + thưởng'), color: 'var(--gold)', values: rows.map(x => x.p!.ps.commission + (x.p!.ps.bonus ?? 0) + (x.p!.ps.evalBonus ?? 0)) }]} />}
+    <div className="tbl-wrap"><table><thead><tr><th>{f4('Tháng')}</th><th>{f4('Ngày công')}</th><th>{f4('Ngày nghỉ')}</th>{role === 'ktv' && <th>Tour</th>}{role === 'ktv' && <th>{T.pay.colTour}</th>}<th>{T.pay.colOt}</th><th>{f4('Hoa hồng gói')}</th><th>{f4('Thưởng')}</th><th>{f4('Phạt')}</th><th>{f4('Tổng')}</th></tr></thead>
+      <tbody>{[...rows].reverse().map(({ r, p }) => { const ps = p!.ps, c = (v: number | null) => (v == null ? T.pay.unset : D.vndShort(v))
+        return <tr key={r.name}><td className="strong">{r.name}{r.partial ? ' *' : ''}</td><td className="num">{p!.sm.days}</td><td className="num">{p!.sm.leave}</td>{role === 'ktv' && <td className="num">{ps.tourN}</td>}{role === 'ktv' && <td className="num">{c(ps.tourPay)}</td>}<td className="num">{ps.otMin ? `${T.pay.hm(ps.otMin)} · ${c(ps.ot)}` : '—'}</td><td className="num">{D.vndShort(ps.commission)}</td><td className="num">{(() => { const parts = role === 'leader' ? [ps.bonus, ps.evalBonus] : [ps.bonus], known = parts.filter((v): v is number => v != null); return known.length ? D.vndShort(known.reduce((a, b) => a + b, 0)) + (known.length < parts.length ? ' *' : '') : T.pay.unset })()}</td><td className="num">{ps.penalty == null ? T.pay.unset : `−${D.vndShort(ps.penalty)}`}</td><td className="num strong">{D.vndShort(ps.total)}{ps.missing.length ? ' *' : ''}</td></tr> })}</tbody></table></div>
     {!rows.length && <Empty>{f4('Chưa có dữ liệu lương')}</Empty>}
     {rows.length > 0 && rows.length < ms.length && <div className="tiny muted">{f4('Tháng không có dữ liệu không vẽ cột (không tính là 0).')}</div>}
-    <div className="tiny muted">* tháng hiện tại, tính đến hôm nay. Các tháng trước: {D.DEMO ? D.SAMPLE_NOTE : f4('Chưa nối (chờ dữ liệu máy chủ)')} · chưa gồm tiền tour.</div>
+    <div className="tiny muted">* tháng hiện tại, tính đến hôm nay; tổng có * là còn khoản CEO chưa đặt mức (không cộng). Các tháng trước: {D.DEMO ? D.SAMPLE_NOTE : f4('Chưa nối (chờ dữ liệu máy chủ)')}.</div>
   </Block>
 }
 
@@ -265,36 +284,22 @@ export function evalRows(s: ReturnType<typeof useStore>['s'], meId: string, i: n
   }
 }
 export function LeaderEval({ sub, back }: { sub?: string; back: () => void }) {
-  const { s, me, go } = useStore()
+  const { s, me, go, evals } = useStore()
   const i = sub != null ? Number(sub) : NaN
+  const rec = evalOf(evals, me.id, ymOf(monthPair().cur.from)), avg = evalAvg(rec)
   if (Number.isInteger(i) && LEADER_EVAL[i]) return <>
-    <SubHead title={`${i + 1}. ${LEADER_EVAL[i]}`} sub="Chỉ số tự lấy từ dữ liệu app · điểm chấm do CEO (thang điểm chờ chị chốt)" onBack={() => go('me/eval')} />
+    <SubHead title={`${i + 1}. ${LEADER_EVAL[i]}`} sub="Chỉ số tự lấy từ dữ liệu app · điểm do CEO chấm (thang 1–10)" onBack={() => go('me/eval')} />
     <div className="card list">{evalRows(s, me.id, i).map(r => <div key={r.t} className="item"><div className="body"><div className="t">{r.t}</div>{r.trend && <div className="d">{r.trend}</div>}</div>{r.v == null ? CN : <span className="num strong">{r.v}</span>}</div>)}
-      <div className="item"><div className="body"><div className="t">{f4('Điểm CEO chấm cho tiêu chí này')}</div><div className="d">{f4('Thang điểm & trọng số chờ chị Quyên chốt')}</div></div>{CN}</div></div>
+      <div className="item"><div className="body"><div className="t">{T.pay.ceoScore}</div><div className="d">{rec ? T.pay.scoredBy(rec.by, rec.at) : T.pay.ceoScoreNone}</div></div>{rec?.scores[i] != null ? <span className="num strong">{rec.scores[i]}/10</span> : CN}</div></div>
   </>
   return <>
-    <SubHead title="Đánh giá năng lực Leader" sub="8 tiêu chí · chạm từng mục để xem chỉ số chi tiết" onBack={back} />
+    <SubHead title="Đánh giá năng lực Leader" sub="8 tiêu chí · chạm từng mục để xem chỉ số chi tiết · CEO chấm thang 1–10" onBack={back} />
+    <Tiles items={[{ v: avg != null ? `${avg}/10` : T.pay.unset, l: T.pay.avg, s: rec ? T.pay.scoredBy(rec.by, rec.at) : T.pay.ceoScoreNone, color: 'deep' }, { v: rec ? rec.scores.filter(x => x != null).length + `/${EVAL_N}` : `0/${EVAL_N}`, l: 'Tiêu chí đã chấm' }]} />
     <div className="nodes">{LEADER_EVAL.map((t, j) => { const rows = evalRows(s, me.id, j), known = rows.filter(r => r.v != null).length
-      return <button key={t} className="node" onClick={() => go(`me/eval/${j}`)}><span className="no">{j + 1}</span><span className="body"><span className="t" style={{ display: 'block' }}>{t}</span><span className="d" style={{ display: 'block' }}>{rows.slice(0, 2).map(r => `${r.t}: ${r.v == null ? 'Chưa nối' : typeof r.v === 'string' || typeof r.v === 'number' ? r.v : '…'}`).join(' · ')} · {known}/{rows.length} chỉ số có dữ liệu</span></span><span className="arr"><Icon n="arrow" s={18} /></span></button> })}</div>
+      return <button key={t} className="node" onClick={() => go(`me/eval/${j}`)}><span className="no">{j + 1}</span><span className="body"><span className="t" style={{ display: 'block' }}>{t}</span><span className="d" style={{ display: 'block' }}>{rec?.scores[j] != null ? `CEO chấm ${rec.scores[j]}/10 · ` : ''}{rows.slice(0, 2).map(r => `${r.t}: ${r.v == null ? 'Chưa nối' : typeof r.v === 'string' || typeof r.v === 'number' ? r.v : '…'}`).join(' · ')} · {known}/{rows.length} chỉ số có dữ liệu</span></span><span className="arr"><Icon n="arrow" s={18} /></span></button> })}</div>
     <PerfTrend id={me.id} role="leader" />
   </>
 }
 export function LeaderSalary({ back }: { back: () => void }) {
-  const { s, me } = useStore()
-  const at = s.attendance[me.id]
-  const [open, setOpen] = useState(false)
-  return <>
-    <SubHead title="Bảng lương của tôi" sub="Leader · chỉ bạn và CEO xem · công thức chờ CEO cài (⑨ Dòng tiền & lương)" onBack={back} />
-    <div className="card list">
-      <Row t="Lương cơ bản" v={CN} />
-      <Row t="Ngày công" sub={at?.in != null ? `Hôm nay đã chấm công ${D.hhmm(at.in)}` : f4('Hôm nay chưa chấm công')} v={CN} open={open} onToggle={() => setOpen(!open)}>
-        <span className="small">{D.dateShort()} · {at?.in != null ? `vào ${D.hhmm(at.in)}${at.out != null ? ` · ra ${D.hhmm(at.out)}` : ''}` : f4('chưa chấm công')}</span><span className="small muted">{f4('Các ngày trước: Chưa nối')}</span>
-      </Row>
-      <Row t="Thưởng theo kết quả đội & năng lực (8 tiêu chí)" v={CN} />
-      <Row t="Hoa hồng sale gói" sub="Nếu Leader chốt gói — lễ tân nhập khi bán" v={money(commissionsOf(s, me.id, monthPair().cur).reduce((t, e) => t + e.x.amount, 0))} />
-      <Row t="Phạt" v={CN} />
-      <Row t="Tổng lương thưởng" v={CN} />
-    </div>
-    <IncomeSummary />
-  </>
+  return <><SubHead title="Bảng lương của tôi" sub={`Leader · ${f4('Chỉ bạn và CEO xem ·')} ${T.pay.title}`} onBack={back} /><IncomeBody /><IncomeSummary /></>
 }

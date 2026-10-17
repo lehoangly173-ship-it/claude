@@ -227,44 +227,63 @@ export function targetFor(r: { from: Date; to: Date }) {
 export const hasPast = (r: { from: Date }) => r.from < today()
 
 // ── Nhân sự theo kỳ ──
-export type StaffM = { id: string; name: string; role: D.Role; days: number; tours: number; revenue: number; requested: number; points: number; late: number; leave: number; rating: number | null }
-/** Bảng lương MẪU theo kỳ (chờ CEO cài công thức thật): lương theo công + hoa hồng + thưởng − phạt */
-export const PAY_RULE = { base: { ktv: 6000000, reception: 6500000 } as Record<string, number>, stdDays: 26, perPoint: 20000, perLate: 50000 }
-/** Fix lần 4: bỏ hoa hồng % doanh thu; hoa hồng = HOA HỒNG SALE GÓI lễ tân nhập; tiền tour chờ CEO cài (Chưa nối → null, không cộng vào tổng) */
-export function payslip(m: StaffM, pkgCommission = 0) {
-  const base = PAY_RULE.base[m.role] ?? 7000000, byDays = Math.round(base * Math.min(m.days, PAY_RULE.stdDays) / PAY_RULE.stdDays / 1000) * 1000
-  const commission = pkgCommission, bonus = Math.max(0, m.points) * PAY_RULE.perPoint, penalty = m.late * PAY_RULE.perLate
-  return { base, byDays, tourPay: null as number | null, commission, bonus, penalty, total: byDays + commission + bonus - penalty }
-}
-export type StaffDay = { d: Date; worked: boolean; leave: boolean; late: boolean; lateMin: number | null; tours: number; requested: number; revenue: number; points: number; real: boolean }
-function staffDay(s: State, x: D.Staff, d: Date, role: 'ktv' | 'reception', t: Date, inv: D.Invoice[]): StaffDay | null {
+export type StaffRole = 'ktv' | 'reception' | 'leader' | 'marketing'
+export type StaffM = { id: string; name: string; role: D.Role; days: number; tours: number; revenue: number; requested: number; points: number; late: number; leave: number; rating: number | null
+  /** tour ĐÃ LÀM XONG theo thời lượng dịch vụ (phút → số tour) — dùng tính tiền tour */
+  tourBy: Record<number, number> }
+/** Một ngày làm việc. otRaw = phút làm sau giờ hết ca (vai trò có ca); workMin = phút từ lúc vào tới lúc ra (để tính tăng ca theo giờ chuẩn). */
+export type StaffDay = { d: Date; worked: boolean; leave: boolean; late: boolean; lateMin: number | null; tours: number; requested: number; revenue: number; points: number; real: boolean
+  tourBy: Record<number, number>; inMin: number | null; outMin: number | null; otRaw: number | null; workMin: number | null }
+const TOUR_W: [number, number][] = [[45, 0.12], [60, 0.43], [90, 0.3], [120, 0.15]] // tỉ trọng mẫu (bản demo) theo thời lượng
+const off = (d: Date, leave: boolean): StaffDay => ({ d, real: false, worked: false, leave, late: false, lateMin: null, tours: 0, requested: 0, revenue: 0, points: 0, tourBy: {}, inMin: null, outMin: null, otRaw: null, workMin: null })
+function staffDay(s: State, x: D.Staff, d: Date, role: StaffRole, t: Date, inv: D.Invoice[]): StaffDay | null {
+  const sh0 = x.shift ? D.SHIFTS[x.shift] : null
   if (+d === +t) {
     const ap = s.appts.filter(a => a.ktvId === x.id && !['cancelled', 'no_show'].includes(a.status))
-    const at = s.attendance[x.id], st = x.shift ? D.SHIFTS[x.shift].start : null
+    const at = s.attendance[x.id], st = sh0?.start ?? null
     const late = at?.in != null && st != null && at.in > st // cùng quy tắc màn Chấm công
+    const tourBy: Record<number, number> = {}
+    if (role === 'ktv') for (const a of ap) if (a.status === 'done' || a.status === 'paid') { const du = D.svc(a.serviceId).duration; tourBy[du] = (tourBy[du] ?? 0) + 1 }
+    const mine = role === 'reception' ? inv.filter(i => i.creator === x.name) : []
     return { d, real: true, worked: at?.in != null, late, lateMin: late ? at!.in! - st! : null,
       leave: s.leaves.some(l => l.staffId === x.id && l.status === 'Đã duyệt' && l.kind === 'Nghỉ phép' && l.date === D.dateShort(d)),
-      tours: role === 'ktv' ? ap.length : inv.filter(i => i.creator === x.name).length, requested: ap.filter(a => a.requested).length,
-      revenue: role === 'ktv' ? inv.reduce((a, i) => a + ktvShareOfInvoice(s, i, x.id), 0) : inv.filter(i => i.creator === x.name).reduce((a, i) => a + i.paid, 0) + s.stockMoves.filter(m => m.kind === 'Bán' && !m.status && m.by === x.id).reduce((a, m) => a + (m.price ?? 0) * m.qty, 0),
-      points: s.points.filter(p => p.staffId === x.id && p.status === 'Đã duyệt').reduce((a, p) => a + p.delta, 0) }
+      tours: role === 'ktv' ? ap.length : mine.length, requested: role === 'ktv' ? ap.filter(a => a.requested).length : 0,
+      revenue: role === 'ktv' ? inv.reduce((a, i) => a + ktvShareOfInvoice(s, i, x.id), 0) : role === 'reception' ? mine.reduce((a, i) => a + i.paid, 0) + s.stockMoves.filter(m => m.kind === 'Bán' && !m.status && m.by === x.id).reduce((a, m) => a + (m.price ?? 0) * m.qty, 0) : 0,
+      points: s.points.filter(p => p.staffId === x.id && p.status === 'Đã duyệt').reduce((a, p) => a + p.delta, 0),
+      tourBy, inMin: at?.in ?? null, outMin: at?.out ?? null,
+      otRaw: at?.in != null && at.out != null && sh0 ? at.out - sh0.end : null,
+      workMin: at?.in != null && at.out != null ? at.out - at.in : null }
   }
   if (!D.DEMO) return null // bản thật: ngày đã qua chưa nối dữ liệu — không dùng số liệu mẫu
-  const sh = shareOf(s, d, role).get(x.id), k = iso(d) + x.id
-  if (!sh) return rnd(iso(d) + x.id + 'lv') < 0.12 ? { d, real: false, worked: false, leave: true, late: false, lateMin: null, tours: 0, requested: 0, revenue: 0, points: 0 } : null // ngày nghỉ trong tuần
+  const k = iso(d) + x.id
+  if (role === 'leader' || role === 'marketing') { // không có ca cố định: đi làm 6/7 ngày, giờ làm dao động
+    if (rnd(k + 'off') < 1 / 7) return rnd(k + 'lv') < 0.3 ? off(d, true) : null
+    const late = rnd(k + 'late') < 0.05, inMin = 8 * 60 + (late ? 5 + Math.round(rnd(k + 'lm') * 20) : -Math.round(rnd(k + 'ea') * 10)), workMin = 8 * 60 + Math.round(rnd(k + 'wm') * 36) * 5
+    const points = rnd(k + 'pt') < 0.08 ? 2 : 0
+    return { ...off(d, false), worked: true, late, lateMin: late ? inMin - 8 * 60 : null, points, inMin, outMin: inMin + workMin, workMin }
+  }
+  const sh = shareOf(s, d, role).get(x.id)
+  if (!sh) return rnd(k + 'lv') < 0.12 ? off(d, true) : null // ngày nghỉ trong tuần
   const points = rnd(k + 'pt') < 0.12 ? (rnd(k + 'ps') < 0.8 ? 2 : -1) : 0, late = rnd(k + 'late') < 0.06 * (1.5 - sh.skill)
-  return { d, real: false, worked: true, leave: false, late, lateMin: late ? 5 + Math.round(rnd(k + 'lm') * 20) : null, tours: sh.tours, requested: sh.requested, revenue: sh.revenue, points }
+  const lateMin = late ? 5 + Math.round(rnd(k + 'lm') * 20) : null
+  const otRaw = rnd(k + 'ot') < 0.15 ? 20 + Math.round(rnd(k + 'om') * 16) * 5 : Math.round(rnd(k + 'os') * 3) * 5 // vài ngày ở lại muộn; còn lại ra đúng giờ hoặc trễ vài phút
+  const st = sh0?.start ?? 8 * 60, en = sh0?.end ?? 18 * 60, inMin = st + (lateMin ?? -Math.round(rnd(k + 'ea') * 10)), outMin = en + otRaw
+  const tourBy: Record<number, number> = {}
+  if (role === 'ktv') for (let i = 0; i < sh.tours; i++) { let u = rnd(k + 't' + i), du = 60; for (const [m, w] of TOUR_W) { if (u < w) { du = m; break } u -= w } tourBy[du] = (tourBy[du] ?? 0) + 1 }
+  return { d, real: false, worked: true, leave: false, late, lateMin, tours: sh.tours, requested: sh.requested, revenue: sh.revenue, points, tourBy, inMin, outMin, otRaw, workMin: outMin - inMin }
 }
 /** Các ngày làm việc của một người trong kỳ (chỉ đến hôm nay) */
-export function staffDays(s: State, r: { from: Date; to: Date }, id: string, role: 'ktv' | 'reception' = 'ktv'): StaffDay[] {
+export function staffDays(s: State, r: { from: Date; to: Date }, id: string, role: StaffRole = 'ktv'): StaffDay[] {
   const t = today(), inv = okInv(s), x = s.staff.find(y => y.id === id); if (!x) return []
   const out: StaffDay[] = []
   for (let d = startOf(r.from); d <= r.to && d <= t; d = addDays(d, 1)) { const v = staffDay(s, x, d, role, t, inv); if (v) out.push(v) }
   return out
 }
-export function staffMetrics(s: State, r: { from: Date; to: Date }, role: 'ktv' | 'reception' = 'ktv'): StaffM[] {
+export function staffMetrics(s: State, r: { from: Date; to: Date }, role: StaffRole = 'ktv'): StaffM[] {
   return s.staff.filter(x => x.role === role).map(x => {
-    const o: StaffM = { id: x.id, name: x.name, role: x.role, days: 0, tours: 0, revenue: 0, requested: 0, points: 0, late: 0, leave: 0, rating: null }
-    for (const v of staffDays(s, r, x.id, role)) { if (v.worked) o.days++; if (v.leave) o.leave++; if (v.late) o.late++; o.tours += v.tours; o.revenue += v.revenue; o.requested += v.requested; o.points += v.points }
+    const o: StaffM = { id: x.id, name: x.name, role: x.role, days: 0, tours: 0, revenue: 0, requested: 0, points: 0, late: 0, leave: 0, rating: null, tourBy: {} }
+    for (const v of staffDays(s, r, x.id, role)) { if (v.worked) o.days++; if (v.leave) o.leave++; if (v.late) o.late++; o.tours += v.tours; o.revenue += v.revenue; o.requested += v.requested; o.points += v.points
+      for (const [du, n] of Object.entries(v.tourBy)) o.tourBy[+du] = (o.tourBy[+du] ?? 0) + n }
     const fb = s.feedback.filter(f => f.ktvId === x.id); o.rating = fb.length ? +(fb.reduce((a, f) => a + f.rating, 0) / fb.length).toFixed(1) : null
     return o
   })

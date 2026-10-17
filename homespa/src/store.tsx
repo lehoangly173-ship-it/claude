@@ -6,7 +6,8 @@ import * as D from './data'
 import { stayError, State, markReadIn, markUnreadIn, zoneKey, ktvConflict, bedConflict, custConflict, cust, shiftInvoices, CLEAN_MIN, canSee, aiCheck, canSendReport, zoneReport, suggestionError } from './logic'
 import { T } from './i18n'
 import { sb } from './auth'
-import { loadCustomers, loadStaff, insertCustomer, loadPackages, loadCare, insertCare, upsertPackage, updateCustomerStay } from './db'
+import { loadCustomers, loadStaff, insertCustomer, loadPackages, loadCare, insertCare, upsertPackage, updateCustomerStay, loadPayConfig, savePayConfig, loadLeaderEvals, upsertLeaderEval } from './db'
+import { defaultPay, payError, evalError, type PayConfig, type LeaderEvalRec } from './pay'
 
 export type User = { role: D.Role; staffId: string }
 const DEFAULT_USER: Record<D.Role, string> = { reception: 'lam', ktv: 'mai', leader: 'thao', ceo: 'quyen', marketing: 'khoa' }
@@ -80,6 +81,9 @@ function useStoreValue(real?: { id: string; name: string; role: D.Role; shift: 1
   const [user, setUser0] = useState<User>(real ? { role: real.role, staffId: real.id } : { role: 'ktv', staffId: 'mai' })
   const setUser = (u: User) => { if (!real) setUser0(u) }
   const [toast, setToast] = useState<string | null>(null)
+  // Bảng cài đặt lương + điểm năng lực Leader: dùng chung mọi ngày làm việc (không theo từng ngày như dữ liệu vận hành)
+  const [pay, setPay] = useState<PayConfig>(() => defaultPay(!real))
+  const [evals, setEvals] = useState<LeaderEvalRec[]>([])
   const [page, go] = useState('home')
   const [profile, openCustomer] = useState<string | null>(null)
   const [draftBill, setDraftBill] = useState<string | null>(null) // apptId mở sẵn ở Thu ngân
@@ -96,12 +100,14 @@ function useStoreValue(real?: { id: string; name: string; role: D.Role; shift: 1
       const customers = base.map(c => ({ ...c, packages: pk[c.id] ?? [], care: care[c.id]?.care ?? [], careNotes: care[c.id]?.careNotes ?? [] }))
       setS(d => ({ ...d, customers, staff: staff.some(x => x.id === real.id) ? staff : [...staff, ...d.staff], rotation: { 1: staff.filter(x => x.role === 'ktv' && x.shift === 1).map(x => x.id), 2: staff.filter(x => x.role === 'ktv' && x.shift === 2).map(x => x.id) } }))
     } catch (e) { say('⚠ ' + T.sync.failed + ': ' + (e as Error).message) }
+    try { const [pc, ev] = await Promise.all([loadPayConfig(sb()), loadLeaderEvals(sb())]); setPay(pc); setEvals(ev) }
+    catch (e) { say('⚠ ' + T.pay.loadFailed + ': ' + (e as Error).message) }
   }
   useEffect(() => {
     if (!real) return
     hydrate()
     const tick = window.setInterval(() => { const m = vnNowMin(); if (!isPastDay()) setS(d => d.now === m ? d : { ...d, now: m }) }, 20000)
-    const ch = ['customers', 'packages', 'care_notes'].reduce((c, table) => c.on('postgres_changes', { event: '*', schema: 'public', table }, () => hydrate()), sb().channel('homespa-sync')).subscribe()
+    const ch = ['customers', 'packages', 'care_notes', 'pay_settings', 'leader_evals'].reduce((c, table) => c.on('postgres_changes', { event: '*', schema: 'public', table }, () => hydrate()), sb().channel('homespa-sync')).subscribe()
     const iv = window.setInterval(hydrate, 30000), vis = () => { if (document.visibilityState === 'visible') hydrate() }
     document.addEventListener('visibilitychange', vis)
     return () => { window.clearInterval(iv); window.clearInterval(tick); document.removeEventListener('visibilitychange', vis); sb().removeChannel(ch) }
@@ -230,6 +236,27 @@ function useStoreValue(real?: { id: string; name: string; role: D.Role; shift: 1
       say('Đã lưu ghi nhận vào hồ sơ khách')
     },
     /** Fix lần 4: thời gian lưu trú tại Đà Nẵng (Lễ tân / Leader / CEO) — CSKH không làm phiền khách đã rời đi */
+    /** CEO lưu bảng cài đặt lương (một nguồn cho mọi màn Thu nhập). Trả câu lỗi hoặc null. */
+    savePay: (c: PayConfig): string | null => {
+      if (!allow('ceo')) return T.pay.noRight
+      const e = payError(c); if (e) return e
+      const next: PayConfig = { ...c, sample: false, by: me.name, at: `${D.dateShort()} ${D.hhmm(s.now)}` }
+      setPay(next)
+      mutate(d => notify(d, { cat: 'Hệ thống', text: T.pay.updatedNotif, detail: `${me.name} · ${next.at}`, roles: ['ktv', 'reception', 'leader', 'marketing'], nav: 'me' }))
+      persist(() => savePayConfig(sb(), next)); say(T.pay.saved); return null
+    },
+    /** CEO chấm 8 tiêu chí năng lực Leader (thang 1–10) cho một tháng */
+    saveLeaderEval: (leaderId: string, ym: string, scores: (number | null)[]): string | null => {
+      if (!allow('ceo')) return T.pay.noRight
+      if (!s.staff.some(x => x.id === leaderId && x.role === 'leader')) return T.pay.notLeader
+      if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(ym)) return T.pay.badMonth
+      if (ym > `${D.TODAY.getFullYear()}-${String(D.TODAY.getMonth() + 1).padStart(2, '0')}`) return T.pay.futureMonth
+      const e = evalError(scores); if (e) return e
+      const rec: LeaderEvalRec = { leaderId, ym, scores: [...scores], by: me.name, at: D.dateShort() }
+      setEvals(l => [...l.filter(x => !(x.leaderId === leaderId && x.ym === ym)), rec])
+      mutate(d => notify(d, { cat: 'Hệ thống', text: T.pay.evalNotif(ym), detail: me.name, roles: ['leader'], to: [leaderId], nav: 'me/eval' }))
+      persist(() => upsertLeaderEval(sb(), rec)); say(T.pay.evalSaved); return null
+    },
     setStay: (customerId: string, from: string, to: string): string | null => {
       if (!allow('reception', 'leader', 'ceo')) return 'Bạn không có quyền làm việc này'
       const e = stayError(from, to); if (e) { say('⚠ ' + e); return e }
@@ -558,7 +585,7 @@ function useStoreValue(real?: { id: string; name: string; role: D.Role; shift: 1
     toggleZoneCheck: (zone: number, i: number, init: boolean[]) => mutate(d => { const k = zoneKey(zone, me.id); const a = d.zoneChecks[k] ?? [...init]; a[i] = !a[i]; d.zoneChecks[k] = a }),
     markAllRead: () => mutate(d => { d.notifs.forEach(n => { if (canSee(n, user.role, me.id) && !n.readBy.includes(me.id)) n.readBy.push(me.id) }) }),
   }
-  return { s, user, setUser, me, toast, real: !!real, say, page, go, profile, openCustomer, draftBill, setDraftBill, ...actions, CLEAN_MIN }
+  return { s, pay, evals, user, setUser, me, toast, real: !!real, say, page, go, profile, openCustomer, draftBill, setDraftBill, ...actions, CLEAN_MIN }
 }
 
 export function StoreProvider({ children, real }: { children: ReactNode; real?: { id: string; name: string; role: D.Role; shift: 1 | 2 | null } }) {

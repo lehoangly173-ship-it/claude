@@ -23,6 +23,9 @@ beforeAll(async () => {
   await db.exec(readFileSync(join(dir, 'migrations/0001_phan_quyen.sql'), 'utf8'))
   await db.exec(readFileSync(join(dir, 'migrations/0003_nhom2_goi_cham_soc.sql'), 'utf8'))
   await db.exec(readFileSync(join(dir, 'migrations/0004_moc_ai.sql'), 'utf8'))
+  await db.exec(readFileSync(join(dir, 'migrations/0005_fix_lan_4.sql'), 'utf8'))
+  await db.exec(readFileSync(join(dir, 'migrations/0006_luong_tour_tang_ca.sql'), 'utf8'))
+  await db.exec(readFileSync(join(dir, 'migrations/0006_luong_tour_tang_ca.sql'), 'utf8')) // chạy lại 2 lần không lỗi
   await db.exec(`
     insert into auth.users (id) values ${Object.values(U).map(u => `('${u}')`).join(',')};
     insert into staff (id, user_id, name, role, shift) values
@@ -304,5 +307,44 @@ describe('Mộc AI: kiến thức + lượt hỏi', () => {
     await as(U.newbie); expect(await fails('select moc_take_quota()')).toBe(true)
     await as(null); expect(await fails('select moc_take_quota()')).toBe(true)
     await root()
+  })
+})
+
+describe('Bảng cài đặt lương + điểm năng lực Leader (0006)', () => {
+  const cfg = JSON.stringify({ roles: { ktv: { base: 7000000, stdDays: 26 }, reception: { base: 7500000 }, leader: { base: 15000000 }, marketing: { base: 12000000 } }, tour: { 45: 30000, 60: 40000, 90: 60000, 120: 80000 }, otMinMin: 30, evalPerPoint: 100000 })
+  it('chỉ CEO ghi/đọc cả bảng; nhân sự khác không đọc bảng trực tiếp', async () => {
+    await as(U.ktv1); expect(await fails(`insert into pay_settings (id, data) values (1, '${cfg}')`)).toBe(true)
+    await as(U.leader); expect(await fails(`insert into pay_settings (id, data) values (1, '${cfg}')`)).toBe(true)
+    await as(U.ceo); await db.query(`insert into pay_settings (id, data) values (1, '${cfg}')`)
+    expect(await fails(`insert into pay_settings (id, data) values (2, '${cfg}')`)).toBe(true) // chỉ một dòng
+    expect(await rows('select * from pay_settings')).toHaveLength(1)
+    for (const u of [U.ktv1, U.leader, U.rec, U.mkt]) { await as(u); expect(await rows('select * from pay_settings')).toHaveLength(0); expect(await fails(`update pay_settings set data = '{}'`)).toBe(false); }
+    await as(U.ceo); expect((await rows('select data from pay_settings'))[0].data).toMatchObject({ otMinMin: 30 }) // cập nhật của người khác không có tác dụng
+    await root()
+  })
+  it('my_pay_settings: mỗi người chỉ nhận phần vai trò mình (KTV không thấy lương Leader)', async () => {
+    await as(U.ktv1); const k = (await rows('select my_pay_settings() as d'))[0].d as any
+    expect(Object.keys(k.roles)).toEqual(['ktv']); expect(k.tour['60']).toBe(40000); expect(k.evalPerPoint).toBeNull()
+    await as(U.leader); const l = (await rows('select my_pay_settings() as d'))[0].d as any
+    expect(Object.keys(l.roles)).toEqual(['leader']); expect(l.tour).toEqual({}); expect(l.evalPerPoint).toBe(100000)
+    await as(U.rec); expect(Object.keys(((await rows('select my_pay_settings() as d'))[0].d as any).roles)).toEqual(['reception'])
+    await as(U.ceo); expect(Object.keys(((await rows('select my_pay_settings() as d'))[0].d as any).roles)).toHaveLength(4)
+    await as(U.newbie); expect((await rows('select my_pay_settings() as d'))[0].d).toBeNull()
+    await root()
+  })
+  it('điểm năng lực Leader: CEO chấm 1–10; Leader chỉ xem điểm mình; người khác không thấy', async () => {
+    await as(U.leader); expect(await fails(`insert into leader_evals (leader_id, ym, scores) values ('thao','2026-10','{9,9,9,9,9,9,9,9}')`)).toBe(true)
+    await as(U.ceo)
+    expect(await fails(`insert into leader_evals (leader_id, ym, scores) values ('thao','2026-10','{11,8,8,8,8,8,8,8}')`)).toBe(true)
+    expect(await fails(`insert into leader_evals (leader_id, ym, scores) values ('thao','2026-10','{8,8,8}')`)).toBe(true)
+    expect(await fails(`insert into leader_evals (leader_id, ym, scores) values ('thao','2026-13','{8,8,8,8,8,8,8,8}')`)).toBe(true)
+    expect(await fails(`insert into leader_evals (leader_id, ym, scores) values ('thao','2026-10','{null,null,null,null,null,null,null,null}')`)).toBe(true)
+    await db.query(`insert into leader_evals (leader_id, ym, scores, by_name) values ('thao','2026-10','{8,9,null,7,8,8,6,9}','Quyên')`)
+    await as(U.leader); expect(await rows('select * from leader_evals')).toHaveLength(1)
+    for (const u of [U.ktv1, U.rec, U.mkt]) { await as(u); expect(await rows('select * from leader_evals')).toHaveLength(0) }
+    await root()
+    expect((await rows(`select count(*)::int as n from audit_log where tbl in ('pay_settings','leader_evals')`))[0].n).toBeGreaterThanOrEqual(2)
+    expect((await rows(`select updated_by from leader_evals where leader_id = 'thao'`))[0].updated_by).toBe('quyen') // máy chủ tự ghi người sửa
+    await as(null); expect(await fails('select * from pay_settings')).toBe(true); expect(await fails('select * from leader_evals')).toBe(true); await root()
   })
 })

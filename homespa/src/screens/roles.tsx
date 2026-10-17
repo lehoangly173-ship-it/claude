@@ -16,7 +16,7 @@ import { OpsBase2, HandoverPage } from './reception2'
 import { TeamOps, LeaveApprove, OpsApprove, LeaderFin, LeaderMothers, StaffPerf, SalaryPage, TrainTree, LeaderCareTop } from './leader2'
 import { SettingDetail, RefPhotosPage } from './settings'
 import { MocDocs } from './mocDocs'
-import { PerfTrend, IncomeSummary } from './fix4'
+import { PerfTrend, IncomeSummary, IncomeBody } from './fix4'
 import { HealthDash, FinanceDash, StaffCompare, SourceDash, PeriodSummary } from './timeDash'
 import { HBars } from '../charts'
 
@@ -153,8 +153,8 @@ export function MarketingMine({ sub }: { sub: string[] }) {
   if (sub[0] === 'time' || sub[0] === 'perf') return <MyPage sub={sub} />
   return <SpecHub rows={MKT_NODES.M4.rows} sub={sub[0]} leaf={sub[1]} base="me" tag="Của tôi" title="Kết quả & năng lực"
     custom={{ '4.2': () => <button className="softbtn" onClick={() => go('me/time')}>Mở lịch & chấm công</button>, '4.8': () => <button className="softbtn" onClick={() => go('me/perf')}>Mở điểm uy tín của tôi</button>, '4.5': () => <ProgramsPanel ownerFilter={me.id} only />,
-      // Fix lần 4: KPI có mũi tên so với tháng trước + Tổng kết; Thu nhập có Tổng kết (bảng lương Marketing chờ CEO cài)
-      '4.7': () => <PerfTrend id={me.id} role="marketing" />, '4.9': () => <IncomeSummary /> }} />
+      // Fix lần 4: KPI có mũi tên so với tháng trước + Tổng kết; Thu nhập: bảng lương theo Bảng cài đặt lương CEO (13.10) + Tổng kết
+      '4.7': () => <PerfTrend id={me.id} role="marketing" />, '4.9': () => <><IncomeBody /><IncomeSummary /></> }} />
 }
 
 // ═══════════════ CEO ═══════════════

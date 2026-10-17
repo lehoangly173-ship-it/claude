@@ -3,7 +3,8 @@ import { describe, it, expect } from 'vitest'
 import * as D from './data'
 import type { State } from './logic'
 import { stayState, stayError, canContact, commissionsOf, careGroup, usedPkgValue } from './logic'
-import { staffDays, staffMetrics, payslip, rangeOf, today } from './period'
+import { staffDays, staffMetrics, rangeOf, today } from './period'
+import { payslip, defaultPay } from './pay'
 import { cell } from './tree'
 
 const day = (n: number) => { const d = new Date(D.TODAY); d.setDate(d.getDate() + n); return D.dateShort(d) }
@@ -42,12 +43,12 @@ describe('Hoa hồng sale gói (lễ tân nhập)', () => {
     expect(commissionsOf({ customers: [c] }, 'mai').length).toBe(2)
     expect(commissionsOf({ customers: [c] }, 'lan', m)[0].x.role).toBe('Hỗ trợ')
   })
-  it('bảng lương: bỏ hoa hồng % doanh thu, cộng hoa hồng sale gói, tiền tour Chưa nối (không cộng)', () => {
-    const sm = { id: 'mai', name: 'Mai', role: 'ktv' as const, days: 13, tours: 40, revenue: 15e6, requested: 3, points: 3, late: 1, leave: 0, rating: null }
-    const p = payslip(sm, 200000)
-    expect(p.commission).toBe(200000); expect(p.tourPay).toBeNull()
-    expect(p.total).toBe(p.byDays + 200000 + p.bonus - p.penalty)
-    expect(payslip(sm).total).toBe(p.total - 200000)
+  it('bảng lương: bỏ hoa hồng % doanh thu, cộng hoa hồng sale gói; giá tour chưa đặt → không cộng, ghi rõ', () => {
+    const sm = { id: 'mai', name: 'Mai', role: 'ktv' as const, days: 13, tours: 40, revenue: 15e6, requested: 3, points: 3, late: 1, leave: 0, rating: null, tourBy: { 60: 30, 90: 10 } }
+    const p = payslip(defaultPay(true), sm, { commission: 200000 })!
+    expect(p.commission).toBe(200000); expect(p.tourPay).toBeNull(); expect(p.missing).toContain('giá tour 60 phút')
+    expect(p.total).toBe(p.byDays! + 200000 + p.bonus! - p.penalty!)
+    expect(payslip(defaultPay(true), sm)!.total).toBe(p.total - 200000)
   })
 })
 
