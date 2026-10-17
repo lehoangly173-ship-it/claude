@@ -21,6 +21,7 @@ beforeAll(async () => {
   db = new PGlite()
   await db.exec(readFileSync(join(dir, 'test/stub.sql'), 'utf8'))
   await db.exec(readFileSync(join(dir, 'migrations/0001_phan_quyen.sql'), 'utf8'))
+  await db.exec(readFileSync(join(dir, 'migrations/0003_nhom2_goi_cham_soc.sql'), 'utf8'))
   await db.exec(`
     insert into auth.users (id) values ${Object.values(U).map(u => `('${u}')`).join(',')};
     insert into staff (id, user_id, name, role, shift) values
@@ -239,6 +240,33 @@ describe('CEO duyệt tài khoản & vai trò', () => {
     expect(await rows('select * from customers')).toHaveLength(0) // KTV mới chưa có tour → chưa thấy khách nào
     await as(U.ceo); await db.query(`select set_staff_role($1, 'ktv', false)`, [sid]) // khóa tài khoản
     await as(U.newbie); expect((await rows('select app_role() as r'))[0].r).toBeNull()
+    await root()
+  })
+})
+
+describe('Nhóm 2: gói liệu trình + ghi nhận chăm sóc (app ghi/đọc)', () => {
+  it('Lễ tân ghi dòng nhật ký chăm sóc cho khách; KTV khác không đọc được', async () => {
+    await as(U.rec)
+    await db.query(`insert into care_notes (customer_id, data) values ('c2', '{"entry":{"at":"x","by":"Lam","text":"Nhắn tin hỏi thăm"}}')`)
+    expect((await rows(`select data from care_notes where customer_id='c2'`)).length).toBeGreaterThan(0)
+    await as(U.ktv1); expect(await rows(`select * from care_notes where customer_id='c2'`)).toHaveLength(0)
+    await root()
+  })
+  it('Không ghi giả tên người khác, không ghi cho ngày khác', async () => {
+    await as(U.rec)
+    expect(await fails(`insert into care_notes (customer_id, data, by_staff_id) values ('c2', '{}', 'mai')`)).toBe(true)
+    expect(await fails(`insert into care_notes (customer_id, data, work_date) values ('c2', '{}', current_date - 3)`)).toBe(true)
+    await root()
+  })
+  it('Lễ tân lưu gói đầy đủ cột mới (mã mẫu, người chốt, tái tục); ghi lại cùng mã thì cập nhật', async () => {
+    await as(U.rec)
+    await db.query(`insert into packages (card_code, customer_id, name, type, final_price, sessions, used, catalog_id, closer, closer_ids, renewal_of) values ('LT-9','c2','Gói 20','session',7000000,20,0,'p20','Lam',array['lam'],'LT-2')`)
+    await db.query(`insert into packages (card_code, customer_id, name, type, final_price, sessions, used, catalog_id) values ('LT-9','c2','Gói 20','session',7000000,20,1,'p20') on conflict (card_code) do update set used = excluded.used`)
+    const r = await rows(`select used, closer, catalog_id from packages where card_code='LT-9'`); expect(r[0].used).toBe(1); expect(r[0].closer).toBe('Lam'); expect(r[0].catalog_id).toBe('p20')
+    await root()
+  })
+  it('KTV và Marketing không đọc/ghi bảng gói (KTV chỉ có số buổi còn qua hàm)', async () => {
+    for (const u of [U.ktv1, U.mkt]) { await as(u); expect(await rows('select * from packages')).toHaveLength(0); expect(await fails(`insert into packages (card_code, customer_id, name, type) values ('X','c1','x','session')`)).toBe(true) }
     await root()
   })
 })

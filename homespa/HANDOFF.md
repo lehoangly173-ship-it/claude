@@ -188,3 +188,5 @@ Thứ tự:
 - Nhóm 1 xong trên `team/phan-quyen`: khách + nhân sự nối Supabase (`src/db.ts`, `store.tsx` hydrate + realtime, `migrations/0002_realtime.sql`). Bản thật không còn dữ liệu mẫu; các nhóm khác trống tới khi nối. Sửa lỗi Mộc khi chưa có chương trình.
 - Kiểm thử: 97 test (có `src/db.test.ts`), quét bản thật bằng máy chủ giả cho 5 vai trò (không lỗi trang), thêm khách → ghi đúng bảng. Chưa thử với Supabase thật (chờ Ly tạo dự án).
 - Tiếp theo: nhóm 2 = gói liệu trình + ghi nhận chăm sóc → lịch hẹn/hàng chờ → hóa đơn → chấm công → kho/chi tiêu.
+- 17/10 — Nhóm 2 xong (nhánh `team/phan-quyen`): gói liệu trình + ghi nhận chăm sóc nối Supabase (`0003_nhom2_goi_cham_soc.sql`; KTV nhận số buổi qua `ktv_packages`). Bản thật dùng giờ VN thật (`vnNowMin`). 103 test đạt (24 RLS), quét 5 vai trò bản thật bằng máy chủ giả: 0 lỗi. Chưa thử Supabase thật. Tiếp theo: nhóm 3 = lịch hẹn + hàng chờ → hóa đơn (kèm bán gói/trừ buổi) → chấm công → kho/chi tiêu.
+- Expo: ngày 15/10 sandbox kẹt "STARTING" > 6 phút (2 lần) nên chưa deploy; bản xem thử tạm qua trang xem thử Claude. Có thể do hết phút gói miễn phí — Ly kiểm tra expo.dev → Usage.

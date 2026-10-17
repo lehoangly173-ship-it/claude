@@ -56,7 +56,9 @@ Thêm: không ai sửa được cột ngoài phần được phép (VD duyệt �
 2. Chạy file `supabase/migrations/0001_phan_quyen.sql` trên dự án đó. Tạo dòng CEO đầu tiên cho chị Quyên. Chạy Supabase Advisors (security).
 3. **Nối dữ liệu nghiệp vụ** theo nhóm. Bản thật đã **bỏ dữ liệu mẫu** (các nhóm chưa nối hiện trống).
    - ✅ Nhóm 1 (15/10): **Khách + nhân sự** — đọc từ máy chủ (`src/db.ts`), thêm khách ghi lên `customers` (+ `customer_contacts` nếu Lễ tân/CEO có SĐT), tự cập nhật qua realtime (`migrations/0002_realtime.sql`) + 30 giây/lần + khi quay lại app. KTV chỉ nhận khách của mình; SĐT/tiền chỉ vai được phép (RLS).
-   - ⏳ Còn: gói liệu trình + ghi nhận chăm sóc, lịch hẹn, hàng chờ, hóa đơn, chấm công, kho/chi tiêu, nghỉ phép/điểm/lương, thông báo, cài đặt, ảnh. Mỗi nhóm: bảng đã có sẵn trong `0001`; cần viết mapper như `db.ts`, bật realtime, thử bằng máy chủ giả.
+   - ✅ Nhóm 2 (17/10): **Gói liệu trình + ghi nhận chăm sóc** — đọc/ghi qua `db.ts` (`migrations/0003_nhom2_goi_cham_soc.sql` thêm cột + realtime). Lễ tân/Leader/CEO đọc bảng `packages`; KTV chỉ nhận số buổi còn qua hàm `ktv_packages` (không thấy giá); Marketing không xem gói. Ghi nhận chăm sóc (phiếu KTV + nhật ký nhắn tin/gọi điện/kết quả việc) lưu ở `care_notes`; KTV chỉ đọc ghi nhận của mình. Nhập số dư đầu kỳ ghi lên `packages`. Gói bán mới/trừ buổi theo hóa đơn sẽ nối cùng nhóm hóa đơn.
+   - ✅ Đồng hồ thật: bản thật dùng giờ Việt Nam thật (trước đó bị đứng ở 10:15 như bản demo).
+   - ⏳ Còn: lịch hẹn, hàng chờ, hóa đơn (kèm bán gói/trừ buổi), chấm công, kho/chi tiêu, nghỉ phép/điểm/lương, thông báo, cài đặt, ảnh. Mỗi nhóm: bảng đã có sẵn trong `0001`; cần viết mapper như `db.ts`, bật realtime, thử bằng máy chủ giả.
    - Lưu ý: mã khách (KLxxxx) hiện do máy tạo; 2 lễ tân thêm cùng lúc có thể trùng mã → máy chủ từ chối, app báo và tải lại. Nên chuyển sang mã do máy chủ cấp khi nối nhóm hóa đơn.
 4. Thông báo: chỉ chấp nhận đường dẫn trong app. Xuất file khách làm ở máy chủ, chỉ CEO, có ghi nhật ký. Ảnh: xóa thông tin vị trí (EXIF) trước khi tải lên.
 5. Nhập nhân sự thật, chạy thử 1–2 ngày với vài người. Ly duyệt rồi mới phát hành.

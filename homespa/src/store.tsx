@@ -6,7 +6,7 @@ import * as D from './data'
 import { State, markReadIn, markUnreadIn, zoneKey, ktvConflict, bedConflict, custConflict, cust, shiftInvoices, CLEAN_MIN, canSee, aiCheck, canSendReport, zoneReport, suggestionError } from './logic'
 import { T } from './i18n'
 import { sb } from './auth'
-import { loadCustomers, loadStaff, insertCustomer } from './db'
+import { loadCustomers, loadStaff, insertCustomer, loadPackages, loadCare, insertCare, upsertPackage } from './db'
 
 export type User = { role: D.Role; staffId: string }
 const DEFAULT_USER: Record<D.Role, string> = { reception: 'lam', ktv: 'mai', leader: 'thao', ceo: 'quyen', marketing: 'khoa' }
@@ -55,9 +55,11 @@ const initial = (): State => ({
 })
 
 /** Bản thật: không có dữ liệu mẫu. Khách + nhân sự đọc từ máy chủ; các nhóm còn lại (lịch, hóa đơn…) bắt đầu trống, nối ở bước sau. */
+/** Giờ Việt Nam hiện tại, tính bằng phút trong ngày (bản thật dùng giờ thật, không dùng giờ giả lập) */
+export const vnNowMin = () => { const p = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(new Date()); const g = (t: string) => Number(p.find(x => x.type === t)?.value); return (g('hour') % 24) * 60 + g('minute') }
 const emptyReal = (real: { id: string; name: string; role: D.Role; shift: 1 | 2 | null }): State => {
   const b = initial()
-  return { ...b, appts: [], queue: [], customers: [], invoices: [], cleaning: {}, rotation: { 1: [], 2: [] }, tasks: [], feedback: [], programs: [], initiatives: [], approvals: [], reports: [], notifs: [], join: [],
+  return { ...b, now: vnNowMin(), appts: [], queue: [], customers: [], invoices: [], cleaning: {}, rotation: { 1: [], 2: [] }, tasks: [], feedback: [], programs: [], initiatives: [], approvals: [], reports: [], notifs: [], join: [],
     staff: [{ id: real.id, name: real.name, role: real.role, ...(real.shift ? { shift: real.shift } : {}) }], zoneOwner: {}, cleanReports: [], bills: [], billCheck: null, reviews: [], productLogs: [], leaves: [], attendance: {},
     shiftCloses: [], points: [], opsChecks: [], stockMoves: [], opsReqs: [], xpChecks: [], handovers: [], expenses: [], profiles: {}, adjusts: [] }
 }
@@ -89,18 +91,24 @@ function useStoreValue(real?: { id: string; name: string; role: D.Role; shift: 1
   const hydrate = async () => {
     if (!real) return
     try {
-      const [customers, staff] = await Promise.all([loadCustomers(sb()), loadStaff(sb())])
+      const [base, staff] = await Promise.all([loadCustomers(sb()), loadStaff(sb())])
+      const [pk, care] = await Promise.all([loadPackages(sb(), real.role, base.map(c => c.id)), loadCare(sb())])
+      const customers = base.map(c => ({ ...c, packages: pk[c.id] ?? [], care: care[c.id]?.care ?? [], careNotes: care[c.id]?.careNotes ?? [] }))
       setS(d => ({ ...d, customers, staff: staff.some(x => x.id === real.id) ? staff : [...staff, ...d.staff], rotation: { 1: staff.filter(x => x.role === 'ktv' && x.shift === 1).map(x => x.id), 2: staff.filter(x => x.role === 'ktv' && x.shift === 2).map(x => x.id) } }))
     } catch (e) { say('⚠ ' + T.sync.failed + ': ' + (e as Error).message) }
   }
   useEffect(() => {
     if (!real) return
     hydrate()
-    const ch = sb().channel('homespa-sync').on('postgres_changes', { event: '*', schema: 'public', table: 'customers' }, () => hydrate()).subscribe()
+    const tick = window.setInterval(() => { const m = vnNowMin(); if (!isPastDay()) setS(d => d.now === m ? d : { ...d, now: m }) }, 20000)
+    const ch = ['customers', 'packages', 'care_notes'].reduce((c, table) => c.on('postgres_changes', { event: '*', schema: 'public', table }, () => hydrate()), sb().channel('homespa-sync')).subscribe()
     const iv = window.setInterval(hydrate, 30000), vis = () => { if (document.visibilityState === 'visible') hydrate() }
     document.addEventListener('visibilitychange', vis)
-    return () => { window.clearInterval(iv); document.removeEventListener('visibilitychange', vis); sb().removeChannel(ch) }
+    return () => { window.clearInterval(iv); window.clearInterval(tick); document.removeEventListener('visibilitychange', vis); sb().removeChannel(ch) }
   }, [])
+
+  /** Bản thật: ghi lên máy chủ; lỗi → báo + tải lại để màn hình khớp với máy chủ */
+  const persist = (run: () => Promise<unknown>) => { if (real) run().catch(e => { say('⚠ ' + T.sync.saveFailed + ': ' + (e as Error).message); hydrate() }) }
 
   // mutate: sao chép trạng thái, sửa trên bản sao, ghi lại
   // Mỗi ngày làm việc giữ một bộ dữ liệu riêng: đổi ngày → cất dữ liệu ngày cũ, mở dữ liệu ngày mới (ngày chưa có → dữ liệu mẫu)
@@ -212,14 +220,15 @@ function useStoreValue(real?: { id: string; name: string; role: D.Role; shift: 1
     /** KTV ghi nhận chăm sóc: chỉ khách mình đã phục vụ hôm nay (đang làm / xong / đã thanh toán) */
     addCareNote: (customerId: string, n: Omit<D.CareNote, 'at' | 'date' | 'by' | 'byId'>) => {
       if (me.role !== 'ktv' || !s.appts.some(a => a.ktvId === me.id && a.customerId === customerId && ['in_service', 'done', 'paid'].includes(a.status))) return say('Chỉ ghi nhận khách bạn đã chăm sóc hôm nay')
+      const note: D.CareNote = { ...n, at: D.stamp(s.now), date: D.dateShort(), by: me.name, byId: me.id }
       mutate(d => { const c = cust(d, customerId)
-        const note: D.CareNote = { ...n, at: D.stamp(d.now), date: D.dateShort(), by: me.name, byId: me.id }
         ;(c.careNotes ??= []).unshift(note)
         // không ghi đè lưu ý sức khỏe / sở thích gốc của khách — ghi nhận mới hiện riêng ("Ghi nhận gần nhất")
         c.care.unshift({ at: note.at, by: me.name, text: `Ghi nhận chăm sóc: ${D.careSummary(note)}` }) })
+      if (!blocked()) persist(() => insertCare(sb(), customerId, { note }))
       say('Đã lưu ghi nhận vào hồ sơ khách')
     },
-    addCare: (customerId: string, text: string) => mutate(d => { cust(d, customerId).care.unshift({ at: D.stamp(d.now), by: me.name, text }) }),
+    addCare: (customerId: string, text: string) => { const e = { at: D.stamp(s.now), by: me.name, text }; mutate(d => { cust(d, customerId).care.unshift(e) }); if (!blocked()) persist(() => insertCare(sb(), customerId, { entry: e })) },
 
     // ── Thu ngân ──
     confirmInvoice: (inv: Omit<D.Invoice, 'code' | 'createdAt' | 'createdMin' | 'creator' | 'log'>, pkgNew?: D.Package, pkgCollect = 0): string => {
@@ -282,6 +291,7 @@ function useStoreValue(real?: { id: string; name: string; role: D.Role; shift: 1
         const fb = d.feedback.find(f => f.id === t.feedbackId)
         if (fb) { fb.status = 'đã xử lý'; fb.handlerId = me.id }
       })
+      { const t = s.tasks.find(x => x.id === tid), cid = t?.customerId; if (t && cid && !blocked()) persist(() => insertCare(sb(), cid, { entry: { at: D.stamp(s.now), by: me.name, text: `${t.title} → ${result}` } })) }
       say('Đã hoàn thành — kết quả đã lưu vào hồ sơ')
     },
     transferTask: (tid: string, to: string, reason: string) => {
@@ -396,7 +406,9 @@ function useStoreValue(real?: { id: string; name: string; role: D.Role; shift: 1
     },
     importOpening: (customerId: string, p: D.Package) => {
       if (!allow('reception', 'leader', 'ceo')) return
-      mutate(d => { cust(d, customerId).packages.push(p); cust(d, customerId).care.unshift({ at: D.stamp(d.now), by: me.name, text: `Nhập số dư đầu kỳ ${p.cardCode} (chuyển từ hệ thống cũ — không tính doanh thu hôm nay)` }) })
+      const e = { at: D.stamp(s.now), by: me.name, text: `Nhập số dư đầu kỳ ${p.cardCode} (chuyển từ hệ thống cũ — không tính doanh thu hôm nay)` }
+      mutate(d => { cust(d, customerId).packages.push(p); cust(d, customerId).care.unshift(e) })
+      if (!blocked()) { persist(() => upsertPackage(sb(), customerId, p)); persist(() => insertCare(sb(), customerId, { entry: e })) }
       say('Đã lưu số dư đầu kỳ')
     },
     // ── Luồng hằng ngày ──
@@ -528,7 +540,7 @@ function useStoreValue(real?: { id: string; name: string; role: D.Role; shift: 1
       })
     },
     setZoneOwner: (zone: number, staffId: string) => allow('ceo') && mutate(d => { d.zoneOwner[zone] = staffId }),
-    logCare: (customerId: string, e: Omit<D.CareEntry, 'at' | 'by'>) => mutate(d => { cust(d, customerId).care.unshift({ ...e, at: D.stamp(d.now), by: me.name }) }),
+    logCare: (customerId: string, e: Omit<D.CareEntry, 'at' | 'by'>) => { const x = { ...e, at: D.stamp(s.now), by: me.name }; mutate(d => { cust(d, customerId).care.unshift(x) }); if (!blocked()) persist(() => insertCare(sb(), customerId, { entry: x })) },
     markRead: (nid: string) => mutate(d => markReadIn(d, nid, me.id)),
     markUnread: (nid: string) => mutate(d => markUnreadIn(d, nid, me.id)),
     setZoneRead: (zone: number, v: boolean) => mutate(d => { d.zoneRead[zoneKey(zone, me.id)] = v }),

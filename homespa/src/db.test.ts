@@ -16,3 +16,15 @@ describe('rowToCustomer', () => {
   })
   it('ngày đầu tiên đúng dd/mm/yyyy', () => { expect(rowToCustomer(base).firstVisit).toBe('01/10/2026') })
 })
+
+import { rowToPackage, packageToRow, PackageRow } from './db'
+describe('gói liệu trình', () => {
+  const row: PackageRow = { card_code: 'LT-1', customer_id: 'c1', name: 'Gói 10 buổi', type: 'session', grp: 'Massage trị liệu', buy_date: '2026-09-01', expiry: '2027-03-01', final_price: '5000000', closer_ids: ['lam'], closer: 'Lâm', catalog_id: 'p10', renewal_of: null, sessions: 10, bonus: 1, used: 3, value: null, bonus_value: null, value_used: 0, payments: [], usage: [] }
+  it('đọc: số buổi còn đúng, tiền bigint dạng chuỗi', () => {
+    const p = rowToPackage(row); expect(p.finalPrice).toBe(5000000); expect(p.buyDate).toBe('01/09/2026'); expect(p.sessions).toBe(10); expect(p.used).toBe(3); expect(p.catalogId).toBe('p10')
+  })
+  it('ghi rồi đọc lại không mất gì', () => {
+    const p = rowToPackage(row); const back = packageToRow('c1', p)
+    expect(back.card_code).toBe('LT-1'); expect(back.buy_date).toBe('2026-09-01'); expect(back.expiry).toBe('2027-03-01'); expect(back.final_price).toBe(5000000); expect(back.closer_ids).toEqual(['lam'])
+  })
+})

@@ -51,3 +51,71 @@ export async function insertCustomer(sb: SupabaseClient, c: D.Customer, role: D.
     if (b.error) throw new Error(b.error.message)
   }
 }
+
+// ───────────── Nhóm 2: gói liệu trình + ghi nhận chăm sóc ─────────────
+export type PackageRow = {
+  card_code: string; customer_id: string; name: string; type: 'session' | 'money'; grp: string | null; buy_date: string; expiry: string | null
+  final_price: number | string; closer_ids: string[] | null; closer: string | null; catalog_id: string | null; renewal_of: string | null
+  sessions: number | null; bonus: number | null; used: number | null; value: number | string | null; bonus_value: number | string | null; value_used: number | string | null
+  payments: D.Payment[] | null; usage: D.Usage[] | null
+}
+const num = (x: number | string | null | undefined) => (x == null ? undefined : Number(x))
+
+export function rowToPackage(r: PackageRow): D.Package {
+  return {
+    cardCode: r.card_code, catalogId: r.catalog_id ?? '', name: r.name, type: r.type, group: (r.grp ?? 'Tất cả') as D.Package['group'],
+    buyDate: D.dateShort(fromIso(r.buy_date)), expiry: r.expiry ? D.dateShort(fromIso(r.expiry)) : '', finalPrice: Number(r.final_price), closer: r.closer ?? '',
+    closerIds: r.closer_ids ?? [], renewalOf: r.renewal_of ?? undefined, sessions: num(r.sessions), bonus: num(r.bonus), used: num(r.used),
+    value: num(r.value), bonusValue: num(r.bonus_value), valueUsed: num(r.value_used), payments: r.payments ?? [], usage: r.usage ?? [],
+  }
+}
+const toIso = (vn: string) => { const [d, m, y] = vn.split('/').map(Number); return d && m && y ? `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}` : null }
+export function packageToRow(customerId: string, p: D.Package) {
+  return {
+    card_code: p.cardCode, customer_id: customerId, name: p.name, type: p.type, grp: p.group, buy_date: toIso(p.buyDate) ?? iso(D.TODAY), expiry: toIso(p.expiry),
+    final_price: p.finalPrice, closer_ids: p.closerIds ?? [], closer: p.closer || null, catalog_id: p.catalogId || null, renewal_of: p.renewalOf ?? null,
+    sessions: p.sessions ?? null, bonus: p.bonus ?? null, used: p.used ?? 0, value: p.value ?? null, bonus_value: p.bonusValue ?? null, value_used: p.valueUsed ?? 0,
+    payments: p.payments, usage: p.usage,
+  }
+}
+
+/** Gói theo khách. Lễ tân/Leader/CEO đọc bảng; KTV chỉ nhận số buổi còn (hàm ktv_packages, không có giá/tiền). */
+export async function loadPackages(sb: SupabaseClient, role: D.Role, customerIds: string[]): Promise<Record<string, D.Package[]>> {
+  const out: Record<string, D.Package[]> = {}
+  if (role === 'ktv') {
+    const res = await Promise.all(customerIds.map(async id => {
+      const { data, error } = await sb.rpc('ktv_packages', { p_customer: id }); if (error) throw new Error(error.message)
+      return [id, (data ?? []) as { card_code: string; name: string; type: 'session' | 'money'; left_amount: number | null; expiry: string | null }[]] as const
+    }))
+    for (const [id, rows] of res) out[id] = rows.filter(r => r.type === 'session').map(r => ({ cardCode: r.card_code, catalogId: '', name: r.name, type: 'session' as const, group: 'Tất cả' as const, buyDate: '', expiry: r.expiry ? D.dateShort(fromIso(r.expiry)) : '', finalPrice: 0, closer: '', sessions: Number(r.left_amount ?? 0), used: 0, payments: [], usage: [] }))
+    return out
+  }
+  if (role === 'marketing') return out // Marketing không được xem gói (RLS)
+  const { data, error } = await sb.from('packages').select('*').order('buy_date', { ascending: false })
+  if (error) throw new Error(error.message)
+  for (const r of (data ?? []) as PackageRow[]) (out[r.customer_id] ??= []).push(rowToPackage(r))
+  return out
+}
+
+export async function upsertPackage(sb: SupabaseClient, customerId: string, p: D.Package): Promise<void> {
+  const { error } = await sb.from('packages').upsert(packageToRow(customerId, p), { onConflict: 'card_code' })
+  if (error) throw new Error(error.message)
+}
+
+/** Ghi nhận chăm sóc: một bảng, hai loại — `note` (phiếu ghi nhận của KTV) và `entry` (dòng nhật ký: nhắn tin, gọi điện, kết quả việc…). */
+export type CareRow = { id: string; customer_id: string; by_staff_id: string; work_date: string; data: { note?: D.CareNote; entry?: D.CareEntry }; created_at: string }
+export async function loadCare(sb: SupabaseClient): Promise<Record<string, { careNotes: D.CareNote[]; care: D.CareEntry[] }>> {
+  const { data, error } = await sb.from('care_notes').select('id,customer_id,by_staff_id,work_date,data,created_at').order('created_at', { ascending: false })
+  if (error) throw new Error(error.message)
+  const out: Record<string, { careNotes: D.CareNote[]; care: D.CareEntry[] }> = {}
+  for (const r of (data ?? []) as CareRow[]) {
+    const g = (out[r.customer_id] ??= { careNotes: [], care: [] })
+    if (r.data.note) { g.careNotes.push(r.data.note); g.care.push({ at: r.data.note.at, by: r.data.note.by, text: `Ghi nhận chăm sóc: ${D.careSummary(r.data.note)}` }) }
+    else if (r.data.entry) g.care.push(r.data.entry)
+  }
+  return out
+}
+export async function insertCare(sb: SupabaseClient, customerId: string, payload: { note?: D.CareNote; entry?: D.CareEntry }): Promise<void> {
+  const { error } = await sb.from('care_notes').insert({ customer_id: customerId, data: payload, spend: payload.note?.spend ?? null })
+  if (error) throw new Error(error.message)
+}
