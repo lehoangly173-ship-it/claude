@@ -126,7 +126,7 @@ const pct = (n: number) => `${n}%`
 export function cell(col: string, e: Ent, first = true): { v: string; n?: number; pill?: string } {
   // không bịa số: thiếu mục tiêu / kỳ trước / tỉ lệ thật → "Chưa nối"
   const c = col.toLowerCase(), target = e.target, prev = e.prev
-  if (e.cnt) { const k = Object.keys(e.cnt).find(x => c.includes(x)); if (k) return { v: String(e.cnt[k]), n: e.cnt[k] } }
+  if (e.cnt && !/tỷ lệ|tỉ lệ|%/.test(c)) { const k = Object.keys(e.cnt).find(x => c.includes(x)); if (k) return { v: String(e.cnt[k]), n: e.cnt[k] } }
   if (e.vKey?.test(c)) return { v: String(e.v), n: e.v }
   const ok = target != null && e.v >= target * 0.9, d = prev != null ? e.v - prev : 0
   if (/lợi nhuận|lãi/.test(c)) return { v: D.vndShort(e.rev - e.cost), n: e.rev - e.cost }

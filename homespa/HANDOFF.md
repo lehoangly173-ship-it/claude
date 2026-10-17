@@ -191,3 +191,15 @@ Thứ tự:
 - 17/10 — Nhóm 2 xong (nhánh `team/phan-quyen`): gói liệu trình + ghi nhận chăm sóc nối Supabase (`0003_nhom2_goi_cham_soc.sql`; KTV nhận số buổi qua `ktv_packages`). Bản thật dùng giờ VN thật (`vnNowMin`). 103 test đạt (24 RLS), quét 5 vai trò bản thật bằng máy chủ giả: 0 lỗi. Chưa thử Supabase thật. Tiếp theo: nhóm 3 = lịch hẹn + hàng chờ → hóa đơn (kèm bán gói/trừ buổi) → chấm công → kho/chi tiêu.
 - Expo: ngày 15/10 sandbox kẹt "STARTING" > 6 phút (2 lần) nên chưa deploy; bản xem thử tạm qua trang xem thử Claude. Có thể do hết phút gói miễn phí — Ly kiểm tra expo.dev → Usage.
 - 17/10 — Mộc AI (nhánh `team/phan-quyen`): trả lời từ số liệu app theo vai trò + kiến thức CEO duyệt; không bao giờ nhận SĐT, sức khỏe, tên khách, tiền (danh sách trắng ở máy chủ). Hàm máy chủ `supabase/functions/moc`, migration `0004_moc_ai.sql`, chi tiết `docs/PHAN-QUYEN.md` mục 6, rà soát bảo mật 2 vòng: PASS (`docs/team/security-moc-ai.md`). Bật khi có Supabase + khóa API Claude của Ly. Bản demo vẫn trả lời mẫu (ghi "giả lập"). 122 test đạt.
+
+## Fix lần 4 (17/10, chị Quyên — `docs/lark-fix-lan-4.md`), nhánh `team/phan-quyen`, CHƯA deploy
+- Khách: thời gian lưu trú Đà Nẵng (`stayFrom/stayTo`, nhập khi tạo khách ở Lịch/Hàng chờ/Thu ngân + sửa trong hồ sơ); tệp "Khách lẻ nước ngoài ở Đà Nẵng"; CSKH tự ẩn khách đã rời ĐN (lọc "Đã rời Đà Nẵng" để xem, không có nút Ghi CSKH).
+- Leader CSKH: thêm WhatsApp, TikTok; tệp "Khách nước ngoài lẻ đang cư trú tại Đà Nẵng" (`CARE_GROUPS/careGroup`, kèm số khách).
+- Thu ngân bán gói: ô "Hoa hồng sale gói" cho người chốt chính/hỗ trợ (`Package.commissions`) → thông báo người nhận → "Thu nhập của tôi".
+- Thu nhập (`screens/fix4.tsx`): bỏ hoa hồng % doanh thu; thêm Tiền tour (Chưa nối — chờ CEO cài mức) + Hoa hồng sale gói; mỗi hàng "Xem chi tiết" (theo `staffDays` — một nguồn với `staffMetrics`); Tổng kết 1–2 năm. Leader/Marketing: bảng lương Chưa nối + Tổng kết.
+- Hiệu suất KTV/lễ tân/Marketing/Leader: mũi tên so với cùng số ngày tháng trước (`monthPair/perfValue`), Tổng kết biểu đồ 1–2 năm (tháng không có số không vẽ).
+- Leader Hôm nay: gộp ③ Vận hành + ④ Chi tổng + ⑤ Tiền thu–DT–LN thành "③ Vận hành / Tiền vào / Doanh thu / Lợi nhuận" (`LeaderMoney`, tổng + trên 1 khách; doanh thu thực tế = lẻ + SP + giá trị buổi gói đã làm `usedPkgValue`). Đường dẫn cũ fin/ops|spend|rev vẫn mở trang mới.
+- Leader Của tôi: Bảng lương (Chưa nối) + Đánh giá năng lực Leader 8 tiêu chí (`LEADER_EVAL/evalRows`, chỉ số từ app, điểm CEO chấm Chưa nối).
+- Mộc Marketing: câu hỏi mẫu thật (`T.moc.mktQ`), chủ đề thu gọn sau khi hỏi, tự cuộn tới câu trả lời. Trang nút cháu (tree.tsx): không lặp số ở nhiều cột, cột trạng thái việc đếm thật, Massage/Gội theo từng dịch vụ, nút thao tác tạo việc/gửi duyệt thật.
+- `metrics`: hóa đơn vừa lẻ vừa bán gói tách đúng phần gói (`pkgCollect`). Migration `0005_fix_lan_4.sql`. Bản thật: KTV chưa xem được hoa hồng (RLS bảng gói) → Chưa nối tới khi nối bảng lương máy chủ.
+- Kiểm thử: 135 test; scratchpad `fix4.mjs` (32 kiểm tra luồng); rà soát độc lập `docs/team/reviews/fix4.md` → đã sửa 5 mục vừa + các mục nhỏ chính. Còn: chữ inline ở cashier/leader2/ui chưa chuyển hết sang i18n.

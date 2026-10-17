@@ -130,7 +130,8 @@ const isPkg = (i: D.Invoice) => !!i.pkgSale || i.lines.some(l => l.cardCode)
 
 function todayReal(s: State): Metrics {
   const m = zero(), inv = okInv(s)
-  for (const i of inv) { m.revenue += i.paid; (isPkg(i) ? (m.pkgPart += i.paid) : (m.lePart += i.paid)); const src = sourceOf(s, i.customerId); m.bySource[src] = (m.bySource[src] ?? 0) + i.paid }
+  // hóa đơn vừa dịch vụ lẻ vừa bán gói: tách đúng phần thu cho gói (pkgCollect), phần còn lại là dịch vụ lẻ
+  for (const i of inv) { m.revenue += i.paid; if (i.pkgSale && i.pkgCollect != null) { const pc = Math.min(i.paid, Math.max(0, i.pkgCollect)); m.pkgPart += pc; m.lePart += i.paid - pc } else (isPkg(i) ? (m.pkgPart += i.paid) : (m.lePart += i.paid)); const src = sourceOf(s, i.customerId); m.bySource[src] = (m.bySource[src] ?? 0) + i.paid }
   const sold = soldToday(s)
   m.prodPart = sold; m.revenue += sold
   if (sold) m.bySource['Khác'] = (m.bySource['Khác'] ?? 0) + sold // bán lẻ sản phẩm không gắn khách → để tổng theo nguồn khớp tổng tiền thu

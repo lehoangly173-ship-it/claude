@@ -85,3 +85,19 @@ describe('Trang nút cháu không lặp số / không ghép nhầm cột', () =>
     expect(cell('Chưa làm', t).v).toBe('2'); expect(cell('Đang làm', t).v).toBe('1'); expect(cell('Hoàn thành', t).v).toBe('4'); expect(cell('Cột lạ', t, true).v).toBe('Chưa nối')
   })
 })
+
+import { monthPair } from './screens/fix4'
+import { metrics } from './period'
+describe('Sau rà soát Fix lần 4', () => {
+  it('so với tháng trước: ngày 31 → tháng trước cắt ở ngày cuối tháng (không tràn sang tháng sau)', () => {
+    const keep = +D.TODAY
+    try { D.TODAY.setTime(+new Date(2026, 2, 31)); const { cur, prev } = monthPair()
+      expect(cur.from.getDate()).toBe(1); expect(prev.from.getMonth()).toBe(1); expect(prev.to.getMonth()).toBe(1); expect(prev.to.getDate()).toBe(28)
+    } finally { D.TODAY.setTime(keep) }
+  })
+  it('hóa đơn vừa dịch vụ lẻ vừa bán gói: tách đúng tiền lẻ và tiền gói', () => {
+    const inv: D.Invoice = { code: 'HDX', customerId: D.SEED_CUSTOMERS[0].id, status: 'Đã thu đủ', lines: [{ serviceId: 'm60', ktvId: 'mai', price: 350000, discount: 0 }], total: 3850000, paid: 3850000, payments: [{ method: 'Tiền mặt', amount: 3850000 }], pkgSale: { cardCode: 'Q1', name: 'Gói', price: 3500000, mode: 'new' }, pkgCollect: 3500000, createdAt: '', createdMin: 600, creator: 'Lam', log: [] }
+    const m = metrics(S({ invoices: [inv], stockMoves: [] } as Partial<State>), { from: today(), to: today() })
+    expect(m.pkgPart).toBe(3500000); expect(m.lePart).toBe(350000); expect(m.revenue).toBe(3850000)
+  })
+})

@@ -135,6 +135,7 @@ function InvoiceEditor({ init, onClose }: { init: { customerId?: string; apptIds
       if (s.customers.some(x => x.packages.some(p => p.cardCode === cardCode.trim()))) return `Mã thẻ ${cardCode.trim()} đã tồn tại`
       if (pkgPrice <= 0) return 'Giá gói bằng 0 — cần chị duyệt trước'
       if (pkgDiscount > catObj.listPrice * MAX_MANUAL_DISCOUNT) return 'Giảm giá gói vượt khung — gửi chị duyệt trước'
+      if (helper && helper === closer) return 'Người hỗ trợ phải khác người chốt chính'
       if (comMain < 0 || comHelp < 0) return 'Hoa hồng sale gói không được âm'
       if (comMain + (helper ? comHelp : 0) > pkgPrice) return `Tổng hoa hồng sale gói (${D.vnd(comMain + (helper ? comHelp : 0))}) vượt giá bán gói`
     }
@@ -196,7 +197,7 @@ function InvoiceEditor({ init, onClose }: { init: { customerId?: string; apptIds
         <label className="f">Gói<select id="ie-cat" className="inp" value={cat} onChange={e => setCat(e.target.value)}>{D.PACKAGE_CATALOG.map(p => <option key={p.id} value={p.id}>{p.name} · {D.vndShort(p.listPrice)}</option>)}</select></label>
         <label className="f">Mã thẻ (khác mã khách)<input id="ie-card" className="inp" value={cardCode} onChange={e => setCardCode(e.target.value)} placeholder="VD: LT-0250" /></label>
         <label className="f">Giảm giá gói (≤ 20%)<NumInput id="ie-pdisc" className="inp num" min={0} step={100000} value={pkgDiscount} onChange={v => setPkgDiscount(Math.max(0, v))} /></label>
-        <label className="f">Người chốt chính<select id="ie-closer" className="inp" value={closer} onChange={e => setCloser(e.target.value)}>{s.staff.filter(x => x.role !== 'ceo').map(x => <option key={x.id} value={x.id}>{x.name}</option>)}</select></label>
+        <label className="f">Người chốt chính<select id="ie-closer" className="inp" value={closer} onChange={e => { setCloser(e.target.value); if (e.target.value === helper) { setHelper(''); setComHelp(0) } }}>{s.staff.filter(x => x.role !== 'ceo').map(x => <option key={x.id} value={x.id}>{x.name}</option>)}</select></label>
         <label className="f">Hoa hồng sale gói — người chốt chính (đ)<NumInput id="ie-com1" className="inp num" min={0} step={10000} value={comMain} onChange={v => setComMain(Math.max(0, v))} /></label>
         <label className="f">Người hỗ trợ<select id="ie-helper" className="inp" value={helper} onChange={e => { setHelper(e.target.value); if (!e.target.value) setComHelp(0) }}><option value="">Không</option>{s.staff.filter(x => x.id !== closer && x.role !== 'ceo').map(x => <option key={x.id} value={x.id}>{x.name}</option>)}</select></label>
         {helper && <label className="f">Hoa hồng sale gói — người hỗ trợ (đ)<NumInput id="ie-com2" className="inp num" min={0} step={10000} value={comHelp} onChange={v => setComHelp(Math.max(0, v))} /></label>}

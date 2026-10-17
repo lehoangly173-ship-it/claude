@@ -311,10 +311,10 @@ export function MocScreen({ groups }: { groups?: { t: string; q: string }[] }) {
 export function MineScreen({ sub = [] }: { sub?: string[] }) {
   const st = useStore(); const { s, me, go } = st
   // Fix lần 4: Của tôi của Leader có Bảng lương + Đánh giá năng lực Leader (8 nút con)
-  if (sub[0] === 'salary') return <LeaderSalary back={() => go('me')} />
-  if (sub[0] === 'eval') return <LeaderEval sub={sub[1]} back={() => go('me')} />
   const [report, setReport] = useState(false)
   const [ini, setIni] = useState<string | 'new' | null>(null)
+  if (sub[0] === 'salary') return <LeaderSalary back={() => go('me')} />
+  if (sub[0] === 'eval') return <LeaderEval sub={sub[1]} back={() => go('me')} />
   const myTasks = s.tasks.filter(t => t.ownerId === me.id || t.createdBy === me.id)
   const done = myTasks.filter(t => t.status === 'done' && t.startedMin != null && t.doneMin != null)
   const avgHandle = done.length ? Math.round(done.reduce((x, t) => x + (t.doneMin! - t.startedMin!), 0) / done.length) : 0
