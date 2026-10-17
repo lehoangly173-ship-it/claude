@@ -86,8 +86,11 @@ Lộ trình: thử nội bộ = gói miễn phí + backup.sh; có khách thật 
 | Marketing | Ngày làm của mình + phân nhóm khách (số lượng), chương trình (tiếp cận/đặt/đến — không tiền), phản hồi |
 | CEO | Toàn bộ số đếm vận hành, đội ngũ, phân nhóm khách, chương trình, hàng sắp hết (số lượng), việc chờ duyệt |
 
-**Cách bảo vệ (nhiều lớp):** app chỉ lấy trường cần → `moc-policy.ts` bỏ mọi trường có tên liên quan tiền/SĐT/sức khỏe, che SĐT và số tiền trong chữ → máy chủ đọc **vai trò thật** (hàm `moc_take_quota`, không tin app) và lọc lại → câu trả lời được che lần cuối. Khóa AI chỉ ở máy chủ. 60 lượt/người/24 giờ. Không lưu nội dung câu hỏi.
+**Cách bảo vệ (nhiều lớp, sau rà soát bảo mật):**
+- **Danh sách trắng ở máy chủ** (`moc-policy.ts`): chỉ nhận đúng các ô liệt kê cho từng vai trò, đúng kiểu; nhãn đếm phải thuộc danh sách cố định (nhập tay lạ → "Khác"); chữ tự do chỉ có tên nhân sự, tên dịch vụ/khu/hàng — luôn che SĐT, email, số tiền. Không gửi tiêu đề việc, tên chương trình, tên khách.
+- **Vai trò đọc ở máy chủ** (`moc_take_quota`), không tin app. App gửi phần không được phép → bỏ.
+- **Kiến thức chỉ lấy ở máy chủ, CEO duyệt mới dùng**: Leader soạn được nhưng luôn ở trạng thái "chờ CEO duyệt"; người sửa/giờ sửa do máy chủ ghi.
+- Khóa AI chỉ ở máy chủ · 60 lượt/người/24 giờ (khóa chống bấm dồn) · gói gửi lên ≤ 32KB · tối đa 20 mục kiến thức · hết 25 giây thì dừng · không lưu nội dung câu hỏi · câu trả lời được che lần cuối.
+- Vẫn gửi cho AI (Ly cần biết): tên nhân sự, giờ chấm công/số phút trễ, điểm uy tín — để Mộc trả lời câu hỏi về đội ngũ.
 
-**Kiến thức cho Mộc:** CEO soạn ở Mộc & Duyệt → Hỏi Mộc → "Kiến thức cho Mộc" (chọn vai trò được dùng). Lưu ở bảng `moc_docs` (RLS, có nhật ký).
-
-**Để bật (Ly làm khi có Supabase):** tạo khóa API Claude (console.anthropic.com, trả phí theo lượt dùng) → `supabase secrets set ANTHROPIC_API_KEY=...` → `supabase functions deploy moc` → chạy migration `0004_moc_ai.sql`. Mặc định dùng mô hình rẻ `claude-haiku-5-5` (đổi bằng `MOC_MODEL`). Bản demo vẫn trả lời theo mẫu, có ghi "giả lập".
+**Để bật (Ly làm khi có Supabase):** tạo khóa API Claude (console.anthropic.com, trả phí theo lượt dùng) → `supabase secrets set ANTHROPIC_API_KEY=...` → `supabase functions deploy moc` (KHÔNG dùng `--no-verify-jwt`) → đặt `ALLOWED_ORIGIN` = link app → chạy migration `0004_moc_ai.sql`. Mặc định dùng mô hình rẻ `claude-haiku-5-5` (đổi bằng `MOC_MODEL`). Bản demo vẫn trả lời theo mẫu, có ghi "giả lập".

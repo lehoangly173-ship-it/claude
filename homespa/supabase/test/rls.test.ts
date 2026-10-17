@@ -273,13 +273,25 @@ describe('Nhóm 2: gói liệu trình + ghi nhận chăm sóc (app ghi/đọc)',
 })
 
 describe('Mộc AI: kiến thức + lượt hỏi', () => {
-  it('CEO soạn kiến thức cho KTV; KTV đọc được, Marketing không; KTV không sửa được', async () => {
-    await as(U.ceo); await db.query(`insert into moc_docs (title, body, roles) values ('Quy định đồng phục','Mặc áo xanh', '{ktv}')`)
+  it('Có sẵn các quy trình của app (đã duyệt); KTV đọc được', async () => {
+    await as(U.ktv1); expect((await rows(`select * from moc_docs where approved`)).length).toBeGreaterThanOrEqual(3); await root()
+  })
+  it('CEO soạn + duyệt cho KTV; Marketing không thấy; KTV không sửa/thêm được', async () => {
+    await as(U.ceo); await db.query(`insert into moc_docs (title, body, roles, approved) values ('Quy định đồng phục','Mặc áo xanh', '{ktv}', true)`)
     await as(U.ktv1); expect(await rows(`select * from moc_docs where title='Quy định đồng phục'`)).toHaveLength(1)
     expect(await fails(`insert into moc_docs (title, body) values ('Tự thêm','x x')`)).toBe(true)
     await db.query(`update moc_docs set body='hack' where title='Quy định đồng phục'`)
     await as(U.mkt); expect(await rows(`select * from moc_docs where title='Quy định đồng phục'`)).toHaveLength(0)
     await as(U.ceo); expect((await rows(`select body from moc_docs where title='Quy định đồng phục'`))[0].body).toBe('Mặc áo xanh')
+    await root()
+  })
+  it('Leader soạn → luôn "chờ CEO duyệt", không giả người sửa; KTV chưa thấy; Leader sửa bài đã duyệt → về chờ duyệt', async () => {
+    await as(U.leader); await db.query(`insert into moc_docs (title, body, roles, approved, updated_by) values ('Leader viết','Nội dung', '{ktv}', true, 'quyen')`)
+    let r = await rows(`select approved, updated_by from moc_docs where title='Leader viết'`); expect(r[0].approved).toBe(false); expect(r[0].updated_by).toBe('thao')
+    await as(U.ktv1); expect(await rows(`select * from moc_docs where title='Leader viết'`)).toHaveLength(0)
+    await as(U.leader); await db.query(`update moc_docs set body='Sửa', approved=true where title='Quy định đồng phục'`)
+    await as(U.ceo); r = await rows(`select approved, updated_by from moc_docs where title='Quy định đồng phục'`); expect(r[0].approved).toBe(false); expect(r[0].updated_by).toBe('thao')
+    expect(await fails(`insert into moc_docs (title, body, roles) values ('Sai vai','xx', '{admin}')`)).toBe(true)
     await root()
   })
   it('Lượt hỏi: trả về vai trò thật, tối đa 60/24 giờ; chưa duyệt/khách lạ bị chặn; không ai đọc được bảng lượt', async () => {

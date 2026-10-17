@@ -180,6 +180,7 @@ export const T = {
     thinking: 'Mộc đang đọc dữ liệu…', failed: 'Mộc chưa trả lời được', aiTag: 'AI · chỉ dữ liệu không nhạy cảm',
     docsTitle: 'Kiến thức cho Mộc', docsSub: 'Quy trình, quy định, câu trả lời mẫu. Mộc chỉ trả lời dựa trên đây và số liệu vận hành — không bao giờ nhận dữ liệu tiền, SĐT, sức khỏe.',
     docTitle: 'Tiêu đề', docBody: 'Nội dung', docRoles: 'Ai được Mộc dùng kiến thức này', add: 'Thêm kiến thức', save: 'Lưu', del: 'Xóa', none: 'Chưa có kiến thức nào — Mộc đang dùng các quy trình có sẵn trong app.', saved: 'Đã lưu kiến thức cho Mộc', deleted: 'Đã xóa',
+    approved: 'Mộc đang dùng', pending: 'Chờ CEO duyệt — Mộc chưa dùng', approve: 'Duyệt',
     noMoney: 'Không ghi số tiền, SĐT, thông tin sức khỏe vào đây — Mộc sẽ tự che nếu có.',
   },
   sync: { failed: 'Chưa tải được dữ liệu từ máy chủ', saveFailed: 'Chưa lưu được lên máy chủ' },
