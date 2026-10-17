@@ -207,7 +207,7 @@ Thứ tự:
 ## Cập nhật 18/10 (Leader)
 - Thêm 2 chỉ số **Khách mới mua liệu trình** và **Khách cũ tái liệu trình** (đếm khách, theo gói đầu tiên / gói nối tiếp `renewalOf`) ở Leader · Của tôi: nút con "Tổng kết", bảng "So với tháng trước" và mục 5 "Kết quả kinh doanh của đội" (`fix4.tsx`: `teamPkgCustomers`). Sửa luôn chữ lỗi `f4(` hiện ở chú thích Tổng kết và dòng điểm uy tín.
 
-## Bảng cài đặt lương + tăng ca + điểm Leader + công nợ chọn ngày (18/10, câu trả lời của chị Quyên), nhánh `team/phan-quyen`
+## Bảng cài đặt lương + tăng ca + điểm Leader + công nợ chọn ngày (18/10, câu trả lời của chị Quyên), nhánh `team/phan-quyen`, đã deploy 18/10 01:05 lên https://hayquen2-homespa--flow.expo.app
 - Câu trả lời: (1) giá tour do CEO cài, 60/90/120 phút khác giá; (2) xác nhận lễ tân nhập hoa hồng sale gói; (3) lương thưởng Leader và mọi nhân sự cài ở Cài đặt CEO; 8 tiêu chí năng lực chấm thang 1–10; thêm **tăng ca** vào lương mọi nhân sự, cài ở Cài đặt CEO; Leader ④ Công nợ có chọn ngày bắt đầu–kết thúc.
 - Một nguồn: `src/pay.ts` (`PayConfig`, `payslip`, `otOfDay`, `evalAvg`) — đọc bởi Thu nhập KTV/Lễ tân, Bảng lương Leader, Thu nhập Marketing (4.9), Tổng kết. Store giữ `pay` + `evals` CHUNG mọi ngày làm việc (không theo ngày như dữ liệu vận hành).
 - CEO sửa ở ⑬ 13.10 (`screens/paySettings.tsx`): lương cơ bản, công chuẩn, thưởng/điểm uy tín, phạt/lần muộn, tăng ca/giờ theo từng vai trò; giờ chuẩn/ngày cho vai trò không có ca (Leader, Marketing); giá tour 45/60/90/120; ngưỡng tính tăng ca (mặc định 30 phút); thưởng năng lực Leader/điểm; chấm 8 tiêu chí Leader theo tháng (1–10).
