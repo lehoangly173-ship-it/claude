@@ -192,7 +192,7 @@ Thứ tự:
 - Expo: ngày 15/10 sandbox kẹt "STARTING" > 6 phút (2 lần) nên chưa deploy; bản xem thử tạm qua trang xem thử Claude. Có thể do hết phút gói miễn phí — Ly kiểm tra expo.dev → Usage.
 - 17/10 — Mộc AI (nhánh `team/phan-quyen`): trả lời từ số liệu app theo vai trò + kiến thức CEO duyệt; không bao giờ nhận SĐT, sức khỏe, tên khách, tiền (danh sách trắng ở máy chủ). Hàm máy chủ `supabase/functions/moc`, migration `0004_moc_ai.sql`, chi tiết `docs/PHAN-QUYEN.md` mục 6, rà soát bảo mật 2 vòng: PASS (`docs/team/security-moc-ai.md`). Bật khi có Supabase + khóa API Claude của Ly. Bản demo vẫn trả lời mẫu (ghi "giả lập"). 122 test đạt.
 
-## Fix lần 4 (17/10, chị Quyên — `docs/lark-fix-lan-4.md`), nhánh `team/phan-quyen`, CHƯA deploy
+## Fix lần 4 (17/10, chị Quyên — `docs/lark-fix-lan-4.md`), nhánh `team/phan-quyen`, đã deploy 17/10 21:55 lên https://hayquen2-homespa--flow.expo.app (commit 0e62948)
 - Khách: thời gian lưu trú Đà Nẵng (`stayFrom/stayTo`, nhập khi tạo khách ở Lịch/Hàng chờ/Thu ngân + sửa trong hồ sơ); tệp "Khách lẻ nước ngoài ở Đà Nẵng"; CSKH tự ẩn khách đã rời ĐN (lọc "Đã rời Đà Nẵng" để xem, không có nút Ghi CSKH).
 - Leader CSKH: thêm WhatsApp, TikTok; tệp "Khách nước ngoài lẻ đang cư trú tại Đà Nẵng" (`CARE_GROUPS/careGroup`, kèm số khách).
 - Thu ngân bán gói: ô "Hoa hồng sale gói" cho người chốt chính/hỗ trợ (`Package.commissions`) → thông báo người nhận → "Thu nhập của tôi".
