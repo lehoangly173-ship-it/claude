@@ -203,3 +203,6 @@ Thứ tự:
 - Mộc Marketing: câu hỏi mẫu thật (`T.moc.mktQ`), chủ đề thu gọn sau khi hỏi, tự cuộn tới câu trả lời. Trang nút cháu (tree.tsx): không lặp số ở nhiều cột, cột trạng thái việc đếm thật, Massage/Gội theo từng dịch vụ, nút thao tác tạo việc/gửi duyệt thật.
 - `metrics`: hóa đơn vừa lẻ vừa bán gói tách đúng phần gói (`pkgCollect`). Migration `0005_fix_lan_4.sql`. Bản thật: KTV chưa xem được hoa hồng (RLS bảng gói) → Chưa nối tới khi nối bảng lương máy chủ.
 - Kiểm thử: 135 test; scratchpad `fix4.mjs` (32 kiểm tra luồng); rà soát độc lập `docs/team/reviews/fix4.md` → đã sửa 5 mục vừa + các mục nhỏ chính. Còn: chữ inline ở cashier/leader2/ui chưa chuyển hết sang i18n.
+
+## Cập nhật 18/10 (Leader)
+- Thêm 2 chỉ số **Khách mới mua liệu trình** và **Khách cũ tái liệu trình** (đếm khách, theo gói đầu tiên / gói nối tiếp `renewalOf`) ở Leader · Của tôi: nút con "Tổng kết", bảng "So với tháng trước" và mục 5 "Kết quả kinh doanh của đội" (`fix4.tsx`: `teamPkgCustomers`). Sửa luôn chữ lỗi `f4(` hiện ở chú thích Tổng kết và dòng điểm uy tín.

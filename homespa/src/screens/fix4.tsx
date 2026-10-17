@@ -73,7 +73,7 @@ export function Income({ back }: { back: () => void }) {
             {com.length ? com.map(e => <span key={e.p.cardCode + e.x.role} className="small">{e.x.date} · gói {e.p.cardCode} ({e.p.name}) · khách {e.c.code} · {e.x.role} · <b>{D.vnd(e.x.amount)}</b> · {e.x.by} nhập</span>) : <span className="small muted">{f4('Chưa có hoa hồng sale gói trong tháng')}</span>}
           </Row>
           <Row t={`Thưởng (${Math.max(0, sm.points)} điểm uy tín × ${D.vndShort(PAY_RULE.perPoint)})`} v={money(ps.bonus)} open={open === 'pt'} onToggle={tog('pt')}>
-            {pts.length ? pts.map(d => <span key={+d.d} className="small">{dl(d.d)} · {d.points > 0 ? '+' : 'f4('}{d.points} điểm{d.real ? ')' : ` · ${D.SAMPLE_NOTE}`}</span>) : <span className="small muted">{f4('Chưa có điểm uy tín trong tháng')}</span>}
+            {pts.length ? pts.map(d => <span key={+d.d} className="small">{dl(d.d)} · {d.points > 0 ? '+' : ''}{d.points} điểm{d.real ? '' : ` · ${D.SAMPLE_NOTE}`}</span>) : <span className="small muted">{f4('Chưa có điểm uy tín trong tháng')}</span>}
             {s.points.filter(p => p.staffId === me.id && p.status === 'Đã duyệt').map(p => <span key={p.id} className="tiny muted">Hôm nay: {p.delta > 0 ? '+' : ''}{p.delta} · {p.reason}</span>)}
           </Row>
           <Row t={`Phạt (${sm.late} lần đi muộn × ${D.vndShort(PAY_RULE.perLate)})`} v={<span className="num strong" style={{ color: ps.penalty ? 'var(--r-fg)' : undefined }}>−{D.vnd(ps.penalty)}</span>} open={open === 'late'} onToggle={tog('late')}>
@@ -108,11 +108,17 @@ export function IncomeSummary() {
 
 // ═══════════════ 3. HIỆU SUẤT: mũi tên so với tháng trước + TỔNG KẾT 1–2 năm ═══════════════
 type Rg = { from: Date; to: Date }
-type PerfKey = 'tours' | 'requested' | 'days' | 'late' | 'points' | 'rating' | 'pkgNew' | 'pkgRenew' | 'pkgAll' | 'newCust' | 'bookings' | 'showRate' | 'returning' | 'guests' | 'waitAvg' | 'teamLate'
+type PerfKey = 'tours' | 'requested' | 'days' | 'late' | 'points' | 'rating' | 'pkgNew' | 'pkgRenew' | 'pkgAll' | 'newCust' | 'bookings' | 'showRate' | 'returning' | 'guests' | 'waitAvg' | 'teamLate' | 'teamPkgNew' | 'teamPkgRenew'
 type PerfMetric = { k: PerfKey; l: string; invert?: boolean; unit?: string }
 const fbDate = (daysAgo: number) => { const d = new Date(D.TODAY); d.setDate(d.getDate() - daysAgo); return d }
 const inR = (d: Date, r: Rg) => +new Date(d.getFullYear(), d.getMonth(), d.getDate()) >= +r.from && +new Date(d.getFullYear(), d.getMonth(), d.getDate()) <= +r.to
 const vnToDate = (vn: string) => { const [d, m, y] = vn.split('/').map(Number); return new Date(y, m - 1, d) }
+/** Số KHÁCH của cả đội trong kỳ: mới mua liệu trình (gói đầu tiên) · cũ tái liệu trình (gói nối tiếp gói cũ) — đếm mỗi khách một lần */
+export function teamPkgCustomers(s: ReturnType<typeof useStore>['s'], r: Rg) {
+  const nw = new Set<string>(), rn = new Set<string>()
+  for (const c of s.customers) for (const p of c.packages) if (inR(vnToDate(p.buyDate), r)) (p.renewalOf ? rn : nw).add(c.id)
+  return { newPkg: nw.size, renewPkg: rn.size }
+}
 
 /** Chỉ số theo tháng của một người (một nguồn: staffDays · gói · phản hồi · metrics) */
 export function perfValue(s: ReturnType<typeof useStore>['s'], id: string, role: D.Role, k: PerfKey, r: Rg): number | null {
@@ -130,6 +136,8 @@ export function perfValue(s: ReturnType<typeof useStore>['s'], id: string, role:
     case 'newCust': case 'bookings': case 'returning': case 'guests': { const m = metrics(s, r); return m[k] }
     case 'showRate': return showRate(metrics(s, r))
     case 'waitAvg': return waitAvg(metrics(s, r))
+    case 'teamPkgNew': return teamPkgCustomers(s, r).newPkg
+    case 'teamPkgRenew': return teamPkgCustomers(s, r).renewPkg
     case 'teamLate': return [...staffMetrics(s, r, 'ktv'), ...staffMetrics(s, r, 'reception')].reduce((t, x) => t + x.late, 0)
   }
 }
@@ -137,7 +145,7 @@ export function perfMetrics(role: D.Role): PerfMetric[] {
   if (role === 'ktv') return [{ k: 'tours', l: f4('Số lượt khách phục vụ') }, { k: 'requested', l: 'Số khách yêu cầu' }, { k: 'rating', l: 'Điểm TB khách đánh giá', unit: '/5' }, { k: 'pkgAll', l: f4('Gói đã chốt (best sale)') }, { k: 'days', l: f4('Ngày công') }, { k: 'late', l: f4('Số lần đi muộn'), invert: true }, { k: 'points', l: f4('Điểm uy tín') }]
   if (role === 'reception') return [{ k: 'tours', l: f4('Hóa đơn đã lập') }, { k: 'pkgAll', l: f4('Gói đã chốt (best sale)') }, { k: 'days', l: f4('Ngày công') }, { k: 'late', l: f4('Số lần đi muộn'), invert: true }, { k: 'points', l: f4('Điểm uy tín') }]
   if (role === 'marketing') return [{ k: 'newCust', l: f4('Khách mới') }, { k: 'bookings', l: f4('Lượt đặt lịch') }, { k: 'showRate', l: f4('Tỉ lệ khách đến'), unit: '%' }, { k: 'returning', l: f4('Khách quay lại') }]
-  return [{ k: 'guests', l: f4('Khách đã phục vụ') }, { k: 'returning', l: f4('Khách quay lại') }, { k: 'showRate', l: f4('Tỉ lệ khách đến'), unit: '%' }, { k: 'waitAvg', l: f4('Thời gian chờ TB'), unit: ' phút', invert: true }, { k: 'teamLate', l: f4('Lượt đi muộn của đội'), invert: true }]
+  return [{ k: 'guests', l: f4('Khách đã phục vụ') }, { k: 'returning', l: f4('Khách quay lại') }, { k: 'teamPkgNew', l: f4('Khách mới mua liệu trình') }, { k: 'teamPkgRenew', l: f4('Khách cũ tái liệu trình') }, { k: 'showRate', l: f4('Tỉ lệ khách đến'), unit: '%' }, { k: 'waitAvg', l: f4('Thời gian chờ TB'), unit: ' phút', invert: true }, { k: 'teamLate', l: f4('Lượt đi muộn của đội'), invert: true }]
 }
 /** Tháng này (đến hôm nay) và cùng số ngày của tháng trước — so công bằng */
 export function monthPair() {
@@ -165,7 +173,7 @@ export function PerfTrend({ id, role }: { id: string; role: D.Role }) {
       <div style={{ overflowX: 'auto' }}><Seg value={m.k} onChange={v => setK(v as PerfKey)} items={ms.map(x => ({ k: x.k, label: x.l }))} /></div>
       {pts.length ? <ColChart label={m.l} fmt={v => `${v}${m.unit ?? ''}`} cats={pts.map(x => short(x.r.name) + (x.r.partial ? '*' : ''))} tips={pts.map(x => x.r.label)} series={[{ name: m.l, color: m.invert ? 'var(--b-fg)' : 'var(--green)', values: pts.map(x => x.v) }]} /> : <Empty>{f4('Chưa có dữ liệu cho chỉ số này')}</Empty>}
       {pts.length > 0 && pts.length < months.length && <div className="tiny muted">{months.length - pts.length} tháng chưa có số — không vẽ cột (không tính là 0).</div>}
-      <div className="tiny muted">* tháng hiện tại, tính đến hôm nay. {m.invert ? 'Cột thấp hơn là tốt hơn. ' : 'f4('}Các tháng trước: {D.DEMO ? D.SAMPLE_NOTE : ')Chưa nối (chờ dữ liệu máy chủ)'}.</div>
+      <div className="tiny muted">* tháng hiện tại, tính đến hôm nay. {m.invert ? 'Cột thấp hơn là tốt hơn. ' : ''}Các tháng trước: {D.DEMO ? D.SAMPLE_NOTE : f4('Chưa nối (chờ dữ liệu máy chủ)')}.</div>
     </Block>
   </>
 }
@@ -234,7 +242,7 @@ export const LEADER_EVAL = ['Lập kế hoạch & giao việc', f4('Điều ph�
 type EvalRow = { t: string; v: ReactNode | null; trend?: ReactNode }
 /** Chỉ số từ dữ liệu app cho từng tiêu chí — Leader không nhập lại; điểm chấm do CEO (Chưa nối) */
 export function evalRows(s: ReturnType<typeof useStore>['s'], meId: string, i: number): EvalRow[] {
-  const { cur, prev } = monthPair(), mc = metrics(s, cur), mp = metrics(s, prev)
+  const { cur, prev } = monthPair(), mc = metrics(s, cur), mp = metrics(s, prev), pc = teamPkgCustomers(s, cur), pp = teamPkgCustomers(s, prev)
   const arrow = (a: number | null, b: number | null, invert?: boolean, unit?: string) => <MonthArrow now={a} prev={b} invert={invert} unit={unit} />
   const given = s.tasks.filter(t => t.createdBy === meId && t.ownerId !== meId), givenDone = given.filter(t => t.status === 'done')
   const myIni = s.initiatives.filter(x => x.ownerId === meId)
@@ -250,7 +258,7 @@ export function evalRows(s: ReturnType<typeof useStore>['s'], meId: string, i: n
     case 2: return [{ t: f4('SOP / quy trình đang áp dụng'), v: D.SOPS.length }, { t: f4('Khóa học, bài test, kết quả đào tạo'), v: null }, { t: f4('Nhân sự được kèm cặp trong tháng'), v: null }]
     case 3: { const avg = (f: typeof fbAll) => (f.length ? Math.round(f.reduce((t, x) => t + x.rating, 0) / f.length * 10) / 10 : null)
       return [{ t: 'Điểm TB khách đánh giá', v: avg(fbAll) != null ? `${avg(fbAll)}/5` : null }, { t: f4('Phản hồi xấu đã xử lý'), v: rate(fbBad.filter(f => f.status === 'đã xử lý').length, fbBad.length) }, { t: f4('Khu dọn dẹp đạt chuẩn'), v: rate(cr.filter(r => r.status === 'Đạt').length, cr.length) }, { t: f4('Lượt CSKH thành công'), v: s.customers.reduce((t, c) => t + c.care.filter(x => x.kind && x.ok).length, 0) }] }
-    case 4: return [{ t: f4('Khách đã phục vụ (tháng này)'), v: mc.guests, trend: arrow(mc.guests, mp.guests) }, { t: f4('Khách quay lại (tháng này)'), v: mc.returning, trend: arrow(mc.returning, mp.returning) }, { t: f4('Khách mới (tháng này)'), v: mc.newCust, trend: arrow(mc.newCust, mp.newCust) }, { t: f4('Tiền thu vào (tháng này)'), v: D.vnd(mc.revenue), trend: arrow(Math.round(mc.revenue / 1e5) / 10, Math.round(mp.revenue / 1e5) / 10, false, 'tr') }]
+    case 4: return [{ t: f4('Khách đã phục vụ (tháng này)'), v: mc.guests, trend: arrow(mc.guests, mp.guests) }, { t: f4('Khách quay lại (tháng này)'), v: mc.returning, trend: arrow(mc.returning, mp.returning) }, { t: f4('Khách mới (tháng này)'), v: mc.newCust, trend: arrow(mc.newCust, mp.newCust) }, { t: f4('Khách mới mua liệu trình (tháng này)'), v: pc.newPkg, trend: arrow(pc.newPkg, pp.newPkg) }, { t: f4('Khách cũ tái liệu trình (tháng này)'), v: pc.renewPkg, trend: arrow(pc.renewPkg, pp.renewPkg) }, { t: f4('Tiền thu vào (tháng này)'), v: D.vnd(mc.revenue), trend: arrow(Math.round(mc.revenue / 1e5) / 10, Math.round(mp.revenue / 1e5) / 10, false, 'tr') }]
     case 5: return [{ t: f4('Chi phí trên 1 khách (tháng này)'), v: mc.guests ? D.vnd(Math.round((mc.costProd + mc.costFixed + mc.costOther) / mc.guests)) : null }, { t: f4('Phiếu kho chờ duyệt'), v: s.stockMoves.filter(m => m.status === 'Chờ duyệt').length }, { t: f4('Đối chiếu sản phẩm chưa khớp'), v: s.productLogs.filter(p => !(p.ktvOk && p.recOk)).length }, { t: f4('Buổi spa Home còn nợ khách'), v: debt.sessionsOwed }]
     case 6: return [{ t: f4('Sự cố được báo sớm'), v: inc.length }, { t: f4('Sự cố đã xử lý'), v: rate(inc.filter(t => t.status === 'done').length, inc.length) }, { t: f4('Thời gian xử lý TB'), v: incDone.length ? `${Math.round(incDone.reduce((t, x) => t + (x.doneMin! - x.startedMin!), 0) / incDone.length)} phút` : null }, { t: f4('Đề xuất / báo cáo đã gửi chị'), v: s.approvals.filter(a => a.fromId === meId).length }]
     default: return [{ t: f4('Chênh lệch số tour giữa KTV hôm nay'), v: loads.length ? `${Math.max(...loads) - Math.min(...loads)} tour` : null }, { t: f4('Điểm uy tín đã duyệt cho nhân sự'), v: s.points.filter(p => p.status === 'Đã duyệt' && p.by === meId).length }, { t: f4('Đơn nghỉ / đổi ca chờ xử lý'), v: s.leaves.filter(l => l.status === 'Chờ duyệt').length }, { t: f4('Người kế cận đang bồi dưỡng'), v: null }]
