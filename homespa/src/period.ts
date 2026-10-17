@@ -155,6 +155,7 @@ function todayReal(s: State): Metrics {
 }
 const cache = new WeakMap<object, Map<string, Metrics>>()
 function pastDay(s: State, d: Date): Metrics {
+  if (!D.DEMO) return zero() // bản thật: không dùng số liệu mẫu cho ngày đã qua (chờ nối hóa đơn/lịch theo ngày)
   let c = cache.get(s.customers); if (!c) { c = new Map(); cache.set(s.customers, c) }
   const hit = c.get(iso(d)); if (hit) return clone(hit)
   const m = pastDay0(s, d); c.set(iso(d), m); return clone(m)

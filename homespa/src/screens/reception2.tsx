@@ -172,8 +172,8 @@ function StockCount() {
 function StockUse() {
   const { s, user, me } = useStore()
   const ktvs = s.staff.filter(x => x.role === 'ktv')
-  const [sid, setSid] = useState(user.role === 'ktv' ? me.id : 'mai')
-  const ex = D.SEED_KTV_HOLD[sid]
+  const [sid, setSid] = useState(user.role === 'ktv' ? me.id : (ktvs[0]?.id ?? ''))
+  const ex = D.DEMO ? D.SEED_KTV_HOLD[sid] : undefined
   return <>
     <Block title="Sử dụng theo nhân sự 🆕" sub="Đã nhận · đã dùng · đã hoàn trả · còn giữ · hao hụt · chi phí vật tư · so với định mức Home">
       {user.role !== 'ktv' && <label className="f">Nhân viên<select className="inp" value={sid} onChange={e => setSid(e.target.value)}>{ktvs.map(k => <option key={k.id} value={k.id}>{k.name}</option>)}</select></label>}

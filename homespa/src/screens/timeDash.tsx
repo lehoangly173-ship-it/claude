@@ -7,7 +7,7 @@ import { Block, Delta, Seg, Pill } from '../ui'
 import { PeriodBar, ColChart, HBars, Donut, C_REV, C_COST, C_PROFIT, RangeTag } from '../charts'
 import { usePeriod, periodRanges, lastRanges, trendCount, shortName, customUnit, metrics, cost, profit, showRate, waitAvg, targetFor, staffMetrics, trendUnit, hasPast, type StaffM } from '../period'
 
-export const SAMPLE_PAST = 'Hôm nay lấy từ hóa đơn, lịch, chấm công thật trong app; các ngày trước là số liệu mẫu (sẽ thay bằng dữ liệu thật khi nối).'
+export const SAMPLE_PAST = D.DEMO ? 'Hôm nay lấy từ hóa đơn, lịch, chấm công thật trong app; các ngày trước là số liệu mẫu (sẽ thay bằng dữ liệu thật khi nối).' : 'Các ngày trước: Chưa nối (hiện 0) — sẽ lấy từ hóa đơn, lịch, chấm công trên máy chủ khi nối xong.'
 const pctOf = (a: number, b: number) => (b ? Math.round(a / b * 100) : 0)
 
 function useTrend() {
