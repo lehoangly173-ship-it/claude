@@ -22,6 +22,7 @@ beforeAll(async () => {
   await db.exec(readFileSync(join(dir, 'test/stub.sql'), 'utf8'))
   await db.exec(readFileSync(join(dir, 'migrations/0001_phan_quyen.sql'), 'utf8'))
   await db.exec(readFileSync(join(dir, 'migrations/0003_nhom2_goi_cham_soc.sql'), 'utf8'))
+  await db.exec(readFileSync(join(dir, 'migrations/0004_moc_ai.sql'), 'utf8'))
   await db.exec(`
     insert into auth.users (id) values ${Object.values(U).map(u => `('${u}')`).join(',')};
     insert into staff (id, user_id, name, role, shift) values
@@ -267,6 +268,27 @@ describe('Nhóm 2: gói liệu trình + ghi nhận chăm sóc (app ghi/đọc)',
   })
   it('KTV và Marketing không đọc/ghi bảng gói (KTV chỉ có số buổi còn qua hàm)', async () => {
     for (const u of [U.ktv1, U.mkt]) { await as(u); expect(await rows('select * from packages')).toHaveLength(0); expect(await fails(`insert into packages (card_code, customer_id, name, type) values ('X','c1','x','session')`)).toBe(true) }
+    await root()
+  })
+})
+
+describe('Mộc AI: kiến thức + lượt hỏi', () => {
+  it('CEO soạn kiến thức cho KTV; KTV đọc được, Marketing không; KTV không sửa được', async () => {
+    await as(U.ceo); await db.query(`insert into moc_docs (title, body, roles) values ('Quy định đồng phục','Mặc áo xanh', '{ktv}')`)
+    await as(U.ktv1); expect(await rows(`select * from moc_docs where title='Quy định đồng phục'`)).toHaveLength(1)
+    expect(await fails(`insert into moc_docs (title, body) values ('Tự thêm','x x')`)).toBe(true)
+    await db.query(`update moc_docs set body='hack' where title='Quy định đồng phục'`)
+    await as(U.mkt); expect(await rows(`select * from moc_docs where title='Quy định đồng phục'`)).toHaveLength(0)
+    await as(U.ceo); expect((await rows(`select body from moc_docs where title='Quy định đồng phục'`))[0].body).toBe('Mặc áo xanh')
+    await root()
+  })
+  it('Lượt hỏi: trả về vai trò thật, tối đa 60/24 giờ; chưa duyệt/khách lạ bị chặn; không ai đọc được bảng lượt', async () => {
+    await as(U.ktv2); expect((await rows('select moc_take_quota() as r'))[0].r).toBe('ktv')
+    for (let i = 0; i < 59; i++) await db.query('select moc_take_quota()')
+    expect(await fails('select moc_take_quota()')).toBe(true)
+    expect(await fails('select * from moc_usage')).toBe(true)
+    await as(U.newbie); expect(await fails('select moc_take_quota()')).toBe(true)
+    await as(null); expect(await fails('select moc_take_quota()')).toBe(true)
     await root()
   })
 })

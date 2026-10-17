@@ -15,6 +15,7 @@ import { ApprovalsScreen, MembersScreen, MarketingScreen } from './ceo'
 import { OpsBase2, HandoverPage } from './reception2'
 import { TeamOps, LeaveApprove, OpsApprove, LeaderFin, LeaderMothers, StaffPerf, SalaryPage, TrainTree, LeaderCareTop } from './leader2'
 import { SettingDetail, RefPhotosPage } from './settings'
+import { MocDocs } from './mocDocs'
 import { HealthDash, FinanceDash, StaffCompare, SourceDash, PeriodSummary } from './timeDash'
 import { HBars } from '../charts'
 
@@ -219,7 +220,7 @@ export function CeoCust({ sub }: { sub: string[] }) {
   </>
 }
 export function CeoMoc({ sub }: { sub: string[] }) {
-  const { s, go } = useStore()
+  const { s, go, real } = useStore()
   const tab = sub[0] ?? 'approvals'
   return <>
     <Hero tag="⑦ Mộc CEO – Phê duyệt – Chỉ đạo" title="Quyết định & chỉ đạo" sub="Duyệt đề xuất, đơn nghỉ, điểm uy tín · hỏi Mộc phân tích" />
@@ -227,7 +228,7 @@ export function CeoMoc({ sub }: { sub: string[] }) {
     {tab === 'approvals' && <ApprovalsScreen />}
     {tab === 'points' && <PointsPage back={() => go('moc')} />}
     {tab === 'reviews' && dailySub('reviews', () => go('moc'))}
-    {tab === 'ask' && <MocScreen />}
+    {tab === 'ask' && <><MocScreen />{real && <MocDocs />}</>}
   </>
 }
 export function CeoMine({ sub }: { sub: string[] }) {

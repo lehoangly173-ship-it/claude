@@ -119,3 +119,21 @@ export async function insertCare(sb: SupabaseClient, customerId: string, payload
   const { error } = await sb.from('care_notes').insert({ customer_id: customerId, data: payload, spend: payload.note?.spend ?? null })
   if (error) throw new Error(error.message)
 }
+
+// ───────────── Mộc AI (máy chủ: supabase/functions/moc) ─────────────
+export type MocReply = { title: string; facts: string[]; hyps: string[]; next: string[] }
+export async function askMoc(sb: SupabaseClient, q: string, context: Record<string, unknown>): Promise<MocReply> {
+  const { data, error } = await sb.functions.invoke('moc', { body: { q, context } })
+  if (error) { let msg = error.message; try { const j = await (error as { context?: Response }).context?.json(); if (j?.error) msg = j.error } catch { /* giữ thông báo gốc */ } throw new Error(msg) }
+  return data as MocReply
+}
+export type MocDoc = { id: string; title: string; body: string; roles: D.Role[] }
+export async function loadMocDocs(sb: SupabaseClient): Promise<MocDoc[]> {
+  const { data, error } = await sb.from('moc_docs').select('id,title,body,roles').order('updated_at', { ascending: false }); if (error) throw new Error(error.message); return (data ?? []) as MocDoc[]
+}
+export async function saveMocDoc(sb: SupabaseClient, d: Omit<MocDoc, 'id'> & { id?: string }): Promise<void> {
+  const row = { title: d.title, body: d.body, roles: d.roles, updated_at: new Date().toISOString() }
+  const { error } = d.id ? await sb.from('moc_docs').update(row).eq('id', d.id) : await sb.from('moc_docs').insert(row)
+  if (error) throw new Error(error.message)
+}
+export async function deleteMocDoc(sb: SupabaseClient, id: string): Promise<void> { const { error } = await sb.from('moc_docs').delete().eq('id', id); if (error) throw new Error(error.message) }

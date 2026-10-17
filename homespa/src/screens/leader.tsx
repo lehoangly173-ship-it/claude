@@ -6,6 +6,10 @@ import { periodRanges, metrics, showRate, waitAvg } from '../period'
 import { useMemo, useState } from 'react'
 import { useStore, BUDGET_LIMIT } from '../store'
 import * as D from '../data'
+import { T } from '../i18n'
+import { sb } from '../auth'
+import { askMoc } from '../db'
+import { buildMocContext } from '../mocContext'
 import { alerts, overview, cust, ktvState, custSegment, Alert, State, myZones, zoneReport, tourOrder, pointsOf, canSeePhone } from '../logic'
 import { Icon, Pill, Stat, PageHeader, Seg, Modal, Empty, Sec, Av, Delta, Hero, NumInput } from '../ui'
 
@@ -187,7 +191,7 @@ export function RoiPanel() {
 }
 
 // ═══════════════════════════ 3. HỎI ĐÁP MỘC ═══════════════════════════
-type Answer = { q: string; title: string; facts: string[]; hyps: string[]; next: string[]; sop?: string; task?: Partial<D.Task>; noRule?: boolean }
+type Answer = { q: string; title: string; facts: string[]; hyps: string[]; next: string[]; sop?: string; task?: Partial<D.Task>; noRule?: boolean; ai?: boolean; pending?: boolean }
 const PERMS: Record<D.Role, { can: string[]; cannot: string[] }> = {
   ktv: { can: ['Xem ca, tour, khách được giao của chính mình', 'Báo dọn dẹp, bill, đánh giá, sản phẩm, sự cố', 'Xem điểm uy tín và lý do'], cannot: ['Xem SĐT khách, lương/HR người khác', 'Tự chia tour, tạo/sửa hóa đơn', 'Sửa điểm uy tín, duyệt nghỉ/đổi ca, sửa SOP'] },
   reception: { can: ['Lịch hẹn, chia tour, thu ngân, hồ sơ khách (có SĐT)', 'Đối soát bill nhóm, xác nhận sản phẩm, chốt ca', 'Ghi nhận điểm uy tín (Leader/CEO duyệt)'], cannot: ['Xóa hóa đơn (gửi chị duyệt)', 'Đổi giá/ưu đãi ngoài khung đã duyệt', 'Tự quyết điểm uy tín của đồng nghiệp', 'Xuất file dữ liệu khách (chỉ CEO)'] },
@@ -258,30 +262,41 @@ function answer(s: State, q: string, me?: D.Staff): Answer {
 }
 const PROMPTS = ['Tuần này khách quay lại giảm ở nhóm nào?', 'Khách đặt lịch nhiều nhưng đến ít, cần kiểm tra gì?', 'Đề xuất cách giảm thời gian chờ giờ cao điểm', 'Lên chương trình marketing cho từng nhóm khách', 'Soạn báo cáo đề xuất cho CEO', 'Quy trình xử lý khiếu nại']
 export function MocScreen({ groups }: { groups?: { t: string; q: string }[] }) {
-  const { s, me, user, requestApproval, addTask } = useStore()
-  const [log, setLog] = useState<Answer[]>(() => groups?.length ? [] : [answer(s, PROMPTS[0], me)])
+  const { s, me, user, requestApproval, addTask, real } = useStore()
+  const [log, setLog] = useState<Answer[]>(() => groups?.length || real ? [] : [answer(s, PROMPTS[0], me)])
+  const [busy, setBusy] = useState(false)
   const [q, setQ] = useState('')
   const [sop, setSop] = useState<string | null>(null)
   const [taskPreset, setTaskPreset] = useState<Partial<D.Task> | null>(null)
-  const ask = (text: string) => { if (!text.trim()) return; setLog(l => [...l, answer(s, text.trim(), me)]); setQ('') }
+  const ask = async (text: string) => {
+    const qq = text.trim(); if (!qq || busy) return; setQ('')
+    if (!real) return setLog(l => [...l, answer(s, qq, me)])
+    // Bản thật: hỏi Mộc AI ở máy chủ. Gửi đi chỉ số đếm vận hành theo vai trò (không SĐT, sức khỏe, tiền)
+    setBusy(true); setLog(l => [...l, { q: qq, title: T.moc.thinking, facts: [], hyps: [], next: [], pending: true }])
+    let a: Answer
+    try { a = { q: qq, ...(await askMoc(sb(), qq, buildMocContext(s, me, user.role))), ai: true } }
+    catch (e) { a = { q: qq, title: T.moc.failed, facts: [(e as Error).message], hyps: [], next: [], noRule: true } }
+    setLog(l => [...l.slice(0, -1), a]); setBusy(false)
+  }
   const canTask = user.role === 'leader' || user.role === 'ceo' || user.role === 'marketing'
   return <>
     <Hero tag="Hỏi đáp Mộc" title="Mộc luôn ở đây" sub="Hướng dẫn · nhắc việc · gia sư · giải thích dữ liệu của chính bạn. Mộc tách “dữ liệu đã xác nhận” với “giả thuyết”, và báo rõ khi Home chưa có quy định." />
+    <div className="note small">{real ? T.moc.realNote : T.moc.demoNote}</div>
     {groups?.length ? <div className="nodes">{groups.map((g, i) => <button key={g.t} className="node" onClick={() => ask(g.q)}><span className="no">{i + 1}</span><span className="body"><span className="t" style={{ display: 'block' }}>{g.t}</span><span className="d" style={{ display: 'block' }}>VD: {g.q}</span></span><span className="arr"><Icon n="arrow" s={18} /></span></button>)}</div>
       : <div className="row">{PROMPTS.map(p => <button key={p} className="btn sm" onClick={() => ask(p)}>{p}</button>)}</div>}
     <div className="chat">{log.map((a, i) => <div key={i} className="col"><div className="bubble me">{a.q}</div>
-      <div className="bubble moc"><b>{a.title}</b>
+      <div className="bubble moc" aria-busy={a.pending || undefined}><b>{a.title}</b>{a.ai && <span className="tiny muted" style={{ display: 'block' }}>{T.moc.aiTag}</span>}
         {a.facts.length > 0 && <><h4 className="fact">Dữ liệu đã xác nhận</h4><ul>{a.facts.map((f, j) => <li key={j}>{f}</li>)}</ul></>}
         {a.hyps.length > 0 && <><h4 className="hyp">Giả thuyết cần kiểm tra</h4><ul>{a.hyps.map((f, j) => <li key={j}>{f}</li>)}</ul></>}
         {a.next.length > 0 && <><h4 className="next">{a.noRule ? 'Lưu ý' : 'Bước tiếp theo'}</h4><ul>{a.next.map((f, j) => <li key={j}>{f}</li>)}</ul></>}
-        <div className="row" style={{ marginTop: 10 }}>
+        {!a.pending && <div className="row" style={{ marginTop: 10 }}>
           <button className="btn sm" disabled={!a.sop} onClick={() => setSop(a.sop!)}>Mở quy trình</button>
           {canTask && <button className="btn sm" onClick={() => setTaskPreset(a.task ?? { title: a.title, detail: a.facts.join(' ') })}>Tạo việc cần làm</button>}
           {a.noRule ? (user.role === 'ceo' ? null : <button className="btn sm" onClick={() => user.role === 'leader' || user.role === 'marketing' ? requestApproval({ kind: 'Chuyển vượt quyền', title: `Chưa có quy định: ${a.q.slice(0, 70)}`, detail: 'Mộc chưa có dữ liệu/quy định — đề nghị chị quyết định hoặc ban hành quy trình' }) : addTask({ title: `Bổ sung quy định: ${a.q.slice(0, 60)}`, detail: `${me.name} hỏi Mộc: ${a.q}`, category: 'Vận hành', priority: 'thấp', ownerId: D.firstOf('leader') })}>{canTask ? 'Chuyển chị quyết định' : 'Gửi Leader bổ sung quy định'}</button>)
             : canTask && <button className="btn sm" onClick={() => setTaskPreset({ ...(a.task ?? { title: a.title }), ownerId: a.task?.ownerId ?? D.firstOf('reception') })}>Chuyển người phụ trách</button>}
-        </div></div></div>)}</div>
+        </div>}</div></div>)}</div>
     <form className="row" onSubmit={e => { e.preventDefault(); ask(q) }} style={{ position: 'sticky', bottom: 0, background: 'var(--bg)', paddingBlock: 8 }}>
-      <input id="moc-q" className="inp" style={{ flex: 1 }} value={q} onChange={e => setQ(e.target.value)} placeholder="Hỏi Mộc về số liệu, quy trình, sáng kiến…" /><button className="btn pri" type="submit">Hỏi</button></form>
+      <input id="moc-q" className="inp" style={{ flex: 1 }} value={q} onChange={e => setQ(e.target.value)} placeholder="Hỏi Mộc về số liệu, quy trình, sáng kiến…" /><button className="btn pri" type="submit" disabled={busy}>Hỏi</button></form>
     {sop && (() => { const p = D.SOPS.find(x => x.id === sop)!; return <Modal title={p.title} onClose={() => setSop(null)}><ol>{p.steps.map((x, i) => <li key={i} style={{ marginBottom: 6 }}>{x}</li>)}</ol></Modal> })()}
     {taskPreset && <NewTaskModal preset={taskPreset} onClose={() => setTaskPreset(null)} />}
   </>

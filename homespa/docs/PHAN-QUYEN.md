@@ -74,3 +74,20 @@ Nhiều lớp, không dựa vào một máy trong spa (dễ hỏng/mất cắp/v
 5. **Thử khôi phục mỗi tháng** trên dự án trống; bản sao chưa thử thì chưa chắc dùng được.
 
 Lộ trình: thử nội bộ = gói miễn phí + backup.sh; có khách thật = Pro + PITR + backup.sh.
+
+## 6. Mộc AI (hỏi đáp) — 17/10
+**Nguyên tắc (theo yêu cầu của Ly):** Mộc trả lời dựa trên số liệu của app (CEO, Leader…) và kiến thức đã duyệt (nhân viên), **không bao giờ nhận dữ liệu nhạy cảm**: SĐT, địa chỉ, sức khỏe, tên khách (chỉ mã khách), và **mọi con số tiền** (doanh thu, chi phí, lợi nhuận, lương, giá, công nợ, hóa đơn, ngân sách).
+
+| Vai trò | Mộc được đọc |
+|---|---|
+| KTV | Ngày làm của mình (tour, giờ, giường, mã khách), điểm uy tín, đơn nghỉ, khu dọn dẹp, việc được giao + kiến thức |
+| Lễ tân | Như KTV + số đếm vận hành hôm nay (lịch theo trạng thái, hàng chờ, KTV rảnh/bận, giường đang dọn) |
+| Leader | Như Lễ tân + chấm công đội, việc theo trạng thái, phản hồi khách (số lượng, điểm TB theo nhóm) |
+| Marketing | Ngày làm của mình + phân nhóm khách (số lượng), chương trình (tiếp cận/đặt/đến — không tiền), phản hồi |
+| CEO | Toàn bộ số đếm vận hành, đội ngũ, phân nhóm khách, chương trình, hàng sắp hết (số lượng), việc chờ duyệt |
+
+**Cách bảo vệ (nhiều lớp):** app chỉ lấy trường cần → `moc-policy.ts` bỏ mọi trường có tên liên quan tiền/SĐT/sức khỏe, che SĐT và số tiền trong chữ → máy chủ đọc **vai trò thật** (hàm `moc_take_quota`, không tin app) và lọc lại → câu trả lời được che lần cuối. Khóa AI chỉ ở máy chủ. 60 lượt/người/24 giờ. Không lưu nội dung câu hỏi.
+
+**Kiến thức cho Mộc:** CEO soạn ở Mộc & Duyệt → Hỏi Mộc → "Kiến thức cho Mộc" (chọn vai trò được dùng). Lưu ở bảng `moc_docs` (RLS, có nhật ký).
+
+**Để bật (Ly làm khi có Supabase):** tạo khóa API Claude (console.anthropic.com, trả phí theo lượt dùng) → `supabase secrets set ANTHROPIC_API_KEY=...` → `supabase functions deploy moc` → chạy migration `0004_moc_ai.sql`. Mặc định dùng mô hình rẻ `claude-haiku-5-5` (đổi bằng `MOC_MODEL`). Bản demo vẫn trả lời theo mẫu, có ghi "giả lập".

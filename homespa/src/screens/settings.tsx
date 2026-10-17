@@ -7,6 +7,7 @@ import { custSegment, pointsOf } from '../logic'
 import { Block, Pill, Tiles, SubHead, Empty, RefPhoto, PhotoInput } from '../ui'
 import { PAY_RULE, FIXED_CATS } from '../period'
 import { CEO_NODES } from '../specs'
+import { MocDocs } from './mocDocs'
 
 const S = <Pill tone="yellow">{D.SAMPLE_NOTE}</Pill>
 const R = <Pill tone="green">dữ liệu app</Pill>
@@ -18,7 +19,7 @@ const yes = (b: boolean) => b ? <b style={{ color: 'var(--g-fg)' }}>✓</b> : <s
 export function settingRows() { return CEO_NODES.NM13.rows }
 
 export function SettingDetail({ no, back }: { no: string; back: () => void }) {
-  const { s, say } = useStore()
+  const { s, say, real } = useStore()
   const row = CEO_NODES.NM13.rows.find(r => r.no === no)
   const [info, setInfo] = useState({ name: 'Home Spa – Clinic Dr Quyên', addr: 'Đà Nẵng (số nhà – đường: số liệu mẫu)', phone: '0236 3xx xxx (mẫu)', open: '08:00', close: '20:00', from: D.dateShort() })
   if (!row) return <Empty>Không tìm thấy mục cài đặt</Empty>
@@ -71,7 +72,7 @@ export function SettingDetail({ no, back }: { no: string; back: () => void }) {
     '13.11': () => <><Block title="Nhóm chi phí" right={R}><Tbl head={['Hạng mục', 'Loại']} rows={D.EXP_CATS.map(c => [c, (FIXED_CATS as readonly string[]).includes(c) ? 'Cố định hằng tháng' : 'Phát sinh'])} /></Block>
       <Block title="Quỹ" right={S}><Tbl head={['Quỹ', 'Trích từ lợi nhuận', 'Mục đích']} rows={[['Quỹ vận hành', '20%', 'Lương, mặt bằng khi doanh thu thấp'], ['Quỹ dự phòng', '10%', 'Sửa chữa, sự cố'], ['Quỹ đầu tư', '5%', 'Thiết bị, mở rộng']]} /></Block></>,
     '13.12': () => <Block title="Luồng phê duyệt" right={<Pill tone="green">theo quy tắc app</Pill>}><Tbl head={['Việc', 'Ai duyệt', 'Hạn phản hồi']} rows={[['Ngân sách ≤ ' + D.vndShort(BUDGET_LIMIT), 'Leader / Marketing tự quyết', '—'], ['Ngân sách > ' + D.vndShort(BUDGET_LIMIT) + ' · đổi giá · ưu đãi', 'CEO', '24 giờ (mẫu)'], ['Nghỉ phép / đổi ca', 'Leader hoặc CEO (không tự duyệt đơn mình)', 'Trước ca'], ['Điểm uy tín lễ tân ghi nhận', 'Leader / CEO', '24 giờ (mẫu)'], ['Xóa hóa đơn', 'CEO', 'Trong ngày'], ['Đề xuất vận hành của lễ tân', 'Leader', 'Trong ca']]} /></Block>,
-    '13.13': () => <Block title="Mộc AI" right={CN}><Tbl head={['Cài đặt', 'Hiện tại']} rows={[['Kiến thức đã duyệt', D.SOPS.map(x => x.title).slice(0, 4).join(' · ') + '…'], ['Giọng giao tiếp', 'Ấm áp, ngắn gọn, xưng "Home" (mẫu)'], ['Quyền dữ liệu', 'Theo vai trò người hỏi (13.4)'], ['Chuyển người thật', 'Khiếu nại → Lễ tân; vượt quyền → Leader; tiền/giá → CEO'], ['AI thật', 'Chưa nối — đang trả lời giả lập']]} /></Block>,
+    '13.13': () => real ? <><MocDocs /><Block title="Mộc AI" right={<Pill tone="green">đã nối</Pill>}><Tbl head={['Cài đặt', 'Hiện tại']} rows={[['Kiến thức đã duyệt', D.SOPS.map(x => x.title).slice(0, 4).join(' · ') + '…'], ['Giọng giao tiếp', 'Ấm áp, ngắn gọn, xưng "Mộc"'], ['Dữ liệu Mộc được đọc', 'Chỉ số đếm vận hành theo vai trò + kiến thức ở trên. Không SĐT, sức khỏe, tiền (lọc 2 lần: app + máy chủ)'], ['Chuyển người thật', 'Khiếu nại → Lễ tân; vượt quyền → Leader; tiền/giá → CEO'], ['AI thật', 'Máy chủ Supabase (hàm moc) — cần khóa AI do chị/Ly đặt; 60 lượt/người/ngày; không lưu nội dung câu hỏi']]} /></Block></> : <Block title="Mộc AI" right={CN}><Tbl head={['Cài đặt', 'Hiện tại']} rows={[['Kiến thức đã duyệt', D.SOPS.map(x => x.title).slice(0, 4).join(' · ') + '…'], ['Giọng giao tiếp', 'Ấm áp, ngắn gọn, xưng "Home" (mẫu)'], ['Quyền dữ liệu', 'Theo vai trò người hỏi (13.4)'], ['Chuyển người thật', 'Khiếu nại → Lễ tân; vượt quyền → Leader; tiền/giá → CEO'], ['AI thật', 'Chưa nối — đang trả lời giả lập']]} /></Block>,
     '13.14': () => <Block title="Kết nối" right={R}><Tbl head={['Dịch vụ', 'Dùng cho', 'Trạng thái']} rows={[['Expo (web)', 'Bản xem thử', <Pill tone="green">Đã kết nối</Pill>], ['Supabase', 'Lưu dữ liệu thật, đăng nhập', CN], ['Zalo OA', 'Nhắn tin CSKH', CN], ['Facebook / TikTok', 'Nguồn khách, quảng cáo', CN], ['Google Maps', 'Đối soát đánh giá', CN]]} /></Block>,
     '13.15': () => <Block title="Ngưỡng cảnh báo & báo cáo" right={<Pill tone="green">theo quy tắc app</Pill>}><Tbl head={['Cảnh báo', 'Ngưỡng', 'Ai nhận', 'Mức']} rows={[['Khách chờ chia tour', '> 10 phút', 'Lễ tân, Leader', <Pill tone="red">Làm ngay</Pill>], ['Khách trễ hẹn', '> 10 phút', 'Lễ tân', <Pill tone="yellow">Quan trọng</Pill>], ['Lệch đối soát tour', 'Có lệch', 'Leader, CEO', <Pill tone="yellow">Quan trọng</Pill>], ['Kho dưới ngưỡng', `VD dầu massage < ${D.STOCK_ITEMS[0].warn} ${D.STOCK_ITEMS[0].unit}`, 'Lễ tân, Leader', <Pill tone="green">Vừa</Pill>], ['Báo cáo tuần', 'Thứ Hai 08:00 (mẫu)', 'CEO', <Pill>Bình thường</Pill>]]} /></Block>,
     '13.16': () => <><Block title="Nhật ký thay đổi gần đây" sub="Từ thông báo trong app" right={R}><div className="card list">{s.notifs.slice(0, 8).map(n => <div key={n.id} className="item"><div className="body"><div className="t">{n.text}</div><div className="d">{n.cat}{n.by ? ` · ${n.by}` : ''}</div></div></div>)}{!s.notifs.length && <Empty>Chưa có</Empty>}</div></Block>
